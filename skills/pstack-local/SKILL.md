@@ -1,6 +1,6 @@
 ---
 name: pstack-local
-description: Use whenever poteto-mode or any other pstack skill (how, why, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, the principle-* skills) runs in Claude Code, Codex, Grok or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
+description: Use whenever poteto-mode or any other pstack skill (how, why, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, the principle-* skills) or ponytail runs in Claude Code, Codex, Grok or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
 ---
 
 # pstack on this machine
@@ -17,21 +17,24 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 |---|---|
 | `Task` with `subagent_type: generalPurpose` | Claude Code: the Agent tool with `general-purpose`. Codex: a spawned agent. |
 | `subagent_type: "poteto-agent"` | `poteto-agent`. For a code-writing delegate in a repo whose AGENTS.md names its own implementer (hj-plm: `plm-implementer`), use that one. Read-only helpers stay on `poteto-agent`. |
-| `subagent_type: "Comment Sicko"` | `comment-sicko` |
+| `subagent_type: "comment-sicko"` (was `Comment Sicko`) | `comment-sicko` |
 | `readonly: true` | `Explore`, or a reviewer agent without Edit and Write. |
 | `environment: "cloud"`, `cloud_base_branch` | A local worktree (`isolation: "worktree"`) created from that branch. |
 | `model: <slug>` | The role line in `models.md` next to this file. |
-| `~/.cursor/rules/pstack-models.mdc`, `/setup-pstack` | `models.md` next to this file. Edit it to change a role. |
+| `~/.cursor/rules/pstack-models.mdc`, `/setup-pstack` | `models.md` next to this file. Edit it to change a role. Never write `~/.claude/rules/pstack-models.md`. |
 | `AskQuestion` | `AskUserQuestion` |
 | todolist | The harness's todo or task list. If there is none, a checklist in the reply. |
 | Cursor `/loop` | Claude Code `/loop`, with `ScheduleWakeup` or `Monitor`. Codex: keep working in the turn. |
 | Cursor built-in `create-skill` | `anthropic-skills:skill-creator`. A repo skill goes where AGENTS.md Instruction files says. A global skill goes in Kolin-Skills `skills/<name>/`; if a tool wrote it into home, run `kolin-skills import <path>`. |
 | `/deslop`, `control-ui`, `control-cli` from `cursor-team-kit` | Vendored and linked with the same names. For proof, use the repo's own verification skill (its CLI and feature map) first; if the repo has none, build one with `create-verification-skill` rather than scripting a one-off. The chrome-devtools MCP is for ad-hoc inspection. |
-| `.cursor/skills/<name>/` output | `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. |
+| `.cursor/skills/<name>/` output, or any project-local skill a pstack skill writes | `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. |
+| `create-formal-verification-skill` tools | Install the verifier per repo at a pinned version (TLC: Java 11+ and `tla2tools.jar`. Kani: `cargo install --locked kani-verifier`, then `cargo kani setup`). A spec or harness has no comments. |
+| `/visualize` (ketchup) | A Mermaid diagram in the reply, or a chart that a script renders. |
 | `agent-transcripts/`, `~/.cursor/projects/` | Claude Code: `~/.claude/projects/<cwd with each / and . as ->/*.jsonl`. Codex: `~/.codex/sessions/`. Read only the current workspace's transcripts. |
 | `mcps/` discovery (why) | The MCP tools listed in this session. |
 | Origin forge | Absent here. Use `gh`. |
 | Bugbot | Any review bot on the PR. Same skeptical triage (`poteto-mode/references/bugbot-triage.md`). |
+| Any other Cursor term (`run_in_background`, `resume`, Automations) | pstack's own map: `~/.agents/vendor/cursor-plugins/pstack/docs/harness/claude-code.md`. This file and `models.md` win where they differ. Agent names and slash commands have no `pstack:` prefix. |
 
 ## Model seats
 
@@ -53,7 +56,7 @@ Put the full brief in each subagent's prompt, because a subagent has none of you
 ## Other upstreams
 
 - `thermo-nuclear-code-quality-review` (cursor-team-kit) is vendored and linked like pstack. Read it for the diff pass in AGENTS.md Quality work, or when the user asks for a harsh structure review. `senior-reviewer` already carries its approval bar.
-- [ponytail](https://github.com/DietrichGebert/ponytail) is cloned to `~/.agents/vendor/ponytail` and watched, never linked. Its mode writes `shortcut:` comments, which the no-comments rule bans, and its review duplicates `senior-reviewer`. Its rules live as ported lines: the Quality work ladder in AGENTS.md. When `kolin-skills upstream` reports a change, port a rule only if it earns its place.
+- [ponytail](https://github.com/DietrichGebert/ponytail) is cloned to `~/.agents/vendor/ponytail`. `apply` links only `ponytail` and `ponytail-audit` (`VENDOR_SKILL_DIRS`). Use `ponytail` mode for all coding. Overrides: no `shortcut:` or why comment; each shortcut, its limit and its upgrade trigger go in the PR body `## Tradeoffs`. Its assert-based self-check becomes a test seen failing first. Use `ponytail-audit` for a whole-repo report. Not linked: `ponytail-review` (`senior-reviewer` reads every diff), `ponytail-debt` (it lists `shortcut:` comments, which do not exist here), `ponytail-gain` (a benchmark card) and `ponytail-help` (plugin hooks and config not installed here).
 
 ## Kolin's own skills
 

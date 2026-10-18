@@ -74,7 +74,7 @@ python3 ~/Documents/Github/Kolin-Skills/bin/kolin-skills install
 | `codex/`, `cursor/` | Hook config and the Cursor policy rule | `~/.codex/hooks.json`, `~/.cursor/` |
 | `mods/` | Claude Code mods `usage-band` and `savvy-progress` | `~/.claude/mods/` |
 | `evals/` | Agent eval cases and results | `~/.agents/evals` |
-| `upstream/` | Vendored and third-party skill sources | `~/.agents/vendor`, `npx skills` |
+| `upstream/` | Vendored and third-party skill sources | `~/.agents/vendor`, `npx skills`. Vendored skills link into `~/.agents/skills` and `~/.claude/skills`. From ponytail, only `ponytail` and `ponytail-audit` link (`VENDOR_SKILL_DIRS`). |
 | `tests/` | Hook and apply tests | Run by `check` |
 
 ## Not managed
