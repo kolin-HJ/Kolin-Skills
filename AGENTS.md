@@ -1,0 +1,26 @@
+# Kolin-Skills
+
+This repo is the source of truth for Kolin's agent setup on every machine: the global policy, own skills, subagents, hooks, harness settings and Claude Code mods. Home directories hold only links to it or files rendered from it. `README.md` has the layout and the bootstrap.
+
+## Rules
+
+- Edit files here, never the copy in home. A file in home that `kolin-skills apply` links or renders is replaced on the next apply. A replaced real file goes to `~/.kolin-skills/backup/`.
+- One CLI owns the wiring: `bin/kolin-skills`. A new harness path goes into its `LINKS`, `MERGED_JSON` or `RENDERED` table, not into a new script.
+- Hook commands and machine paths use `{{HOME}}` and `{{REPO}}` in the templates under `claude/`, `codex/` and `cursor/`. Never commit a literal home path.
+- A hook entry is managed when its command names a path in this repo. `apply` replaces managed entries and keeps every other entry, such as herdr's.
+- `claude/settings.json` holds only the keys this repo manages. Machine-specific keys (`permissions`, `autoMode`) stay in `~/.claude/settings.json`.
+- Third-party skills are not copied here. pstack and ponytail are listed in `upstream/vendor.json`, and `npx skills` packages in `upstream/skills.json`. `kolin-skills upstream` installs them.
+- No secret goes into this repo: no token, `auth.json`, MCP credential or `.env` value.
+
+## Add something
+
+| To add | Put it in | Then |
+|---|---|---|
+| A skill | `skills/<name>/SKILL.md` | Run `kolin-skills apply`, or start a session. It links into `~/.agents/skills`, `~/.claude/skills` and `~/.cursor/skills`. |
+| A subagent | `agents/<name>.md` | `apply` links it for Claude and writes the Codex `.toml` mirror. |
+| A hook | `hooks/<name>.py`, plus an entry in `claude/settings.json` or `codex/hooks.json` | Add a case to `tests/test_hooks.py`. |
+| A third-party skill | `upstream/skills.json` | Run `kolin-skills upstream`. |
+
+## Gate
+
+`kolin-skills check` is the gate. It fails when home has drifted from the repo, a spend cap is off, the policy or `skills/pstack-local/SKILL.md` is over its size budget, or a test fails. Run it before you call work done.

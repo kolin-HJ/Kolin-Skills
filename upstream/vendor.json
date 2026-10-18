@@ -1,0 +1,15 @@
+{
+  "cursor-plugins": {
+    "url": "https://github.com/cursor/plugins.git",
+    "sparse": [
+      "pstack",
+      "cursor-team-kit/skills/deslop",
+      "cursor-team-kit/skills/control-ui",
+      "cursor-team-kit/skills/control-cli",
+      "cursor-team-kit/skills/thermo-nuclear-code-quality-review"
+    ]
+  },
+  "ponytail": {
+    "url": "https://github.com/DietrichGebert/ponytail.git"
+  }
+}

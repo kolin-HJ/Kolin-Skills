@@ -1,0 +1,41 @@
+{
+  "effectHookOwners": [
+    "apps/web/src/lib/use-effect-on-change.ts",
+    "apps/web/src/lib/use-event-listener.ts",
+    "apps/web/src/lib/use-interval.ts",
+    "apps/web/src/lib/use-load-on-change.ts",
+    "apps/web/src/lib/use-poll-until-settled.ts",
+    "apps/web/src/lib/use-visible-poll.ts"
+  ],
+  "deliberateCatchOwners": [
+    "apps/web/src/lib/best-effort.ts",
+    "packages/auth/src/server-client.ts"
+  ],
+  "hexColorOwners": ["apps/web/src/lib/ag-grid-license.ts", "apps/web/src/app/global-error.tsx"],
+  "throwingGuards": [
+    "requireUser",
+    "requireSectionAccess",
+    "requireSectionPage",
+    "requireCapability",
+    "requireCapabilityPage",
+    "requirePoEditAccess"
+  ],
+  "checkedGuards": [
+    "getAppUser",
+    "getCurrentUser",
+    "requireApiUser",
+    "requireApiCapability",
+    "requireCronAuth",
+    "hasValidCronAuth",
+    "requireWebhookAuth",
+    "isValidTaskSignature"
+  ],
+  "bannedFileNames": ["errors-badge.tsx"],
+  "maxFileLines": 1000,
+  "scopes": {
+    "comments": ["apps", "packages", "scripts", ".agents/skills/verify-supply-chain/scripts"],
+    "file-length": ["apps", "packages", "scripts", ".agents/skills/verify-supply-chain/scripts"],
+    "guards": ["apps/web/src", "packages"],
+    "rules": ["apps/web/src", "packages"]
+  }
+}

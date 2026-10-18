@@ -1,0 +1,38 @@
+{
+  "vercel-labs/skills": [
+    "find-skills"
+  ],
+  "firecrawl/skills": [
+    "firecrawl",
+    "firecrawl-agent",
+    "firecrawl-company-directories",
+    "firecrawl-competitive-intel",
+    "firecrawl-crawl",
+    "firecrawl-dashboard-reporting",
+    "firecrawl-deep-research",
+    "firecrawl-demo-walkthrough",
+    "firecrawl-developer-index",
+    "firecrawl-download",
+    "firecrawl-interact",
+    "firecrawl-knowledge-base",
+    "firecrawl-knowledge-ingest",
+    "firecrawl-lead-gen",
+    "firecrawl-lead-research",
+    "firecrawl-map",
+    "firecrawl-market-research",
+    "firecrawl-monitor",
+    "firecrawl-parse",
+    "firecrawl-qa",
+    "firecrawl-research-index",
+    "firecrawl-research-papers",
+    "firecrawl-scrape",
+    "firecrawl-search",
+    "firecrawl-seo-audit",
+    "firecrawl-shop",
+    "firecrawl-website-design-clone",
+    "firecrawl-workflows"
+  ],
+  "shadcn/improve": [
+    "improve"
+  ]
+}
