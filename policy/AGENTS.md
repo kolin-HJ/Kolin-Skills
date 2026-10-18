@@ -1,23 +1,23 @@
 # Global agent working preferences
 
-This is the one policy file for every harness. It lives in `~/Documents/Github/Kolin-Skills`, the repo that owns every global skill, agent, hook and setting, and `kolin-skills apply` links it into each harness. Edit the repo, never a copy.
+The one policy file for every harness. `~/Documents/Github/Kolin-Skills` owns it and every global skill, agent and hook; `kolin-skills apply` links them. Edit the repo, never a copy.
 
 Precedence, highest first: my instructions in the session, the repo's `AGENTS.md`, this file, then pstack. Where the repo file and this file conflict, follow the stricter one and say which one you followed.
 
 ## pstack is the method
 
-Engineering work runs on Lauren Tan's pstack. At the start of a feature, bug fix, refactor, perf problem, investigation, review, PR or long run, read `~/.agents/skills/poteto-mode/SKILL.md` and `~/.agents/skills/pstack-local/SKILL.md`. Then follow the playbook that matches. Skip it for a casual turn or when I opt out.
+Engineering work runs on Lauren Tan's pstack. At the start of engineering work, read `~/.agents/skills/poteto-mode/SKILL.md` and `~/.agents/skills/pstack-local/SKILL.md`. Then follow the playbook that matches. Skip it for a casual turn or when I opt out.
 
-pstack owns the method: the playbooks, the principles (`principle-*`), `how`, `architect`, `interrogate`, `unslop`, `technical-writing`, `no-comments` and the rest. `pstack-local` maps its Cursor terms onto each harness and lists every place where this file overrides it. This file holds only what pstack lacks or what I set differently. Do not copy pstack rules into this file or into a repo file. Point to the skill.
+pstack owns the method: the playbooks, the `principle-*` skills, `how`, `interrogate`, `unslop` and the rest. `pstack-local` maps its Cursor terms onto each harness and lists every place where this file overrides it. This file holds only what pstack lacks or what I set differently. Do not copy pstack rules into this file or into a repo file. Point to the skill.
 
 ## Quality work
 
-Quality is the most value for the least code. Ask of every file, branch, option, test and doc: why is it here, and what does it give a user or an engineer? Cut what has no answer. Ask twice:
+Quality is the most value for the least code. Ask of every file, branch, option, test, dependency and doc: what does it give a user or an engineer, and what breaks if it goes? Cut what has no answer. Ask twice:
 
-1. **In the plan.** State the value (feature, fix, improvement, optimization, efficiency, debt, gate or docs) and the smallest change. Take the first that works: no code, a deletion, an existing helper, the platform or an installed dependency, new code (`principle-laziness-protocol`).
-2. **In the diff, before review.** Each hunk traces to the value or goes. Look for the move that deletes a branch or layer (`thermo-nuclear-code-quality-review`). Say what you cut and did not check.
+1. **Before the first edit, write the value case** in five lines: the outcome and for whom; what happens if we do nothing; the smallest change (`principle-laziness-protocol`); what you will not add; how you will prove it. No outcome, no code: say so.
+2. **In the diff, before review.** Run `~/.agents/skills/pstack-local/scripts/diff-audit <base>`. Fix each block, or justify it in the PR body. Each hunk traces to the value case or goes. Look for the move that deletes a branch or layer (`thermo-nuclear-code-quality-review`). Say what you cut and did not check.
 
-With no value, say so. Less code wins only at the same bar for correctness, tests and proof.
+Less code wins only at the same bar for correctness, tests and proof.
 
 ## Initiative
 
@@ -40,7 +40,7 @@ Never commit, push, merge or deploy without my approval in the session. Ask befo
 The codebase is the agents' memory. Agents extend what exists, so a bad pattern spreads like a virus until it is the pattern. Every nit, annoyance and agent mistake you see becomes a constraint in the strongest layer that can hold it (`principle-encode-lessons-in-structure`). Repeat until an agent with little context can one-shot a quality PR:
 
 1. Code that makes the bad state impossible: a type, one paved path, an import boundary, a library that shrinks the design space, or our own primitives with deliberate APIs.
-2. A gate: a lint rule, a type check, an invariant test, CI. Baseline existing violations so the count can only fall.
+2. A gate (a lint rule, a type check, an invariant test, CI) with one case it flags and one it passes. Baseline existing violations so the count can only fall.
 3. A skill or `AGENTS.md`, only for judgment no tool can check. Add these last.
 4. Review, for what the first three missed. A finding that recurs moves up the list.
 
@@ -51,7 +51,6 @@ Paying down debt is standing work in its own PRs: delete a banned pattern, lower
 ## Overrides of pstack
 
 - **No comments.** Code carries no comments, JSDoc included. The reason goes into a name, a type, a test, a decision record or the PR body. The only exception is a gate directive with `-- <reason>` (`eslint-disable`, `oxlint-disable`, `@ts-expect-error`).
-- **Every new test is seen failing first,** without the change or with its guard removed. The report says how it failed.
 - **The integration branch,** not `main`, is trunk wherever the repo names one.
 - **The repo's gate** (`pnpm check` or its equivalent) runs before work is called done. pstack checks add to it and never replace it.
 - **The repo's reviewer** (`senior-reviewer` unless the repo names another) reads every non-trivial diff. `interrogate` runs in addition for a schema, access rule, mutation or contested design. When you review yourself, use the finding format in `~/.claude/agents/senior-reviewer.md`.
@@ -76,34 +75,30 @@ Check authorization before every write. Keep secrets out of logs, errors, commit
 
 ## Tests and proof
 
-Tests follow `principle-test-behavior-not-implementation`. Also delete a test that greps prose or a migration. Prove database policies against a running database.
+**When to write a test.** A test must fail when a behavior that a user or caller relies on breaks. Name that behavior, or write no test. Test a behavior change (a calculation, rule, permission, data write, parser, date or money rule, system boundary), a bug before its fix, and the public boundary of untested code before a refactor. Do not test copy, styling, a constant, config, a flag, a covered refactor, docs, agent prose or a one-off script (paste its dry run).
 
-Before a risky change to untested code, land a characterization test first, in its own change.
+**Shape.** Call the code as its caller does. Assert the result or stored state against literals. Use real I/O fakes, not module mocks. Do not assert collaborator calls or query order, read source or snapshot trivial output. One behavior, one table of inputs (`principle-test-behavior-not-implementation`).
+
+**Proof.** A new test fails first on an assertion, not on a missing import. Then break the code in one line and see the test fail. Put that mutation in `## Verification`. Rewrite or delete a test that still passes, or that fails on a refactor that changes no behavior. Delete tests of removed code. Prove database policies against a running database.
 
 Done means proven on the real artifact (`principle-prove-it-works`). Run the repo's verification skill and paste its output. If you could not run it, say so in the same sentence as "done". Keep what you ran apart from what you infer.
 
 ## Before a PR ships
 
-Every PR earns its place. Before it opens:
+The reviewer reads a release PR as a whole.
 
-1. Run both Quality work passes. A change with no real value does not ship.
-2. Run the repo's reviewer.
-3. Put the value in the PR body as `Value: <kind> — <one sentence>`.
-
-The reviewer reads a release PR as a whole. Make every PR easy to review.
-
-PR body order: `Value:` line, `## Why`, `## Scope`, `## Tradeoffs`, `## Blast Radius`, `## Verification`. Where the repo's template differs, follow the repo. Do not add a `## What to check` section.
+PR body order: `Value: <kind> — <one sentence>`, `## Why`, `## Scope`, `## Tradeoffs`, `## Blast Radius`, `## Verification`. Where the repo's template differs, follow the repo. Do not add a `## What to check` section.
 
 - `## Scope` is a table of PR, kind, what it gives and lines. A release lists every PR, with PRs that cancel each other merged into one net row.
 - `## Blast Radius` names migrations, access grants, config, deploy order, and every change a planner or user will notice. State a manual production step with its date.
 - `## Verification` has one line per check, `Ran:` or `Not run: <check>, because <why>`. A release says which pages were driven and which saves were not.
 - Count PRs and lines from `git log`, not from memory.
-- Mark docs, feature maps, tests, lockfiles, agent tooling, workflows and scripts `linguist-generated=true` in `.gitattributes`, so Files changed shows app code first. Add the lines when a repo lacks them. No bot that comments a file map.
+- Mark docs, feature maps, tests, lockfiles, agent tooling, workflows and scripts `linguist-generated=true` in `.gitattributes`, so Files changed shows app code first. No bot that comments a file map.
 - A hand edit in a shared account (NetSuite, a live dashboard) ships with a PR that brings the repo in line.
 
 ## Quality gates
 
-Before you work in a repo, find its gates (check script, CI, lint, type and format config) and run them before you call work done. Fix a finding rather than silence it.
+Before you work in a repo, find its gates (check script, CI, lint, type and format config). Fix a finding rather than silence it.
 
 A TypeScript repo needs a type-aware linter, strict `tsc`, a dead-code audit and a formatter. When one is missing, propose it as its own change. Do not add a tool without asking.
 
@@ -111,7 +106,7 @@ A TypeScript repo needs a type-aware linter, strict `tsc`, a dead-code audit and
 
 Delegate concrete, independent subtasks when that saves time or raises quality. A subagent costs about four chat turns, and a multi-agent run about fifteen.
 
-The main thread's context is the largest cost (`principle-guard-the-context-window`). Delegate wide reading so only conclusions come back, and start a new session for a new task. The model for each kind of job lives in `pstack-local/models.md`.
+The main thread's context is the largest cost (`principle-guard-the-context-window`). Delegate wide reading so only conclusions come back, and start a new session for a new task.
 
 Built-in `Explore` and `Plan` agents do not load this file, so quote the rules the task needs. Each brief holds:
 
@@ -121,23 +116,22 @@ Built-in `Explore` and `Plan` agents do not load this file, so quote the rules t
 4. The tradeoffs already decided, so they do not come back as findings.
 5. What to do on a surprise: stop and report on a drifted file, a check that fails twice, or work outside its files.
 
-A worker's report is a lead (`pstack-local`). Read every hunk of a delegated diff and what each new test asserts. Reject a change outside the assigned files. After two revision rounds, rewrite the brief.
+Read every hunk of a delegated diff and what each new test asserts. Reject a change outside the assigned files. After two revision rounds, rewrite the brief.
 
 ## Writing
 
 Prose follows `unslop` and `technical-writing`, about 80% of the way to ASD-STE100, in every reply, PR body, commit, review and doc. Code names, paths and domain terms stay exact.
 
-To explain a mechanism, draw it with the real module, table and function names: ASCII or the harness's visual tool in a reply, Mermaid in a doc, ADR or PR body. Skip it for a single fact.
+Draw a mechanism with its real module, table and function names: ASCII in a reply, Mermaid in a doc, ADR or PR body. Skip it for a single fact.
 
-An `explainer` page or a video needs my yes first. When one would help, end with a one-line offer. A video is a Manim render with free local text-to-speech, or a paid voice API only with my key.
+An `explainer` page or a video needs my yes first; offer it in one line. A video is Manim with free local text-to-speech, or a paid voice API only with my key.
 
 ## Instruction files
 
-Each repo has one instruction file, `AGENTS.md` at the root, with no `CLAUDE.md` copy, under about 200 lines. Skills live in `.agents/skills/<name>/SKILL.md` with `.claude/skills/<name>` links. A skill's description says when to use it. A subagent's `.md` is its source, and its Codex `.toml` mirror is generated (`kolin-skills apply`). State each rule once and link to it elsewhere.
+Each repo has one instruction file, `AGENTS.md` at the root, with no `CLAUDE.md` copy, under about 200 lines. Skills live in `.agents/skills/<name>/SKILL.md` with `.claude/skills/<name>` links. A skill's description says when to use it. A subagent's `.md` is its source, and its Codex `.toml` mirror is generated. State each rule once and link to it elsewhere.
 
 ## Harness
 
 - After each edit, `hooks/lint-changed-lines.py` lints the changed lines. Fix what it reports before you continue.
-- `~/.codex/compact-instructions.md` is the one brief for what a compaction summary keeps. After a compaction, re-read a file before you edit it.
+- After a compaction, re-read a file before you edit it.
 - In Claude Code, use Plan Mode for multi-file or uncertain work.
-- To update pstack and third-party skills, run `kolin-skills upstream`. After any change to this setup, run `kolin-skills check`.

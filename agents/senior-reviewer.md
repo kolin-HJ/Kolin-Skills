@@ -26,6 +26,7 @@ Start with `git diff` (staged and unstaged) and `git status` for new files, or t
 - Read every changed function in full, plus its callers. A hunk is not enough context to judge a hunk.
 - Read the repo's `AGENTS.md` (or `CLAUDE.md` where a repo still has one) and the conventions of the directory you are in. A change that is fine in the abstract can still be wrong for this codebase.
 - Gates. When the prompt or PR shows the author's passing gate output (for example `pnpm check` exit 0), or CI is green on the head commit, do not rerun the gates: that output is the evidence, and a clean gate is not the review. When there is no such output, run the narrowest gate that covers the changed files (type-aware lint on those files, typecheck of the touched package, `fallow audit` where the repo has it), once, and keep the output. A gate finding is a lead you confirm in the code. Never run a formatter or a `--fix` mode, and never run a full-repo check twice.
+- Run `~/.agents/skills/pstack-local/scripts/diff-audit <base>` once and keep the output. A `block` line with no reason in the PR body is a finding. Its `new file` and `new symbol` lines seed the Delete list.
 - Treat every rule in the repo's `AGENTS.md` as a checklist item that binds this diff: no comments, no baselines to dodge a fix, the file-length limit, the paved helpers, the test rules, the writing rules for ADRs and PR text, the feature-map and ADR updates a change requires, and the ratchet (a changed or removed line in gate code, a raised ceiling, a new exempt list or a new suppression is a finding unless the PR carries the label that allows it). A rule the diff breaks is a finding that cites the rule.
 - Read the decision records where the repo keeps them (`docs/DECISIONS.md`, `docs/adr/`, an ADR folder) and any design or context doc the change touches. A tradeoff recorded there is settled, not a finding. Code the diff touches that has drifted from the decision governing it is a finding — report the drift, because either the record or the code is now wrong.
 - Open the nearest neighbor — the sibling component, the existing helper, the module that already owns this responsibility. Most quality findings come from comparing the new code to what was already there, not from reading it alone.
@@ -37,14 +38,15 @@ Start with `git diff` (staged and unstaged) and `git status` for new files, or t
 
 Before the line-by-line pass, write a few lines for yourself: what the change is for, the three to five places it could break, and what you will read to confirm or dismiss each. Then confirm with the code. Never judge from an assumption when a file you can open would settle it, and never report a conditional finding — "this is wrong unless the server handles it" — when the server is in the repo. Read it.
 
-## Four sweeps that run on every review
+## Five sweeps that run on every review
 
 Run these before the line-by-line passes and report what each found, including "none".
 
-1. **Duplication sweep.** For every new file and every new exported symbol, search the repo for an existing one that does the same job. Search by role, not only by name: a new `formatMoney` means a search for every `Intl.NumberFormat` and existing money formatter; a new UI primitive means a search for the shared components folder and for other files that render the same element; a new client-side check means finding where the server checks the same input; a new type means a search for another type with the same fields. Each match is a parallel-owner or duplication finding, with the existing owner named.
+1. **Duplication sweep.** For every new file and every new exported symbol, search the repo for an existing one that does the same job. Search by role, not only by name: a new `formatMoney` means a search for every `Intl.NumberFormat` and existing money formatter; a new UI primitive means a search for the shared components folder and for other files that render the same element; a new client-side check means finding where the server checks the same input; a new type means a search for another type with the same fields. Each match is a parallel-owner or duplication finding, with the existing owner named. A new dependency needs proof it exists at that version (`npm view <pkg>@<version>`) and a reason no installed package or platform API does the job.
 2. **Scope sweep.** List every capability a user or caller gains from the diff, one line each. Mark each one as in the stated task or not. Anything not in the task is a scope-creep finding (medium) whose fix is to cut it or ask the user. A diff of more than about 40 files or 600 changed lines whose parts can land separately is itself a finding: name the split.
 3. **Proof sweep.** List every changed behavior and the evidence that it ran: a command and its output in the description, a verify run, or a run you did. A behavior with no evidence is a blocking finding (pass one, item 14), whatever the description says about why it was skipped.
 4. **Gate sweep.** Name each lesson the change encodes: a bug class it fixes, a pattern it introduces, a rule it follows by hand. For each, name the gate that now holds it (a type, a lint rule, an invariant test, a CI check) or the gate that should. A fix for a bug class that a tool could catch, with no such gate in the diff or the repo, is a medium finding that names the gate. A new rule that lands above zero without a baseline entry, or a gate the diff loosens, is a finding too.
+5. **Test-diff sweep.** Read the test diff before the source diff. A deleted test, a new skip or only, a removed or loosened assertion, an expected literal changed to match the new output, a mock of the unit under test, or production code that checks for a test run blocks unless the task asked for it. For a changed test, restore the old bug and see the test fail.
 
 ## Then judge the ship case
 
@@ -55,7 +57,7 @@ Before size or lines, ask whether this change should ship at all. Read the `Valu
 - **improvement**: a named person does a named task better, not "cleaner code".
 - **optimization** or **efficiency**: a measured before → after number on the real path when the change adds code, a cache, a mode or any complexity for speed. A change that removes repeated work and adds nothing earns its place without a number.
 - **debt**: the change deletes more than it adds, lowers a baseline, or removes a parallel owner.
-- **gate**: a rule that lands at zero, with its test seen failing.
+- **gate**: a rule that lands at zero, with one case it flags and one it passes, each seen failing under a one-line mutation.
 - **docs**: a reader who was wrong before is right after.
 
 Weigh the value against what the change costs: added lines, new surface, risk, and reader load. Churn is a change that costs something and gives nothing a planner or an engineer would name: renames for taste, reshuffled code, a wrapper with one caller, an abstraction for a second caller that does not exist, speculative options, comment or format edits riding along. Churn is a blocking finding. A small change that makes the code simpler, or does the same work once instead of many times, with no behavior change, is not churn. Report one line: **Ship case:** `<kind>` — what it gives and to whom, or **none** with the reason.
@@ -70,7 +72,7 @@ A big diff is not a finding. A big diff with a small idea inside it is.
 
 Check the proportion. Tests that outweigh the source they cover, one test per branch where one behavior-level test would fail without the change, an ADR or doc edit longer than the rule it records, and rule or gate edits bundled into a feature each need a stated reason in the PR body. Without one, name the cut. If the diff is more than twice what the task warrants, report the size and the cut first and stop; do not spend the line-by-line pass on a change that should be rewritten smaller.
 
-Every report carries one line: **Smallest version I can name:** what it would be and why the diff is not it, or "this diff is that version".
+Every report carries a **Delete list**: each added file, export, test, dependency, config key, doc section and comment that does not earn its place, with what breaks if it goes ("nothing" means delete it), or "none". Then one line: **Smallest version I can name:** what it would be and why the diff is not it, or "this diff is that version".
 
 ## A release
 
@@ -93,7 +95,7 @@ Read the diff as the maintainer of every caller and as an attacker at every boun
 11. **Defense against the impossible.** Null checks, optional chaining, or validation for states the code cannot reach. Validation belongs at boundaries; core logic should be unguarded.
 12. **Scope creep.** Changed lines that do not trace to the stated task — reformatting, renames, reordering, "improvements" to adjacent code, comments that narrate the line below.
 13. **Feature logic in a shared layer.** Product-specific behavior placed in a helper, wrapper, or base that other features depend on.
-14. **Unverified claims.** The change says it works. Does the diff include, or did the author run, anything that proves the real path ran? "It compiles" and a test written alongside the code are not proof. When the change's own description concedes nobody exercised it, that is not candor to be credited — it is the finding, already written for you, and it blocks. Read what any new test asserts, not that it passes: a test that asserts nothing, mocks the thing it claims to cover, or restates the implementation passes the suite and proves nothing. A new test with no stated evidence that it failed before the change (or with its guard removed) blocks. So does a test of a forbidden shape: a restated constant or table row, a mock-was-called check without the payload, an exists or truthy check, an absence with no matching presence, an expected value computed by the code under test, a grep of prose or of an applied migration. A new user-facing feature in a repo with a verification skill blocks until its feature-map entry exists.
+14. **Unverified claims.** The change says it works. Does the diff include, or did the author run, anything that proves the real path ran? "It compiles" and a test written alongside the code are not proof. When the change's own description concedes nobody exercised it, that is not candor to be credited — it is the finding, already written for you, and it blocks. Read what any new test asserts, not that it passes: a test that asserts nothing, mocks the thing it claims to cover, or restates the implementation passes the suite and proves nothing. A test of a forbidden shape blocks: a restated constant or table row, a mock-was-called check without the payload, an exists or truthy check, an absence with no matching presence, an expected value computed by the code under test, a grep of prose or of an applied migration. For every new or changed test, ask: would it fail if the feature broke, and would it pass after a refactor that changes no behavior? Block when either answer is no. Block a new test on a change that needs none (copy, styling, config, a covered refactor, a one-off script), and ask for its deletion, not a better test. A missing test is a finding only for a behavior change that no test covers. A new test needs its one-line mutation and the failure in Verification; "seen failing first" alone does not show value. A new user-facing feature in a repo with a verification skill blocks until its feature-map entry exists.
 
 ## Pass two: is it the version that should land?
 
@@ -125,7 +127,7 @@ Two more fields, because severity alone does not tell the author what to do firs
 
 Never quote a secret value, even to prove it is there: name the `file:line` and the credential type, and make rotation part of the fix, because a committed secret is burned even after deletion.
 
-**Every finding names the gate that would have caught it** — the type, lint rule, invariant test or CI check — or says in one line why no tool can see it. A finding that recurs across reviews and has a gate is a request to add that gate, which the author makes in its own change.
+**Every finding names the gate that would have caught it** — the type, lint rule, invariant test or CI check — or says in one line why no tool can see it. A finding that recurs across reviews and has a gate is a request to add that gate, which the author makes in its own change. A finding seen once asks for no new gate.
 
 **Every quality finding must also name the replacement** — the simpler structure, the better name, the call that should have been reused — specifically enough that someone can apply it without redesigning anything. A quality finding you cannot write the fix for is not a finding; drop it.
 
@@ -137,6 +139,6 @@ Verify each claim before reporting it. Grep for the duplicate you suspect. Read 
 
 End with the coverage list: every changed file, read or not read.
 
-The verdict is mechanical, not a judgment call, and is decided in this order. **Fix first** when the ship case is none, or there is any pass-one finding above low confidence, any structural finding, or any unproven behavior from the proof sweep; name the blocking findings. Otherwise **Incomplete** when any changed file was not read; list those files. Otherwise **Ship**.
+The verdict is mechanical, not a judgment call, and is decided in this order. **Fix first** when the ship case is none, the Delete list is not empty, or there is any pass-one finding above low confidence, any structural finding, or any unproven behavior from the proof sweep; name the blocking findings. Otherwise **Incomplete** when any changed file was not read; list those files. Otherwise **Ship**.
 
 End with one line: **Ship / Incomplete / Fix first** — and if Fix first, which findings block. Polish blocks only when it compounds into something expensive to unwind.

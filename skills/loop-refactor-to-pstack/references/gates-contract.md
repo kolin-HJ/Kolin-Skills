@@ -40,7 +40,7 @@ When `gates:lower` empties a baseline, delete the file and its registry entry. R
 
 ## Rules engine (AST-based)
 - Each rule is a named counter, `count<Thing>(sourceFile)`, in a shared module, with fix text that names its paved path.
-- It has fixture tests covering what it flags and what it must not flag, each seen failing under a mutation of the counter.
+- It has one fixture it flags and one it must not flag, each seen failing under a mutation of the counter.
 - It is scoped by path (for example, the app's source but not tests or the helper that owns the raw form), and baselined per file.
 - For JS/TS, a small AST helper module (`unwrap`, `calleeName`, `importBindings`, `localInitializers`) keeps counters short. See `assets/node-gates/lib/ast.mjs`.
 
@@ -80,4 +80,4 @@ Base keys follow renames, so a moved file keeps its allowance.
 | Library-limit list and public-entry list | Each entry | None |
 | Every registered baseline | Each entry, in the baseline's own format | None |
 
-Prove every row with a test that plants the loosening and asserts the exact `dropped` and `raised` lists. Watch each test fail under a mutation of the extractor it protects.
+Prove each watched file kind once, plus one case where the PR edits the ratchet itself, with a test that plants the loosening and asserts the exact `dropped` and `raised` lists. Watch each test fail under a mutation of the extractor it protects.

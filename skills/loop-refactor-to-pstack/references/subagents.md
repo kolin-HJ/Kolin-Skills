@@ -20,7 +20,7 @@ Never use `general-purpose` or `Plan` for program work. If a job fits none of th
 - The pin lives in each definition's frontmatter: `model: claude-sonnet-5-5` and `effort: medium`. Launch these agents **without** a `model` argument, so the definition wins and one file changes the whole program.
 - Run `bash <skill>/assets/check-subagents.sh [<repo implementer> ...]` in Phase 0 and after any change to agent files. It checks `poteto-agent`, `senior-reviewer`, `comment-sicko` and any named implementer in the repo's `.claude/agents/`, then `~/.claude/agents/`. A wrong or missing pin is fixed in the frontmatter with the user's yes, because agent definitions are harness configuration.
 - A Codex agent `.toml` is generated from its `.md`; never edit the mirror by hand.
-- When the host is not Claude Code, a Claude seat runs through `~/.agents/skills/pstack-local/scripts/seat claude:claude-sonnet-5-5 <prompt> <out>`. A bare `claude` seat takes the CLI's default model, which is not Sonnet.
+- Every seat is a native Claude subagent through the Agent tool (`pstack-local/models.md`). Do not start a seat with the `claude` CLI, because it takes the CLI's default model, which is not Sonnet.
 - Record the model in the ledger: `orch ledger record … --verifier poteto-agent/sonnet-5.5`.
 
 ## Worktrees for workers
@@ -29,7 +29,7 @@ Lanes share the one program worktree, each with its own files. Launch every work
 
 ## Panels keep their diversity
 
-`interrogate`, `arena` and `architect` want one reviewer per model family (`pstack-local/models.md`). Their Claude seat is a native `poteto-agent` or `senior-reviewer` on Sonnet 5.5; the Codex and Grok seats stay on their own families. A risky unit's verifier is on a different family from its worker when one is available. When only Claude is available, say the review was same-family.
+`interrogate`, `arena` and `architect` want one reviewer per model family (`pstack-local/models.md`). Claude is the only provider (`pstack-local/models.md`), so each seat is a native `poteto-agent` or `senior-reviewer` on Sonnet 5.5, and a seat that upstream gives to Codex or Grok is one more Claude seat. Say in the report that the review was same-family.
 
 ## Briefs written for Sonnet at medium effort
 

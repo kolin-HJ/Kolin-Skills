@@ -105,8 +105,8 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual(hooks.count("block-env-reads.py"), 1)
 
     def git(self, cwd, *args):
-        subprocess.run(["git", "-C", str(cwd), "-c", "user.email=t@t", "-c", "user.name=t", *args],
-                       check=True, capture_output=True)
+        return subprocess.run(["git", "-C", str(cwd), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+                              check=True, capture_output=True, text=True)
 
     def test_pull_brings_a_skill_pushed_from_another_machine_into_home(self):
         remote = self.home / "remote.git"
@@ -130,6 +130,20 @@ class ApplyTests(unittest.TestCase):
         self.assertIn("add pushed-skill", result.stdout)
         self.assertTrue((self.home / ".claude/skills/pushed-skill/SKILL.md").is_file())
 
+    def test_git_hooks_in_a_checkout_leave_a_home_that_is_not_wired_to_it_alone(self):
+        self.git(self.repo, "init", "-q", "-b", "main")
+        self.git(self.repo, "add", "-A")
+        self.git(self.repo, "commit", "-qm", "init")
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        other_home = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, other_home)
+        subprocess.run(["git", "-C", str(self.repo), "checkout", "-q", "-b", "feature"],
+                       env={**os.environ, "HOME": str(other_home)}, check=True, capture_output=True)
+        self.assertEqual(sorted(path.name for path in other_home.iterdir()), [])
+        subprocess.run(["git", "-C", str(self.repo), "checkout", "-q", "main"],
+                       env={**os.environ, "HOME": str(self.home)}, check=True, capture_output=True)
+        self.assertTrue((self.home / ".claude/skills/full-send").is_symlink())
+
     def test_pull_with_local_edits_applies_the_working_tree_without_pulling(self):
         self.git(self.repo, "init", "-q", "-b", "main")
         (self.repo / "skills/local-only").mkdir()
@@ -139,7 +153,7 @@ class ApplyTests(unittest.TestCase):
         self.assertIn("skipped pull", result.stdout)
         self.assertTrue((self.home / ".claude/skills/local-only").is_symlink())
 
-    @unittest.skipUnless(shutil.which("python3.14"), "needs a python with tomllib")
+    @unittest.skipUnless(sys.version_info >= (3, 11), "needs a python with tomllib")
     def test_codex_agent_mirror_is_valid_toml_that_keeps_backslashes_and_quotes(self):
         body = 'Match \\d+ in C:\\path and say "hi" """ twice.'
         (self.repo / "agents/escape-probe.md").write_text(
@@ -147,11 +161,22 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual(self.run_cli("apply").returncode, 0)
         toml = self.home / ".codex/agents/escape-probe.toml"
         parsed = subprocess.run(
-            ["python3.14", "-c", "import json,sys,tomllib;print(json.dumps(tomllib.load(open(sys.argv[1],'rb'))))", str(toml)],
+            [sys.executable, "-c", "import json,sys,tomllib;print(json.dumps(tomllib.load(open(sys.argv[1],'rb'))))", str(toml)],
             text=True, capture_output=True, check=True)
         data = json.loads(parsed.stdout)
         self.assertEqual(data["developer_instructions"].strip(), body)
         self.assertEqual(data["sandbox_mode"], "read-only")
+
+    def test_every_harness_with_a_shell_tool_runs_the_env_guard_before_it(self):
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        claude = json.loads((self.home / ".claude/settings.json").read_text())["hooks"]["PreToolUse"]
+        codex = json.loads((self.home / ".codex/hooks.json").read_text())["hooks"]["PreToolUse"]
+        for name, entries in [("claude", claude), ("codex", codex)]:
+            with self.subTest(harness=name):
+                guarded = [entry["matcher"] for entry in entries if "block-env-reads.py" in json.dumps(entry)]
+                self.assertTrue(guarded and "Bash" in guarded[0], guarded)
+        claude_guarded = next(entry["matcher"] for entry in claude if "block-env-reads.py" in json.dumps(entry))
+        self.assertEqual(set(claude_guarded.split("|")), {"Bash", "Read", "Grep", "Glob"})
 
     def write_skill(self, directory):
         directory.mkdir(parents=True)
@@ -221,6 +246,57 @@ class ApplyTests(unittest.TestCase):
         result = self.run_cli("apply", "--check")
         self.assertEqual(result.returncode, 1)
         self.assertIn("never-installed", result.stdout)
+
+    def make_upstream(self):
+        source = self.home / "upstream-src"
+        (source / "skills/pinned").mkdir(parents=True)
+        self.git(source, "init", "-q", "-b", "main")
+        revisions = []
+        for subject in ["first", "second"]:
+            (source / "skills/pinned/SKILL.md").write_text(f"---\nname: pinned\ndescription: {subject}\n---\n")
+            self.git(source, "add", "-A")
+            self.git(source, "commit", "-qm", subject)
+            revisions.append(self.git(source, "rev-parse", "HEAD").stdout.strip())
+        return source, revisions
+
+    def write_vendor_manifest(self, source, rev):
+        manifest = self.repo / "upstream/vendor.json"
+        manifest.write_text(json.dumps({"pinned-vendor": {"url": source.as_uri(), "rev": rev}}, indent=2) + "\n")
+        return manifest
+
+    def vendor_head(self):
+        return self.git(self.home / ".agents/vendor/pinned-vendor", "rev-parse", "HEAD").stdout.strip()
+
+    def test_upstream_checks_out_the_pinned_rev_not_the_newest_commit(self):
+        source, (first, second) = self.make_upstream()
+        self.write_vendor_manifest(source, first)
+        self.run_cli("upstream")
+        self.assertEqual(self.vendor_head(), first)
+
+    def test_upstream_bump_moves_the_pin_and_prints_what_changed(self):
+        source, (first, second) = self.make_upstream()
+        manifest = self.write_vendor_manifest(source, first)
+        self.run_cli("upstream")
+        result = self.run_cli("upstream", "--bump")
+        self.assertEqual(self.vendor_head(), second)
+        self.assertEqual(json.loads(manifest.read_text())["pinned-vendor"]["rev"], second)
+        self.assertIn("second", result.stdout)
+        self.assertIn("SKILL.md", result.stdout)
+
+    def test_a_vendor_clone_off_its_pin_fails_check(self):
+        source, (first, second) = self.make_upstream()
+        self.write_vendor_manifest(source, first)
+        self.run_cli("upstream")
+        self.git(self.home / ".agents/vendor/pinned-vendor", "checkout", "-q", "--detach", second)
+        result = self.run_cli("apply", "--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("pinned-vendor", result.stdout)
+
+    def test_every_shipped_vendor_has_a_full_pinned_rev(self):
+        manifest = json.loads((REPO / "upstream/vendor.json").read_text())
+        for name, source in manifest.items():
+            with self.subTest(name=name):
+                self.assertRegex(source.get("rev", ""), r"^[0-9a-f]{40}$")
 
     def test_installs_owned_by_other_tools_stay_and_dangling_links_go(self):
         self.write_skill(self.home / ".claude/skills/reverse-engineer-anything")

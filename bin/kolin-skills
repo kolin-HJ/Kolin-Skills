@@ -275,11 +275,13 @@ def ownership_problems(owned):
     for skill in sorted(declared):
         if not (HOME / ".agents/skills" / skill).exists():
             problems.append(f"not installed: {skill} from upstream/skills.json; run kolin-skills upstream")
-    return problems
+    return problems + vendor_pin_problems()
 
 
-def run_apply(check, quiet, adopt=False):
+def run_apply(check, quiet, adopt=False, if_wired=False):
     owner = wired_repo()
+    if if_wired and owner != str(REPO):
+        return 0
     if owner and owner != str(REPO) and not adopt:
         print(f"kolin-skills: home is wired to {owner}, not this checkout ({REPO}). "
               "Run `kolin-skills apply --adopt` from this checkout to switch.", file=sys.stderr)
@@ -350,29 +352,49 @@ def pull(quiet):
     return run_apply(check=False, quiet=quiet)
 
 
-def sync_vendor(name, url, sparse):
+def vendor_git(path, *args):
+    return subprocess.run(["git", "-C", str(path), *args], text=True, capture_output=True, check=True).stdout.strip()
+
+
+def sync_vendor(name, source, bump):
     path = VENDOR / name
     if not (path / ".git").is_dir():
         VENDOR.mkdir(parents=True, exist_ok=True)
-        clone = ["git", "clone", "--quiet", url, str(path)]
-        if sparse:
+        clone = ["git", "clone", "--quiet", "--no-checkout", source["url"], str(path)]
+        if source.get("sparse"):
             clone[3:3] = ["--filter=blob:none", "--sparse"]
         subprocess.run(clone, check=True)
-    if sparse:
-        subprocess.run(["git", "-C", str(path), "sparse-checkout", "set", *sparse], check=True)
-    before = subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"], text=True, capture_output=True, check=True).stdout.strip()
-    subprocess.run(["git", "-C", str(path), "pull", "--quiet", "--ff-only"], check=True)
-    log = subprocess.run(["git", "-C", str(path), "log", "--oneline", f"{before}..HEAD"], text=True, capture_output=True, check=True).stdout.strip()
-    head = subprocess.run(["git", "-C", str(path), "rev-parse", "--short", "HEAD"], text=True, capture_output=True, check=True).stdout.strip()
-    print(f"{name} at {head}")
-    if log:
-        print(f"{name} upstream changed. Review before trusting it (git -C {path} diff {before} HEAD):\n{log}")
+    if source.get("sparse"):
+        vendor_git(path, "sparse-checkout", "set", *source["sparse"])
+    vendor_git(path, "fetch", "--quiet", "origin")
+    pinned = source.get("rev") or vendor_git(path, "rev-parse", "origin/HEAD")
+    target = vendor_git(path, "rev-parse", "origin/HEAD") if bump else pinned
+    if target != pinned:
+        print(f"{name} pin moves {pinned[:12]}..{target[:12]}. Review before trusting it:")
+        print(vendor_git(path, "log", "--oneline", f"{pinned}..{target}"))
+        print(vendor_git(path, "diff", "--stat", pinned, target))
+    vendor_git(path, "checkout", "--quiet", "--detach", target)
+    print(f"{name} at {target[:12]}")
+    return target
 
 
-def upstream():
-    manifest = json.loads((REPO / "upstream/vendor.json").read_text())
+def vendor_pin_problems():
+    problems = []
+    for name, source in json.loads((REPO / "upstream/vendor.json").read_text()).items():
+        path = VENDOR / name
+        if not source.get("rev"):
+            problems.append(f"no pinned rev for {name} in upstream/vendor.json; run kolin-skills upstream --bump")
+        elif (path / ".git").is_dir() and vendor_git(path, "rev-parse", "HEAD") != source["rev"]:
+            problems.append(f"{name} is not at its pinned rev {source['rev'][:12]}; run kolin-skills upstream")
+    return problems
+
+
+def upstream(bump=False):
+    manifest_file = REPO / "upstream/vendor.json"
+    manifest = json.loads(manifest_file.read_text())
     for name, source in manifest.items():
-        sync_vendor(name, source["url"], source.get("sparse", []))
+        source["rev"] = sync_vendor(name, source, bump)
+    manifest_file.write_text(json.dumps(manifest, indent=2) + "\n")
     installed = {path.name for path in (HOME / ".agents/skills").iterdir()} if (HOME / ".agents/skills").is_dir() else set()
     for package, skills in json.loads((REPO / "upstream/skills.json").read_text()).items():
         missing = [skill for skill in skills if skill not in installed]
@@ -432,22 +454,24 @@ def main():
     apply_parser.add_argument("--check", action="store_true", help="report drift and change nothing")
     apply_parser.add_argument("--quiet", action="store_true", help="print only changes")
     apply_parser.add_argument("--adopt", action="store_true", help="wire home to this checkout when another one owns it")
+    apply_parser.add_argument("--if-wired", action="store_true", help="do nothing unless home is wired to this checkout")
     pull_parser = commands.add_parser("pull", help="fast-forward the repo from its remote, then apply")
     pull_parser.add_argument("--quiet", action="store_true", help="print only changes")
     import_parser = commands.add_parser("import", help="move a skill or agent made in home into the repo, or list an npx skill in upstream/skills.json, then apply")
     import_parser.add_argument("path")
-    commands.add_parser("upstream", help="update vendored pstack, ponytail and third-party skills, then apply")
+    upstream_parser = commands.add_parser("upstream", help="check out vendored pstack and ponytail at their pins, add missing third-party skills, then apply")
+    upstream_parser.add_argument("--bump", action="store_true", help="move each vendor pin to its newest upstream commit and print what changed")
     commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets and tests")
     commands.add_parser("install", help="first run on a machine: upstream, apply, check")
     args = parser.parse_args()
     if args.command == "apply":
-        return run_apply(args.check, args.quiet, args.adopt)
+        return run_apply(args.check, args.quiet, args.adopt, args.if_wired)
     if args.command == "pull":
         return pull(args.quiet)
     if args.command == "import":
         return import_into_repo(args.path)
     if args.command == "upstream":
-        return upstream()
+        return upstream(args.bump)
     if args.command == "check":
         return check()
     return upstream() or check()

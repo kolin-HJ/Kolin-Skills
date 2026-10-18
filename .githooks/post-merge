@@ -1,2 +1,2 @@
 #!/bin/sh
-exec python3 "$(git rev-parse --show-toplevel)/bin/kolin-skills" apply --quiet
+exec python3 "$(git rev-parse --show-toplevel)/bin/kolin-skills" apply --quiet --if-wired

@@ -102,9 +102,9 @@ Leave and report: any site whose error message, status code, write order or retr
 - Every file ends under the limit, with room for later waves.
 - Rule hits that move with code show up as rises in the new files. Report them as moved hits; the coordinator re-keys them.
 
-## Verifier brief (the riskiest lane, on a different model family)
+## Verifier brief (the riskiest lane)
 
-Run it through `pstack-local/scripts/seat` on a family other than the worker's, or as a native read-only reviewer when no other family is available, and say so. Hand it the user's words, the files in scope, the decisions it must not re-raise, and the load-bearing invariants quoted from `AGENTS.md`. Then an ordered checklist, for example:
+Run it as a native read-only reviewer (`senior-reviewer`), because Claude is the only provider, and say that the review was same-family. Hand it the user's words, the files in scope, the decisions it must not re-raise, and the load-bearing invariants quoted from `AGENTS.md`. Then an ordered checklist, for example:
 
 1. Hook and effect order compared with HEAD.
 2. Each moved body compared with the original at the token level.

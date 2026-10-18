@@ -28,11 +28,12 @@ def main() -> int:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         return 0
-    command = (payload.get("tool_input") or payload.get("toolInput") or {}).get("command") or ""
-    if not command:
-        return 0
+    tool_input = payload.get("tool_input") or payload.get("toolInput") or {}
+    paths = [tool_input.get(key) or "" for key in ("file_path", "path")]
+    glob = (tool_input.get("glob") or "").replace("*", "").replace("?", "")
+    tokens = [*operands(tool_input.get("command") or ""), *paths, glob]
 
-    for token in operands(command):
+    for token in tokens:
         name = token.split("=")[-1] if token.startswith("-") else token
         if not OPERAND.match(name) or SAFE_SUFFIX.search(name):
             continue
