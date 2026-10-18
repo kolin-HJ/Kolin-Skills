@@ -12,7 +12,7 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "code-simplifier@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": false,
     "typesafe@typesafe-ai": true,
     "mattpocock-skills@claude-plugins-official": true,
     "cc-plugin-you-should-know@builtin": true
@@ -62,7 +62,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|Read|Grep|Glob",
         "hooks": [
           {
             "type": "command",

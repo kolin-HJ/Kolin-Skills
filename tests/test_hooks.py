@@ -63,6 +63,17 @@ class NativeHookPayloadTests(unittest.TestCase):
                     self.assertIn("Blocked: `.env.production` is a .env file.", blocked.stderr)
                     self.assertEqual((allowed.returncode, allowed.stdout, allowed.stderr), (0, "", ""))
 
+    def test_env_guard_covers_file_tools_not_only_shell(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for tool_input in [{"file_path": f"{directory}/.env.local"}, {"pattern": "KEY", "path": ".env"},
+                               {"pattern": "KEY", "glob": ".env*"}]:
+                with self.subTest(tool_input=tool_input):
+                    result = invoke(ENV_HOOK, {"tool_input": tool_input}, directory)
+                    self.assertEqual(result.returncode, 2, result.stderr)
+            for tool_input in [{"file_path": f"{directory}/.env.example"}, {"pattern": "env", "path": "src"}]:
+                with self.subTest(tool_input=tool_input):
+                    self.assertEqual(invoke(ENV_HOOK, {"tool_input": tool_input}, directory).returncode, 0)
+
     def test_mode_reminder_routes_full_send_and_full_stop(self):
         with tempfile.TemporaryDirectory() as directory:
             for prompt, skill in [

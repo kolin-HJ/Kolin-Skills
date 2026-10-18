@@ -30,10 +30,7 @@ You may not:
 3. **Prove the failure.** Reproduce the bug or write the failing test. Record the command and the failing output.
 4. **Change.** Make the smallest change that meets the intent.
 5. **Prove the fix.** Run the same reproduction or test and see it pass. Run the local equivalents of every CI check (lint, typecheck, tests, build). For UI or runtime behavior, run the app and observe the change. Capture the result.
-6. **Open the PR.** Use `gh pr create --draft --base <base>`. If the repo has a PR template or a PR body check (hj-supply-chain: `.github/PULL_REQUEST_TEMPLATE.md` and `PR proof`), fill it and put the evidence in its Verification section. Otherwise the body must have:
-   - `## Summary`: what changed and why, in 2 to 4 lines.
-   - `## Evidence`: commands, exit codes, key output, before and after.
-   - `## Risk`: blast radius and how to revert.
+6. **Open the PR.** Use `gh pr create --draft --base <base>`. If the repo has a PR template or a PR body check (hj-supply-chain: `.github/PULL_REQUEST_TEMPLATE.md` and `PR proof`), fill it and put the evidence in its Verification section. Otherwise use the PR body order in `~/.codex/AGENTS.md`. `## Verification` holds the commands, exit codes and key output, before and after, and `## Blast Radius` says how to revert.
 7. **Mark ready.** When the local evidence is complete, run `gh pr ready <N>`.
 8. **Babysit.** Loop until the PR is ready to merge or you hit a stop rule:
    - Watch checks with `gh pr checks <N> --watch` or poll with a sleep between tries. Do not write a new watcher script every time.
