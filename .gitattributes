@@ -1,0 +1,8 @@
+policy/** linguist-generated=true
+skills/** linguist-generated=true
+agents/** linguist-generated=true
+evals/** linguist-generated=true
+tests/** linguist-generated=true
+upstream/** linguist-generated=true
+.githooks/** linguist-generated=true
+*.md linguist-generated=true

@@ -1,0 +1,49 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/bin/kolin-skills' pull --quiet",
+            "timeout": 20
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/compact-context.py' after",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/lint-changed-lines.py'",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/skills/pstack-local/scripts/mode-reminder'",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

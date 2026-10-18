@@ -1,0 +1,25 @@
+name: PR proof
+
+on:
+  pull_request:
+    branches: [staging, main]
+    types: [opened, edited, reopened, synchronize]
+
+concurrency:
+  group: pr-proof-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verification-stated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: The PR body says what was verified
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/check-pr-proof.mjs

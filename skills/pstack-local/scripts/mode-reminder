@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+import json
+import os
+import re
+import sys
+
+skills = os.path.expanduser("~/.agents/skills")
+mode = os.path.join(skills, "poteto-mode", "SKILL.md")
+adapter = os.path.join(skills, "pstack-local", "SKILL.md")
+autonomy_phrase = re.compile(r"\bfull[\s-]+(send|stop)\b", re.IGNORECASE)
+
+prompt = json.load(sys.stdin)["prompt"]
+context = (
+    "pstack routing. New task? Playbook match or rigor needed -> apply poteto-mode. "
+    "Casual turn or user opts out -> don't. "
+    f"To apply it, read {mode} and {adapter}, match a playbook, and follow it. "
+    "The global and project AGENTS.md outrank pstack where they conflict."
+)
+for kind in sorted({match.lower() for match in autonomy_phrase.findall(prompt)}):
+    context += (
+        f" The prompt says \"full {kind}\". If Kolin invokes it for a task or PR, load the full-{kind} skill "
+        f"(~/.agents/skills/full-{kind}/SKILL.md) before any other step and follow it. "
+        "If the phrase is only emphasis, ignore this."
+    )
+print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context}}))

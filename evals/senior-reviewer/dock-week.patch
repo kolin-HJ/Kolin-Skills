@@ -1,0 +1,13 @@
+diff --git a/packages/calc/src/amazon-weekly.ts b/packages/calc/src/amazon-weekly.ts
+index 120c4799..6335dc36 100644
+--- a/packages/calc/src/amazon-weekly.ts
++++ b/packages/calc/src/amazon-weekly.ts
+@@ -347,7 +347,7 @@ export function computeAmazonWeeklyPlan(
+         if (q > 0) demByCh[ch] = q;
+       }
+ 
+-      const beforeDock = isBeforeDockWeek(w, item.dockDate);
++      const beforeDock = dockWeek !== null && w < dockWeek;
+       if (!beforeDock && !neg && eow < 0 && item.lifeStatus !== "Phasing Out") {
+         errors.push({
+           type: "negative_eow",

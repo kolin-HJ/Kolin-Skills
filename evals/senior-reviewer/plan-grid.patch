@@ -1,0 +1,274 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 85c01359..b2e027e5 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -178,7 +178,7 @@ A stale `apps/web/.next/types` can make `typecheck` fail on a deleted route. Run
+   - The remaining BigQuery `items.items_netsuite` reads are the **demand-upload** path (`lib/demand-upload/bq-refs.ts`) and the column probe it uses (`getItemsNetsuiteColumns`). Reporting no longer reads that table: Live Inventory, PO Lead Time, Retail SPS and the wholesale-orders filter all join `getItemMaster()` instead. Live Inventory's old BigQuery join had no `QUALIFY`, so a UPC with two NetSuite items rendered twice with conflicting metadata; the Postgres master's `DISTINCT ON` picks one.
+ - **Push reasons are a NetSuite mirror, and the picker is memo sugar.** `supply_push_reasons` mirrors the `CUSTOMLIST_PUSH_REASONS` custom list (`lib/netsuite/sync-push-reasons.ts`, nightly `45 8 * * *` `/api/cron/push-reasons-sync`, also on "Refresh all data"), read through `lib/push-reasons.ts`. Wholesale Comparison's Set Demand Plan modal **requires** one (the memo stays optional beside it) and carries a Sync from NetSuite button, so an empty or stale mirror is self-service rather than a blocked reconcile. The choice is **composed into the memo** — `wholesale accepted - <reason> - <note>` — not stored in a column of its own: the upload pipeline and its BigQuery mirror both pin explicit column lists, and the memo is already what reaches the demand-plan rows and upload history. So reasons are filterable as text, not groupable as a dimension; making them a real dimension means a column through `demand_upload_batches` → `build-rows` → `pg-write` **and** one-off BQ DDL on `demand_plans.current_demand_plan`. The server resolves the label from the mirror by id (`requirePushReasonName`) rather than trusting the posted string. It is **also** stored as its own `demand_upload_batches.push_reason` column, which is what Upload History shows as a Push Reason column — that table is Postgres-only, so a real field there costs a migration and no BQ DDL. The memo keeps its copy **for the BigQuery mirror, not for this app** — a deliberate call, so do not "de-duplicate" it away. `supply_demand_plan.memo` is a plan-authored column retained for mirror fidelity (same category as `forecast_method`): every upload writes it and `plan-push` carries it to `current_demand_plan`, but nothing here reads it — the demand-plan grid's Postgres branch hardcodes `memo: null`, and the `ANY_VALUE(memo)` reader beside it is the BigQuery branch, unreachable unless `PLAN_WRITE_PATH=bq`. So composing the reason into the memo is what puts it in front of Sheets/Looker consumers of the mirror; in-app it is write-only, and Upload History and the variant Activity feed are where a person actually sees it. **A push reason belongs on the change log, never on the plan grid.** It describes one accept, not the pair's current state: keyed to the pair it would label the whole row from whichever accept was newest regardless of the month that accept touched, and a later ordinary upload overwriting the number would not clear it — the column would keep asserting a reason for a figure it no longer explains. It was built on `/demand/demand-plan` and removed for exactly that reason; do not re-add it there. The two correct surfaces are Upload History and the variant's Activity feed. Uploads are audited per BATCH (`demand_plan_upload`) and nothing renders that entity, so accepts never appeared on the variant they changed; `/api/activity` synthesises per-pair upload events (`getUploadEventsForPair`) into the `variant_forecast` feed rather than fanning one upload out into thousands of audit rows. Retired values are flagged `is_inactive`, never deleted, so an old memo still names something real. A custom list is queried as its own table (`FROM CUSTOMLIST_PUSH_REASONS`); `FROM customlist` only enumerates the lists.
+ - **Comment threads key on a page id, never a URL.** `comments.page_id` holds a `PAGES` id from `lib/routes.ts`, such as `demand.variant` or `supply.amazon-plan`. `postComment` rejects an unknown id, the thread API reads by it, and the bell and All Comments link and label through `PAGES[id]`. A `PAGES` id is therefore a stored key and is never renamed; a page moves by changing its `path`. `page_url` is the pre-0034 record only, null on new rows, and a legacy row that matched no page keeps a null `page_id` and shows as Unknown page (`docs/adr/0161-comment-page-ids.md`).
+-- **Placeholder items (`supply_dev_items`, `DEV-` keys) land only where their Lands in boxes say.** A placeholder's rough plan (channel + qty + months) is written into the demand plan as real rows when saved (`syncRoughDemand`, `lib/dev-items/rough-demand.ts`), so every plan reads the same units — nothing synthesises placeholder demand at read time any more. `in_demand_plan` gates the demand-plan list and Add Missing Demand; `in_supply_plan` / `in_inventory_projection` gate those computes through `lib/supply/dev-item-scope.ts`. Every other reader of `supply_plan_monthly` / `supply_demand_plan` excludes `upc LIKE 'DEV-%'` (Wholesale Comparison, Amazon Plan, `/demand/demand-plan`, the BigQuery push). Placeholder demand is stamped division `shared`, so a new reader that filters `division = ANY([div,'shared'])` must also drop `DEV-` keys or it shows every division's placeholders.
++- **Placeholder items (`supply_dev_items`, `DEV-` keys) land only where their Lands in boxes say.** A placeholder's rough plan (channel + qty + months) is written into the demand plan as real rows when saved (`syncRoughDemand`, `lib/dev-items/rough-demand.ts`), so every plan reads the same units — nothing synthesises placeholder demand at read time any more. `in_demand_plan` gates the demand-plan list, the `/demand/demand-plan` grid and Add Missing Demand; `in_supply_plan` / `in_inventory_projection` gate those computes through `lib/supply/dev-item-scope.ts`. Every other reader of `supply_plan_monthly` / `supply_demand_plan` excludes `upc LIKE 'DEV-%'` (Wholesale Comparison, Amazon Plan, the BigQuery push). Placeholder demand is stamped division `shared`, so a new reader that filters `division = ANY([div,'shared'])` must also drop `DEV-` keys or it shows every division's placeholders.
+ - **`Segmentation.sales_channels` is the canonical sales-channel registry** — one definition of "a valid sales channel" for the whole app. Read it through `fetchChannelMeta()` (`lib/demand-upload/bq-refs.ts`, 5-min cached): `validNames` gates demand uploads, `discountMultiplier`/`revenueSource` price the plan, and `refs` gives `{id, name}` from its `netsuite_id` column for anything writing a channel back to NetSuite. Do **not** query `saleschannel` over SuiteQL — the M2M role has no permission on it, and NetSuite reports that as the misleading `Record 'saleschannel' was not found`.
+ - **Read a lead time or a default ship method through `loadSupplyLocations(division)`** (`lib/supply/locations.ts`), never a direct select of `supply_locations`: the per-division values live in the `supply_location_divisions` overlay, so a direct select hands every division HydroJug's numbers (ADR 0041).
+ - **NetSuite** (`lib/netsuite/client.ts`, OAuth2 JWT M2M): SuiteQL reads + PO creation + vendor-tool sync. Every call goes through the client's `nsFetch` / `nsSuiteQLRows` (rows parsed through a `lib/row-parse.ts` schema) / `nsCreateRecord` / `nsUpdateRecord` / `nsRestletFetch`, and a record create retries only on NetSuite's concurrency block, because a retried 5xx can write a duplicate PO; the client, its retry policy and the read modules are in `docs/adr/0018-netsuite-client-and-reads.md`, and the write modules in `docs/adr/0019-netsuite-writes.md`.
+diff --git a/apps/web/src/lib/demand-plan-grid.integration.test.ts b/apps/web/src/lib/demand-plan-grid.integration.test.ts
+new file mode 100644
+index 00000000..aae1ed4d
+--- /dev/null
++++ b/apps/web/src/lib/demand-plan-grid.integration.test.ts
+@@ -0,0 +1,93 @@
++import { randomUUID } from "node:crypto";
++
++import { getDb, getSql, schema } from "@hj/db";
++import { inArray } from "drizzle-orm";
++import { afterAll, beforeAll, describe, expect, it } from "vitest";
++
++import { getPlanGridData } from "@/lib/demand-plan-grid";
++import { syncRoughDemand } from "@/lib/dev-items/rough-demand";
++import { currentMonthIso } from "@/lib/forecast/dates";
++
++const enabled = process.env.DEMAND_PLAN_GRID_DB_TEST === "1";
++const planWrite = {
++  loadChannelMeta: async () => ({ discountMultiplier: new Map<string, number>() }),
++};
++const suffix = randomUUID().slice(0, 8);
++const checkedUpc = `DEV-T${suffix}A`;
++const uncheckedUpc = `DEV-T${suffix}B`;
++const channel = "Grid Test Channel";
++const month = currentMonthIso();
++
++function devItem(upc: string, inDemandPlan: boolean) {
++  return {
++    upc,
++    nsInternalId: `test-${upc}`,
++    name: `Grid test ${upc}`,
++    division: "hydrojug",
++    productType: "Tumbler",
++    color: "Test Teal",
++    releaseName: "Grid Test Release",
++    productSpecification: "Straw Lid",
++    status: "Developing",
++    roughSaleschannel: channel,
++    roughQuantity: 900,
++    roughStartMonth: month,
++    roughEndMonth: month,
++    launchDate: null,
++    dockDate: null,
++    endDate: null,
++    inDemandPlan,
++  };
++}
++
++let localVerified = false;
++describe.skipIf(!enabled)("demand plan grid against Postgres", () => {
++  beforeAll(async () => {
++    const url = new URL(process.env.DATABASE_URL ?? "http://missing");
++    if (!["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) {
++      throw new Error("Demand plan grid DB tests require localhost");
++    }
++    localVerified = true;
++    const rows = [devItem(checkedUpc, true), devItem(uncheckedUpc, false)];
++    await getDb().insert(schema.supplyDevItems).values(rows);
++    const failed = await syncRoughDemand(rows, new Map(), planWrite);
++    if (failed.length > 0) throw new Error(`rough demand did not write for ${failed.join(", ")}`);
++  });
++  afterAll(async () => {
++    if (!localVerified) return;
++    const db = getDb();
++    const upcs = [checkedUpc, uncheckedUpc];
++    await db.delete(schema.supplyPlanMonthly).where(inArray(schema.supplyPlanMonthly.upc, upcs));
++    await db.delete(schema.supplyDemandPlan).where(inArray(schema.supplyDemandPlan.upc, upcs));
++    await db
++      .delete(schema.variantForecastMethods)
++      .where(inArray(schema.variantForecastMethods.upc, upcs));
++    await db.delete(schema.supplyDevItems).where(inArray(schema.supplyDevItems.upc, upcs));
++    await getSql().end();
++  });
++
++  it("lists a placeholder checked for the demand plan, with its own attributes and units", async () => {
++    const { rows } = await getPlanGridData("hydrojug", "demand", "month");
++    const row = rows.find((r) => r.upc === checkedUpc);
++    expect(row).toMatchObject({
++      sales_channel: channel,
++      product_type: "Tumbler",
++      color: "Test Teal",
++      spec: "Straw Lid",
++      release_name: "Grid Test Release",
++      life_status: "Developing",
++    });
++    expect(row?.[`q_${month.slice(0, 7)}`]).toBe(900);
++  });
++
++  it("omits a placeholder that is not checked for the demand plan", async () => {
++    const { rows } = await getPlanGridData("hydrojug", "demand", "month");
++    expect(rows.filter((r) => r.upc === uncheckedUpc)).toEqual([]);
++  });
++
++  it("lists the checked placeholder in the weekly grid too", async () => {
++    const { rows } = await getPlanGridData("hydrojug", "demand", "week");
++    expect(rows.some((r) => r.upc === checkedUpc)).toBe(true);
++    expect(rows.some((r) => r.upc === uncheckedUpc)).toBe(false);
++  });
++});
+diff --git a/apps/web/src/lib/demand-plan-grid.ts b/apps/web/src/lib/demand-plan-grid.ts
+index dd1bc292..0e5a311d 100644
+--- a/apps/web/src/lib/demand-plan-grid.ts
++++ b/apps/web/src/lib/demand-plan-grid.ts
+@@ -11,6 +11,7 @@ import { textOrNull } from "@/lib/row-parse";
+ import { getItemMaster } from "@/lib/supply/bq-queries";
+ import { packForCache, unpackFromCache } from "@/lib/supply/cache-codec";
+ import { SUPPLY_CACHE_TAGS } from "@/lib/supply/cache-tags";
++import { type DevItemRow, loadDevItemsForDivision } from "@/lib/supply/dev-item-scope";
+ 
+ export type PlanGridGranularity = "month" | "week";
+ 
+@@ -221,6 +222,7 @@ async function loadMonthlyCells(
+   sqlc: ReturnType<typeof getSql>,
+   plan: PlanType,
+   division: string,
++  devUpcs: string[],
+   { start, endExclusive }: PeriodBounds
+ ): Promise<PlanCell[]> {
+   return sqlc<PlanCell[]>`
+@@ -233,7 +235,7 @@ async function loadMonthlyCells(
+     FROM supply_plan_monthly d
+     WHERE d.plan = ${plan}
+       AND d.division = ANY(ARRAY[${division}, ${LEFTOVER_PLAN_DIVISION}]::text[])
+-      AND d.upc NOT LIKE 'DEV-%'
++      AND (d.upc NOT LIKE 'DEV-%' OR d.upc = ANY(${devUpcs}::text[]))
+       AND d.period_month >= ${start}::date
+       AND d.period_month < ${endExclusive}::date
+     GROUP BY d.upc, d.saleschannel, 3
+@@ -243,6 +245,7 @@ async function loadMonthlyCells(
+ async function loadWeeklyCells(
+   sqlc: ReturnType<typeof getSql>,
+   division: string,
++  devUpcs: string[],
+   { start, endExclusive }: PeriodBounds
+ ): Promise<PlanCell[]> {
+   return sqlc<PlanCell[]>`
+@@ -254,7 +257,7 @@ async function loadWeeklyCells(
+            SUM(d.gross_amount)::text AS gross_amount
+     FROM supply_demand_plan d
+     WHERE d.division = ANY(ARRAY[${division}, ${LEFTOVER_PLAN_DIVISION}]::text[])
+-      AND d.upc NOT LIKE 'DEV-%'
++      AND (d.upc NOT LIKE 'DEV-%' OR d.upc = ANY(${devUpcs}::text[]))
+       AND d.date >= ${start}::date
+       AND d.date < ${endExclusive}::date
+       AND (d.qty <> 0 OR d.amount <> 0)
+@@ -266,6 +269,7 @@ async function loadPlanPairs(
+   sqlc: ReturnType<typeof getSql>,
+   plan: PlanType,
+   division: string,
++  devUpcs: string[],
+   { start, endExclusive }: PeriodBounds
+ ): Promise<PlanPair[]> {
+   return sqlc<PlanPair[]>`
+@@ -273,12 +277,40 @@ async function loadPlanPairs(
+     FROM supply_plan_monthly d
+     WHERE d.plan = ${plan}
+       AND d.division = ANY(ARRAY[${division}, ${LEFTOVER_PLAN_DIVISION}]::text[])
+-      AND d.upc NOT LIKE 'DEV-%'
++      AND (d.upc NOT LIKE 'DEV-%' OR d.upc = ANY(${devUpcs}::text[]))
+       AND d.period_month >= date_trunc('month', ${start}::date)::date
+       AND d.period_month < ${endExclusive}::date
+   `;
+ }
+ 
++type UpcAttributes = {
++  upc: string;
++  product_type: string | null;
++  color: string | null;
++  spec: string | null;
++  release_name: string | null;
++  life_status: string | null;
++  launch_date: string | null;
++  base_price: string | null;
++  product_family: string | null;
++  product_form: string | null;
++};
++
++function devItemAttributes(d: DevItemRow): UpcAttributes {
++  return {
++    upc: d.upc,
++    product_type: d.productType,
++    color: d.color,
++    spec: d.productSpecification,
++    release_name: d.releaseName,
++    life_status: "Developing",
++    launch_date: d.launchDate,
++    base_price: null,
++    product_family: null,
++    product_form: null,
++  };
++}
++
+ async function getPlanGridDataFromPg(
+   division: string,
+   plan: PlanType,
+@@ -289,27 +321,19 @@ async function getPlanGridDataFromPg(
+   const bounds = forecastDateBounds(granularity);
+   const weekly = granularity === "week";
+ 
++  const devItems = (await loadDevItemsForDivision(tab)).filter((d) => d.inDemandPlan);
++  const devUpcs = devItems.map((d) => d.upc);
++
+   const [cells, pairs, master] = await Promise.all([
+-    weekly ? loadWeeklyCells(sqlc, tab, bounds) : loadMonthlyCells(sqlc, plan, tab, bounds),
+-    weekly ? loadPlanPairs(sqlc, plan, tab, bounds) : Promise.resolve<PlanPair[]>([]),
++    weekly
++      ? loadWeeklyCells(sqlc, tab, devUpcs, bounds)
++      : loadMonthlyCells(sqlc, plan, tab, devUpcs, bounds),
++    weekly ? loadPlanPairs(sqlc, plan, tab, devUpcs, bounds) : Promise.resolve<PlanPair[]>([]),
+     getItemMaster(),
+   ]);
+ 
+   const upcs = [...new Set([...pairs.map((p) => p.upc), ...cells.map((c) => c.upc)])];
+-  const fallbacks = await sqlc<
+-    Array<{
+-      upc: string;
+-      product_type: string | null;
+-      color: string | null;
+-      spec: string | null;
+-      release_name: string | null;
+-      life_status: string | null;
+-      launch_date: string | null;
+-      base_price: string | null;
+-      product_family: string | null;
+-      product_form: string | null;
+-    }>
+-  >`
++  const fallbacks = await sqlc<UpcAttributes[]>`
+     SELECT upc, product_type, color, spec, release_name, life_status,
+            launch_date::text AS launch_date, base_price::text AS base_price,
+            product_family, product_form
+@@ -318,7 +342,10 @@ async function getPlanGridDataFromPg(
+   `;
+ 
+   const masterByUpc = new Map(master.map((m) => [m.upc, m]));
+-  const fallbackByUpc = new Map(fallbacks.map((f) => [f.upc, f]));
++  const fallbackByUpc = new Map([
++    ...fallbacks.map((f) => [f.upc, f] as const),
++    ...devItems.map((d) => [d.upc, devItemAttributes(d)] as const),
++  ]);
+   const byKey = new Map<string, PlanGridRow>();
+ 
+   function ensureRow(upc: string, saleschannel: string): PlanGridRow {
+diff --git a/docs/adr/0055-demand-plan-grid-and-snapshot.md b/docs/adr/0055-demand-plan-grid-and-snapshot.md
+index 234edca7..1f8d6458 100644
+--- a/docs/adr/0055-demand-plan-grid-and-snapshot.md
++++ b/docs/adr/0055-demand-plan-grid-and-snapshot.md
+@@ -29,8 +29,11 @@ belongs on the change log and never on this grid.
+   `granularity=week` for weekly).
+ - **All three divisions live in one table, filtered by division.** On the
+   default `postgres` write path that is `supply_plan_monthly` for months and
+-  `supply_demand_plan` for weeks, reading the division plus `shared` and
+-  excluding `DEV-` placeholders. The BigQuery mirror is read only when
++  `supply_demand_plan` for weeks, reading the division plus `shared`. A `DEV-`
++  placeholder appears only when it is in this division, not Promoted or Cancelled,
++  and checked "Demand plan" on the Placeholder Items page; its attributes come
++  from `supply_dev_items`, and it has a row only once it has plan units (a rough
++  plan with a channel). The BigQuery mirror is read only when
+   `PLAN_WRITE_PATH=bq`. The old comment in `page.tsx` said the data came from
+   one BigQuery table, which stopped being true at the Postgres cutover.
+ - On the Postgres path `memo`, `confidence` and `last_modified` are null for

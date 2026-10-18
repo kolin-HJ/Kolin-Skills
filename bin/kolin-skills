@@ -1,0 +1,379 @@
+#!/usr/bin/env python3
+import argparse
+import datetime
+import fcntl
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+
+
+def on_disk_case(path):
+    resolved = pathlib.Path("/")
+    for part in path.parts[1:]:
+        names = {entry.name.casefold(): entry.name for entry in resolved.iterdir()}
+        resolved = resolved / names.get(part.casefold(), part)
+    return resolved
+
+
+REPO = on_disk_case(pathlib.Path(__file__).resolve().parent.parent)
+HOME = pathlib.Path.home()
+STATE_DIR = HOME / ".kolin-skills"
+VENDOR = HOME / ".agents/vendor"
+OWN_SKILL_HOMES = [".agents/skills", ".claude/skills", ".cursor/skills"]
+VENDOR_SKILL_HOMES = [".agents/skills", ".claude/skills"]
+VENDOR_SKILL_DIRS = ["cursor-plugins/pstack/skills", "cursor-plugins/cursor-team-kit/skills"]
+VENDOR_SKIP = {"setup-pstack"}
+LINKS = {
+    "policy/AGENTS.md": [".codex/AGENTS.md", ".claude/CLAUDE.md", ".grok/AGENTS.md"],
+    "policy/compact-instructions.md": [".codex/compact-instructions.md"],
+    "claude/statusline.sh": [".claude/statusline.sh"],
+    "claude/output-styles/ste-visual.md": [".claude/output-styles/ste-visual.md"],
+    "hooks/lint-changed-lines.py": [".codex/hooks/lint-changed-lines.py"],
+    "hooks/compact-context.py": [".codex/hooks/compact-context.py"],
+    "hooks/block-env-reads.py": [".claude/hooks/block-env-reads.py"],
+    "hooks/agent-default-model.py": [".claude/hooks/agent-default-model.py"],
+    "mods/usage-band": [".claude/mods/usage-band"],
+    "mods/savvy-progress": [".claude/mods/savvy-progress"],
+    "evals": [".agents/evals"],
+    "bin/kolin-skills": [".local/bin/kolin-skills"],
+}
+MERGED_JSON = {
+    "claude/settings.json": ".claude/settings.json",
+    "codex/hooks.json": ".codex/hooks.json",
+    "cursor/hooks.json": ".cursor/hooks.json",
+}
+RENDERED = {"cursor/agent-policy.mdc": ".cursor/rules/agent-policy.mdc"}
+LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in paths if path.endswith(".py")]
+LEGACY_HOOK_PATHS.append("pstack-local/scripts/mode-reminder")
+WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
+SPEND_CAPS = {"subagent_model": "claude-sonnet-5-5", "max_compact_window": 400_000}
+SIZE_BUDGETS = {"policy/AGENTS.md": 12_000, "skills/pstack-local/SKILL.md": 8_000}
+
+
+def render_template(text):
+    return text.replace("{{HOME}}", str(HOME)).replace("{{REPO}}", str(REPO))
+
+
+def wired_repo():
+    state_file = STATE_DIR / "state.json"
+    return json.loads(state_file.read_text())["repo"] if state_file.is_file() else None
+
+
+def is_managed_hook(entry, roots):
+    text = json.dumps(entry)
+    return any(f"{root}/" in text for root in roots) or any(path in text for path in LEGACY_HOOK_PATHS)
+
+
+def merge_hooks(current, wanted, roots):
+    merged = {}
+    for event in [*current, *(event for event in wanted if event not in current)]:
+        entries = [entry for entry in current.get(event, []) if not is_managed_hook(entry, roots)]
+        entries += wanted.get(event, [])
+        if entries:
+            merged[event] = entries
+    return merged
+
+
+def merge_settings(current, wanted, roots):
+    merged = dict(current)
+    for key, value in wanted.items():
+        if key == "hooks":
+            merged[key] = merge_hooks(current.get(key, {}), value, roots)
+        elif isinstance(value, dict) and isinstance(current.get(key), dict):
+            merged[key] = {**current[key], **value}
+        else:
+            merged[key] = value
+    return merged
+
+
+def codex_agent_toml(markdown):
+    _, header, body = markdown.split("---\n", 2)
+    fields = {}
+    for line in header.splitlines():
+        key, _, value = line.partition(":")
+        fields[key.strip()] = value.strip()
+    body = body.strip("\n")
+    if "'''" in body:
+        raise SystemExit(f"{fields['name']}: body contains ''', which a TOML literal string cannot hold")
+    lines = [f"name = {json.dumps(fields['name'], ensure_ascii=False)}",
+             f"description = {json.dumps(fields['description'], ensure_ascii=False)}"]
+    tools = {tool.strip() for tool in fields.get("tools", "").split(",") if tool.strip()}
+    if tools and not tools & WRITE_TOOLS:
+        lines.append('sandbox_mode = "read-only"')
+    lines.append(f"developer_instructions = '''\n{body}\n'''")
+    return "\n".join(lines) + "\n"
+
+
+class Plan:
+    def __init__(self, check):
+        self.check = check
+        self.changes = []
+        self.stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    def note(self, message):
+        self.changes.append(message)
+
+    def backup(self, path):
+        destination = STATE_DIR / "backup" / self.stamp / path.relative_to(HOME)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(path), str(destination))
+
+    def link(self, target, path):
+        if path.is_symlink() and os.readlink(path) == str(target):
+            return
+        self.note(f"link ~/{path.relative_to(HOME)} -> {target}")
+        if self.check:
+            return
+        if path.is_symlink():
+            path.unlink()
+        elif path.exists():
+            self.backup(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.symlink_to(target)
+
+    def write(self, path, text):
+        if path.is_file() and not path.is_symlink() and path.read_text() == text:
+            return
+        self.note(f"write ~/{path.relative_to(HOME)}")
+        if self.check:
+            return
+        if path.is_symlink():
+            path.unlink()
+        elif path.exists():
+            self.backup(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.kolin-skills")
+        temporary.write_text(text)
+        temporary.replace(path)
+
+    def write_json(self, path, data):
+        current = json.loads(path.read_text()) if path.is_file() else None
+        if current == data:
+            return
+        self.write(path, json.dumps(data, indent=2) + "\n")
+
+    def remove(self, path):
+        self.note(f"remove ~/{path.relative_to(HOME)}")
+        if not self.check:
+            path.unlink()
+
+
+def vendor_skills():
+    skills = {}
+    for directory in VENDOR_SKILL_DIRS:
+        for skill in sorted((VENDOR / directory).glob("*/SKILL.md")):
+            if skill.parent.name not in VENDOR_SKIP:
+                skills[skill.parent.name] = skill.parent
+    return skills
+
+
+def points_into_managed_tree(path, roots):
+    text = os.readlink(path)
+    return text.startswith((*(f"{root}/" for root in roots), str(VENDOR), "../../.agents/skills/"))
+
+
+def prune_dangling(plan, directory, roots):
+    if not directory.is_dir():
+        return
+    for path in sorted(directory.iterdir()):
+        if path.is_symlink() and not path.exists() and points_into_managed_tree(path, roots):
+            plan.remove(path)
+
+
+def apply(plan, roots):
+    for source, destinations in LINKS.items():
+        if (REPO / source).exists():
+            for destination in destinations:
+                plan.link(REPO / source, HOME / destination)
+
+    own = sorted(path.parent for path in (REPO / "skills").glob("*/SKILL.md"))
+    vendored = vendor_skills()
+    for skill in own:
+        plan.link(skill, HOME / ".agents/skills" / skill.name)
+        for home in OWN_SKILL_HOMES[1:]:
+            plan.link(pathlib.Path(f"../../.agents/skills/{skill.name}"), HOME / home / skill.name)
+    for name, skill in vendored.items():
+        if name in {path.name for path in own}:
+            continue
+        plan.link(skill, HOME / ".agents/skills" / name)
+        for home in VENDOR_SKILL_HOMES[1:]:
+            plan.link(pathlib.Path(f"../../.agents/skills/{name}"), HOME / home / name)
+    for home in OWN_SKILL_HOMES:
+        prune_dangling(plan, HOME / home, roots)
+
+    agents = sorted((REPO / "agents").glob("*.md"))
+    for agent in agents:
+        plan.link(agent, HOME / ".claude/agents" / agent.name)
+        plan.write(HOME / ".codex/agents" / f"{agent.stem}.toml", codex_agent_toml(agent.read_text()))
+    prune_dangling(plan, HOME / ".claude/agents", roots)
+    state_file = STATE_DIR / "state.json"
+    generated = {str(HOME / ".codex/agents" / f"{agent.stem}.toml") for agent in agents}
+    previous = set(json.loads(state_file.read_text())["generated"]) if state_file.is_file() else set()
+    for stale in sorted(previous - generated):
+        if pathlib.Path(stale).is_file():
+            plan.remove(pathlib.Path(stale))
+
+    for source, destination in MERGED_JSON.items():
+        wanted = json.loads(render_template((REPO / source).read_text()))
+        path = HOME / destination
+        current = json.loads(path.read_text()) if path.is_file() else {}
+        plan.write_json(path, merge_settings(current, wanted, roots))
+    for source, destination in RENDERED.items():
+        plan.write(HOME / destination, render_template((REPO / source).read_text()))
+
+    hooks_path = subprocess.run(["git", "-C", str(REPO), "config", "core.hooksPath"], text=True, capture_output=True).stdout.strip()
+    if (REPO / ".git").exists() and hooks_path != ".githooks":
+        plan.note("git config core.hooksPath .githooks")
+        if not plan.check:
+            subprocess.run(["git", "-C", str(REPO), "config", "core.hooksPath", ".githooks"], check=True)
+
+    if not plan.check:
+        STATE_DIR.mkdir(exist_ok=True)
+        temporary = state_file.with_name(".state.json.tmp")
+        temporary.write_text(json.dumps({"repo": str(REPO), "generated": sorted(generated)}, indent=2) + "\n")
+        temporary.replace(state_file)
+
+
+def run_apply(check, quiet, adopt=False):
+    owner = wired_repo()
+    if owner and owner != str(REPO) and not adopt:
+        print(f"kolin-skills: home is wired to {owner}, not this checkout ({REPO}). "
+              "Run `kolin-skills apply --adopt` from this checkout to switch.", file=sys.stderr)
+        return 1
+    plan = Plan(check)
+    STATE_DIR.mkdir(exist_ok=True)
+    with open(STATE_DIR / "lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        apply(plan, {str(REPO), owner} - {None})
+    for change in plan.changes:
+        print(change)
+    if not plan.changes and not quiet:
+        print("already in sync")
+    return 1 if check and plan.changes else 0
+
+
+def git(*args, timeout=5):
+    return subprocess.run(["git", "-C", str(REPO), *args], text=True, capture_output=True, timeout=timeout,
+                          env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+
+
+def pull(quiet):
+    if git("status", "--porcelain").stdout.strip():
+        if not quiet:
+            print("local edits in the repo; skipped pull, applying the working tree")
+    elif git("rev-parse", "--abbrev-ref", "@{upstream}").returncode == 0:
+        before = git("rev-parse", "HEAD").stdout.strip()
+        try:
+            result = git("pull", "--ff-only", "--quiet", timeout=10)
+        except subprocess.TimeoutExpired:
+            result = subprocess.CompletedProcess([], 1, "", "timed out after 10s")
+        if result.returncode:
+            print(f"kolin-skills: git pull failed: {result.stderr.strip()}", file=sys.stderr)
+        elif git("rev-parse", "HEAD").stdout.strip() != before:
+            print(f"kolin-skills pulled {git('log', '--oneline', f'{before}..HEAD').stdout.strip()}")
+    return run_apply(check=False, quiet=quiet)
+
+
+def sync_vendor(name, url, sparse):
+    path = VENDOR / name
+    if not (path / ".git").is_dir():
+        VENDOR.mkdir(parents=True, exist_ok=True)
+        clone = ["git", "clone", "--quiet", url, str(path)]
+        if sparse:
+            clone[3:3] = ["--filter=blob:none", "--sparse"]
+        subprocess.run(clone, check=True)
+    if sparse:
+        subprocess.run(["git", "-C", str(path), "sparse-checkout", "set", *sparse], check=True)
+    before = subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"], text=True, capture_output=True, check=True).stdout.strip()
+    subprocess.run(["git", "-C", str(path), "pull", "--quiet", "--ff-only"], check=True)
+    log = subprocess.run(["git", "-C", str(path), "log", "--oneline", f"{before}..HEAD"], text=True, capture_output=True, check=True).stdout.strip()
+    head = subprocess.run(["git", "-C", str(path), "rev-parse", "--short", "HEAD"], text=True, capture_output=True, check=True).stdout.strip()
+    print(f"{name} at {head}")
+    if log:
+        print(f"{name} upstream changed. Review before trusting it (git -C {path} diff {before} HEAD):\n{log}")
+
+
+def upstream():
+    manifest = json.loads((REPO / "upstream/vendor.json").read_text())
+    for name, source in manifest.items():
+        sync_vendor(name, source["url"], source.get("sparse", []))
+    installed = {path.name for path in (HOME / ".agents/skills").iterdir()} if (HOME / ".agents/skills").is_dir() else set()
+    for package, skills in json.loads((REPO / "upstream/skills.json").read_text()).items():
+        missing = [skill for skill in skills if skill not in installed]
+        if missing:
+            subprocess.run(["npx", "--yes", "skills", "add", package, "--global", "--yes",
+                            *[flag for skill in missing for flag in ("--skill", skill)]], check=True)
+    return run_apply(check=False, quiet=False)
+
+
+def spend_failures():
+    settings = json.loads((HOME / ".claude/settings.json").read_text())
+    failures = []
+    if settings.get("env", {}).get("CLAUDE_CODE_SUBAGENT_MODEL") != SPEND_CAPS["subagent_model"]:
+        failures.append(f"claude settings env.CLAUDE_CODE_SUBAGENT_MODEL must be {SPEND_CAPS['subagent_model']} so subagents without a model skip Opus")
+    window = settings.get("autoCompactWindow")
+    if not isinstance(window, int) or window > SPEND_CAPS["max_compact_window"]:
+        failures.append(f"claude settings autoCompactWindow must be at most {SPEND_CAPS['max_compact_window']}")
+    if "agent-default-model.py" not in json.dumps(settings.get("hooks", {}).get("PreToolUse", [])):
+        failures.append("claude settings PreToolUse must run hooks/agent-default-model.py so Explore skips Opus")
+    return failures
+
+
+def check():
+    failures = []
+    if run_apply(check=True, quiet=True):
+        failures.append("home drifted from the repo; run kolin-skills apply")
+    if not vendor_skills():
+        failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
+    failures += spend_failures()
+    for relative, budget in SIZE_BUDGETS.items():
+        size = (REPO / relative).stat().st_size
+        if size > budget:
+            failures.append(f"{relative} is {size} bytes, over its {budget}-byte budget")
+    bun = shutil.which("bun")
+    if bun is None:
+        failures.append("Bun is missing from PATH; install it with brew install oven-sh/bun/bun")
+    tests = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", str(REPO / "tests")],
+                           cwd=REPO, text=True, capture_output=True, timeout=300)
+    print(tests.stderr.strip().splitlines()[-1])
+    if tests.returncode:
+        print(tests.stderr, file=sys.stderr)
+        failures.append("tests failed")
+    for failure in failures:
+        print(f"FAIL: {failure}", file=sys.stderr)
+    if failures:
+        return 1
+    print("Home matches the repo. Spend caps, size budgets, Bun, vendored skills and tests passed.")
+    print("Live agent routing and model-seat readiness are not checked.")
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="kolin-skills", description="Make every agent harness on this machine match the Kolin-Skills repo.")
+    commands = parser.add_subparsers(dest="command", required=True)
+    apply_parser = commands.add_parser("apply", help="link and render the repo into home; idempotent and offline")
+    apply_parser.add_argument("--check", action="store_true", help="report drift and change nothing")
+    apply_parser.add_argument("--quiet", action="store_true", help="print only changes")
+    apply_parser.add_argument("--adopt", action="store_true", help="wire home to this checkout when another one owns it")
+    pull_parser = commands.add_parser("pull", help="fast-forward the repo from its remote, then apply")
+    pull_parser.add_argument("--quiet", action="store_true", help="print only changes")
+    commands.add_parser("upstream", help="update vendored pstack, ponytail and third-party skills, then apply")
+    commands.add_parser("check", help="the gate: drift, spend caps, budgets and tests")
+    commands.add_parser("install", help="first run on a machine: upstream, apply, check")
+    args = parser.parse_args()
+    if args.command == "apply":
+        return run_apply(args.check, args.quiet, args.adopt)
+    if args.command == "pull":
+        return pull(args.quiet)
+    if args.command == "upstream":
+        return upstream()
+    if args.command == "check":
+        return check()
+    return upstream() or check()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

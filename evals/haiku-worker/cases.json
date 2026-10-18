@@ -1,0 +1,55 @@
+[
+  {
+    "id": "renumber",
+    "kind": "rename",
+    "source": "6651e592 docs(segmentation): renumber to ADR 0164 and migration 0041 after #668",
+    "base": "bd3ed7971362f6f7669f87af2ced0ca116db0814",
+    "brief": "briefs/renumber.md",
+    "expected": "expected/renumber.patch",
+    "gates": ["pnpm -s agents-refs", "pnpm -s feature-map"],
+    "traps": [
+      { "id": "demand-tab-0163", "right": "leave", "detail": "ADRs 0050, 0051, 0058, 0059 and README line for 0163-demand-tab cite ADR 0163 meaning the Demand tab ADR; renumbering them is wrong." },
+      { "id": "migration-code", "right": "leave", "detail": "packages/db/src/migrations/index.ts already has 0041_segmentation; it is not Markdown and needs no change." }
+    ]
+  },
+  {
+    "id": "adr-sync",
+    "kind": "doc-sync",
+    "source": "2938f742 docs(adr): drop references to the removed Variant page and Top Down capability",
+    "base": "4375bfb39af8574008c69f8bd43971f68d972c41",
+    "brief": "briefs/adr-sync.md",
+    "expected": "expected/adr-sync.patch",
+    "gates": ["pnpm -s agents-refs"],
+    "traps": [
+      { "id": "as-it-was", "right": "leave", "detail": "0054 lines 33-45 describe the removed page as it was; rewriting them is wrong." },
+      { "id": "old-url-examples", "right": "leave", "detail": "0160 line 71 cites /edit/demand-plan as a historical literal path; the merged commit left it." },
+      { "id": "other-files", "right": "report-or-leave", "detail": "0051 and 0071 also mention demand.variant or /edit/demand-plan; out of the file list, so edit none." }
+    ]
+  },
+  {
+    "id": "dead-exports",
+    "kind": "codemod",
+    "source": "9d9740e1 chore(segmentation): drop unused exports and rename the scorecard date formatter",
+    "base": "bdefc210e8357fa489de334e48f39100295ff14b",
+    "brief": "briefs/dead-exports.md",
+    "expected": "expected/dead-exports.patch",
+    "gates": ["pnpm -s deadcode", "pnpm -s typecheck", "pnpm -s comments", "pnpm --filter=@hj/web exec vitest run src/lib/segmentation"],
+    "traps": [
+      { "id": "lib-dates-formatDay", "right": "leave", "detail": "formatDay from @/lib/dates (retail-sps-grid, report-columns, dates.test) must not be renamed." },
+      { "id": "test-tags-rename", "right": "leave", "detail": "The merged commit also renamed tags->labels in firestore-legacy.test.ts; deadcode does not report it at base, so expected.patch drops that hunk and a worker that makes it widened the task." }
+    ]
+  },
+  {
+    "id": "modal-shell",
+    "kind": "codemod",
+    "source": "c2c37999 chore(ui): ModalShell for shortcuts help and comments",
+    "base": "682d954556806c1455c95c33eb463398e1ed9f83",
+    "brief": "briefs/modal-shell.md",
+    "expected": "expected/modal-shell.patch",
+    "gates": ["pnpm -s rules", "pnpm -s typecheck", "pnpm -s comments"],
+    "traps": [
+      { "id": "save-preview", "right": "stop", "detail": "save-preview-modal has a different backdrop and custom chrome; the merged commit skipped it." },
+      { "id": "global-search", "right": "stop", "detail": "global-search-modal uses a search input as its header and a second key handler; the merged commit skipped it." }
+    ]
+  }
+]

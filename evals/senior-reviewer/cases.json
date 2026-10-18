@@ -1,0 +1,169 @@
+[
+  {
+    "id": "plan-grid",
+    "dir": "hj-plan-grid",
+    "source": "PR #587 at a3cdb8c9bf0517d977eaa99db8f82522536071b0",
+    "base": "25cf5bd1f6a6295bb836cee3996c910553f6beec",
+    "patch": "plan-grid.patch",
+    "body": "plan-grid.body.md",
+    "task": "placeholder items that are checked \"Demand plan\" on the Placeholder Items page should show up on the /demand/demand-plan grid",
+    "verdict": "Fix first",
+    "expected": [
+      {
+        "id": "unproven",
+        "blocks": true,
+        "finding": "The PR concedes the app, pnpm check and type-aware oxlint never ran; the proof sweep must block.",
+        "source": "author"
+      },
+      {
+        "id": "second-consumer",
+        "blocks": false,
+        "finding": "upload-history/page.tsx also calls getPlanGridData, so Upload History gains placeholder rows the PR does not name.",
+        "source": "reviewer"
+      },
+      {
+        "id": "ci-never-runs-test",
+        "blocks": false,
+        "finding": "demand-plan-grid.integration.test.ts only runs with DEMAND_PLAN_GRID_DB_TEST=1, which CI never sets.",
+        "source": "author"
+      },
+      {
+        "id": "status-literal",
+        "blocks": false,
+        "finding": "devItemAttributes hardcodes life_status \"Developing\" while dev items carry Concept, Developing or Ready to Create.",
+        "source": "reviewer"
+      },
+      {
+        "id": "serial-read",
+        "blocks": false,
+        "finding": "loadDevItemsForDivision is awaited before the Promise.all, adding a round trip to every grid load.",
+        "source": "author"
+      }
+    ]
+  },
+  {
+    "id": "access",
+    "dir": "hj-access",
+    "source": "PR #588 at f8446532090ca0407b98c1b527beeff12c043041",
+    "base": "25cf5bd1f6a6295bb836cee3996c910553f6beec",
+    "patch": "access.patch",
+    "body": "access.body.md",
+    "task": "permissions by page, read or write where a page is interactive (write includes read), and an Access page that manages many people at once and shows who has what",
+    "verdict": "Fix first",
+    "expected": [
+      {
+        "id": "wrong-page-guard",
+        "blocks": true,
+        "finding": "reporting/inventory-view/page.tsx guards on reporting.inventory-projection:read, so a member granted only reporting.inventory-view:read is redirected to the same page forever.",
+        "source": "reviewer"
+      },
+      {
+        "id": "deploy-window",
+        "blocks": true,
+        "finding": "Migration 0036 runs before the alias moves, so the still-live old getAppUser throws on the new page-grant rows; the automatic smoke rollback has the same problem.",
+        "source": "reviewer"
+      },
+      {
+        "id": "duplicate-modal",
+        "blocks": false,
+        "finding": "settings/access/confirm-dialog.tsx is a second modal beside (app)/_components/modal-shell.tsx, and toast.tsx a second toast beside action-error-toast.",
+        "source": "author"
+      },
+      {
+        "id": "client-copy-of-server-rule",
+        "blocks": false,
+        "finding": "parseInviteList in access-model.ts classifies emails that inviteUsers in actions.ts classifies again with its own filters.",
+        "source": "author"
+      },
+      {
+        "id": "duplicate-type",
+        "blocks": false,
+        "finding": "UserAccess in access-model.ts has the same shape as AccessGrants in permissions.ts.",
+        "source": "author"
+      },
+      {
+        "id": "scope",
+        "blocks": false,
+        "finding": "Templates, copy access, Undo and avatars go beyond the stated task.",
+        "source": "author"
+      },
+      {
+        "id": "split",
+        "blocks": false,
+        "finding": "127 files and 3,215 added lines; the guard rewrite and the Access UI can land separately.",
+        "source": "author"
+      },
+      {
+        "id": "undo-overwrites",
+        "blocks": false,
+        "finding": "restoreAccess replaces a person's whole grant set, silently overwriting another admin's edit, with no audit.",
+        "source": "author"
+      },
+      {
+        "id": "dead-permission",
+        "blocks": false,
+        "finding": "The catalog still offers demand.topdown.edit, labeled \"(page removed)\".",
+        "source": "author"
+      }
+    ]
+  },
+  {
+    "id": "nightly",
+    "dir": "hj-nightly",
+    "source": "PR #589 at d213fcf207da1a07134df5c5bb12fbf0fff4e189",
+    "base": "25cf5bd1f6a6295bb836cee3996c910553f6beec",
+    "patch": "nightly.patch",
+    "body": "nightly.body.md",
+    "task": "run the two Demand Tools actions (item fields sync and reprice) automatically every night, so planners don't have to press the buttons",
+    "verdict": "Fix first",
+    "expected": [
+      {
+        "id": "unproven-window-path",
+        "blocks": true,
+        "finding": "The in-window path and the new month query never ran; the proof sweep must block.",
+        "source": "reviewer"
+      },
+      {
+        "id": "shared-function-change",
+        "blocks": false,
+        "finding": "changedMonths and the early return change what the Tools buttons do: no push, no activity row, and a failed push is never retried.",
+        "source": "reviewer"
+      },
+      {
+        "id": "stale-copy",
+        "blocks": false,
+        "finding": "tools-client.tsx and the feature map still promise a full BigQuery rebuild on Sync.",
+        "source": "reviewer"
+      },
+      {
+        "id": "duplicate-cron-path",
+        "blocks": false,
+        "finding": "vercel.json lists one path twice with different schedules; nothing shows Vercel registers both.",
+        "source": "reviewer"
+      },
+      {
+        "id": "duplicate-time-zone",
+        "blocks": false,
+        "finding": "nightly-window.ts repeats the America/Denver literal that dates.ts owns as BUSINESS_TIME_ZONE.",
+        "source": "reviewer"
+      },
+      {
+        "id": "adr-restates-code",
+        "blocks": false,
+        "finding": "The 18-line ADR 0111 paragraph restates the 41-line route.",
+        "source": "author"
+      }
+    ]
+  },
+  {
+    "id": "dock-week",
+    "dir": "hj-dock-week",
+    "source": "commit 3f7ecaff",
+    "base": "c095b10b226b5155df7f0c5202b66b0c8921bd8c",
+    "patch": "dock-week.patch",
+    "body": "dock-week.body.md",
+    "task": "the Amazon weekly stockout check should compare against the item's dock week computed once instead of re-parsing the dock date for every week, with no change to results",
+    "verdict": "Ship",
+    "expected": []
+  }
+]

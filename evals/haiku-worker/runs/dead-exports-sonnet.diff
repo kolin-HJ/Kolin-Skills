@@ -1,0 +1,197 @@
+diff --git a/apps/web/src/app/(app)/demand/segmentation/scorecard-period-modal.tsx b/apps/web/src/app/(app)/demand/segmentation/scorecard-period-modal.tsx
+index afa6a0af..65516420 100644
+--- a/apps/web/src/app/(app)/demand/segmentation/scorecard-period-modal.tsx
++++ b/apps/web/src/app/(app)/demand/segmentation/scorecard-period-modal.tsx
+@@ -19,7 +19,7 @@ import { useLatest } from "@/lib/use-latest";
+ import { ScorecardPeriodForm } from "./scorecard-period-form";
+ import {
+   buttonCls,
+-  formatDay,
++  formatPeriodDay,
+   formatMoney,
+   formatQty,
+   formatRate,
+@@ -93,7 +93,7 @@ export function ScorecardPeriodModal({
+         field: "endDate",
+         headerName: "End",
+         minWidth: 120,
+-        valueFormatter: (p) => formatDay(p.value),
++        valueFormatter: (p) => formatPeriodDay(p.value),
+       },
+       { field: "rate", headerName: "Rate", valueFormatter: (p) => formatRate(p.value) },
+       { field: "amount", headerName: "Amt/Qty", valueFormatter: (p) => formatMoney(p.value) },
+diff --git a/apps/web/src/app/(app)/demand/segmentation/scorecard-tab.tsx b/apps/web/src/app/(app)/demand/segmentation/scorecard-tab.tsx
+index e5ed3e24..f569fad3 100644
+--- a/apps/web/src/app/(app)/demand/segmentation/scorecard-tab.tsx
++++ b/apps/web/src/app/(app)/demand/segmentation/scorecard-tab.tsx
+@@ -44,7 +44,7 @@ import {
+   type SaveNotice,
+   buttonCls,
+   dangerButtonCls,
+-  formatDay,
++  formatPeriodDay,
+   formatMoney,
+   formatQty,
+   formatRate,
+@@ -253,7 +253,7 @@ export function ScorecardTab({
+       cellDataType: "dateString",
+       editable: editing,
+       valueGetter: (p) => (p.data ? get(p.data) : null),
+-      valueFormatter: (p) => formatDay(p.value),
++      valueFormatter: (p) => formatPeriodDay(p.value),
+       valueSetter: (p: ValueSetterParams<ScorecardLine>) => {
+         const next = patch(typeof p.newValue === "string" && p.newValue ? p.newValue : null);
+         if (next) editActiveRef.current(p.data.id, next);
+diff --git a/apps/web/src/app/(app)/demand/segmentation/scorecard-ui.ts b/apps/web/src/app/(app)/demand/segmentation/scorecard-ui.ts
+index 449d630a..df17b398 100644
+--- a/apps/web/src/app/(app)/demand/segmentation/scorecard-ui.ts
++++ b/apps/web/src/app/(app)/demand/segmentation/scorecard-ui.ts
+@@ -9,7 +9,7 @@ export const primaryButtonCls =
+ export const dangerButtonCls =
+   "text-xs font-medium px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+ 
+-export const NONE_TEXT = "—";
++const NONE_TEXT = "—";
+ 
+ export function formatMoney(value: number | null): string {
+   return value === null ? NONE_TEXT : `$${value.toFixed(2)}`;
+@@ -24,7 +24,7 @@ export function formatQty(value: number | null): string {
+   return value === null ? NONE_TEXT : value.toLocaleString("en-US");
+ }
+ 
+-export function formatDay(value: string | null): string {
++export function formatPeriodDay(value: string | null): string {
+   return value ?? NONE_TEXT;
+ }
+ 
+diff --git a/apps/web/src/lib/segmentation/bigquery.ts b/apps/web/src/lib/segmentation/bigquery.ts
+index a8269c69..927f8296 100644
+--- a/apps/web/src/lib/segmentation/bigquery.ts
++++ b/apps/web/src/lib/segmentation/bigquery.ts
+@@ -6,7 +6,7 @@ import { BQ_LOAD_DISABLED_REASON, isProductionDeploy } from "@/lib/runtime-env";
+ import { toPublicRule } from "./public-shape";
+ import type { FieldOptions, OptionField, RuleSets, SegmentationRule } from "./rules";
+ 
+-export const SEGMENTATION_DATASET = "Segmentation";
++const SEGMENTATION_DATASET = "Segmentation";
+ 
+ export type PublishResult =
+   | { published: true; rows: number }
+@@ -80,7 +80,7 @@ const TAIL_FIELDS = [
+   { name: "updated_by", type: "STRING" },
+ ] as const satisfies readonly BqField[];
+ 
+-export const SALES_CHANNELS_FIELDS = [
++const SALES_CHANNELS_FIELDS = [
+   ...SHARED_FIELDS,
+   { name: "order_priority", type: "INTEGER" },
+   { name: "msrp_discount", type: "FLOAT64" },
+@@ -90,7 +90,7 @@ export const SALES_CHANNELS_FIELDS = [
+   ...TAIL_FIELDS,
+ ] as const satisfies readonly BqField[];
+ 
+-export const REVENUE_SOURCES_FIELDS = [
++const REVENUE_SOURCES_FIELDS = [
+   ...SHARED_FIELDS,
+   ...TAIL_FIELDS,
+ ] as const satisfies readonly BqField[];
+@@ -134,7 +134,7 @@ function sharedRuleRow(
+   };
+ }
+ 
+-export function ruleTableRows(sets: RuleSets, options: FieldOptions, by: string | null) {
++function ruleTableRows(sets: RuleSets, options: FieldOptions, by: string | null) {
+   const labelByField = new Map(
+     Object.entries(options).map(([field, opts]) => [
+       field,
+diff --git a/apps/web/src/lib/segmentation/netsuite/records.ts b/apps/web/src/lib/segmentation/netsuite/records.ts
+index f896d1c2..e80de028 100644
+--- a/apps/web/src/lib/segmentation/netsuite/records.ts
++++ b/apps/web/src/lib/segmentation/netsuite/records.ts
+@@ -82,7 +82,7 @@ const salesChannelSchema = z
+     orderPriority: r.orderpriority,
+   }));
+ 
+-export const restletEnvelope = <T extends z.ZodTypeAny>(data: T) =>
++const restletEnvelope = <T extends z.ZodTypeAny>(data: T) =>
+   z.discriminatedUnion("success", [
+     z.object({ success: z.literal(true), data }),
+     z.object({ success: z.literal(false), error: z.unknown(), message: z.unknown() }),
+diff --git a/apps/web/src/lib/segmentation/netsuite/write-queue.ts b/apps/web/src/lib/segmentation/netsuite/write-queue.ts
+index 3ef7d4fd..eecb5651 100644
+--- a/apps/web/src/lib/segmentation/netsuite/write-queue.ts
++++ b/apps/web/src/lib/segmentation/netsuite/write-queue.ts
+@@ -88,8 +88,6 @@ export async function queueNetsuiteSync(
+ 
+ export const listSegmentationWrites = (limit?: number) => segmentationWriteLog.listWrites(limit);
+ 
+-export const segmentationWriteSummary = () => segmentationWriteLog.summary();
+-
+ export const retrySegmentationWrite = (id: string) => segmentationWrites.retry(id);
+ 
+ export const dismissSegmentationWrites = (ids: string[]) => segmentationWriteLog.dismissWrites(ids);
+diff --git a/apps/web/src/lib/segmentation/rules.ts b/apps/web/src/lib/segmentation/rules.ts
+index 0be6f8cd..b203f137 100644
+--- a/apps/web/src/lib/segmentation/rules.ts
++++ b/apps/web/src/lib/segmentation/rules.ts
+@@ -11,22 +11,10 @@ export const RULE_KIND_LABEL: Record<RuleKind, string> = {
+ 
+ export const MATCHED_FIELDS = ["division", "class", "customer", "channel", "location"] as const;
+ 
+-export type MatchedField = (typeof MATCHED_FIELDS)[number];
+-
+ export const OPTION_FIELDS = [...MATCHED_FIELDS, "source", "customerTier"] as const;
+ 
+ export type OptionField = (typeof OPTION_FIELDS)[number];
+ 
+-export const OPTION_FIELD_LABEL: Record<OptionField, string> = {
+-  division: "Division",
+-  class: "Class",
+-  customer: "Customer",
+-  channel: "Channel",
+-  location: "Location",
+-  source: "Source",
+-  customerTier: "Customer Tier",
+-};
+-
+ export interface SegmentationRule {
+   id: string;
+   kind: RuleKind;
+@@ -68,7 +56,7 @@ export function normalizeTag(tag: string): string {
+ 
+ const idList = z.array(z.string().trim().min(1)).transform((xs) => [...new Set(xs)]);
+ 
+-export const segmentationRuleSchema = z.object({
++const segmentationRuleSchema = z.object({
+   id: z.string().min(1),
+   kind: z.enum(RULE_KINDS),
+   name: z.string().trim(),
+diff --git a/apps/web/src/lib/segmentation/scorecard/bigquery.ts b/apps/web/src/lib/segmentation/scorecard/bigquery.ts
+index fb7814c1..0931c320 100644
+--- a/apps/web/src/lib/segmentation/scorecard/bigquery.ts
++++ b/apps/web/src/lib/segmentation/scorecard/bigquery.ts
+@@ -4,9 +4,9 @@ import type { BqField } from "@/lib/bq-load";
+ import { type PublishResult, bqDatetime, publishSegmentationTable } from "../bigquery";
+ import type { ScorecardLine } from "./types";
+ 
+-export const SCORECARD_TABLE = "marketing_scorecard_periods";
++const SCORECARD_TABLE = "marketing_scorecard_periods";
+ 
+-export const SCORECARD_FIELDS = [
++const SCORECARD_FIELDS = [
+   { name: "line_id", type: "STRING" },
+   { name: "period_id", type: "STRING" },
+   { name: "type", type: "STRING" },
+diff --git a/apps/web/src/lib/segmentation/store.ts b/apps/web/src/lib/segmentation/store.ts
+index 16eb2b93..2b6f88db 100644
+--- a/apps/web/src/lib/segmentation/store.ts
++++ b/apps/web/src/lib/segmentation/store.ts
+@@ -18,7 +18,7 @@ import {
+   withPriorities,
+ } from "./rules";
+ 
+-export const SAVE_SOURCES = ["page", "restore", "firestore-import", "netsuite-import"] as const;
++const SAVE_SOURCES = ["page", "restore", "firestore-import", "netsuite-import"] as const;
+ 
+ export type SaveSource = (typeof SAVE_SOURCES)[number];
+ 

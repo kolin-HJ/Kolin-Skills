@@ -1,0 +1,43 @@
+{
+  "case": "adr-sync",
+  "worker": "sonnet",
+  "changed": [
+    "docs/adr/0054-top-down-allocation.md",
+    "docs/adr/0130-app-shell-and-navigation.md",
+    "docs/adr/0160-route-table.md"
+  ],
+  "hunks": {
+    "actual": 4,
+    "expected": 4,
+    "extra": 3,
+    "missing": 3
+  },
+  "extraLines": [
+    "docs/adr/0054-top-down-allocation.md\t+The user asked to remove the parked page. `app/(app)/demand/top-down/` (the page, its components and its server actions) and `requireTopDownAccess` are deleted; the last commit that has them is `a9fa138d`, so restoring the page starts from `git show a9fa138d:<path>`. Three things stay, because removing them would need a data migration: the four `top_down_*` tables and the `top_down` forecast method, which still reads the stored targets for any variant that has it chosen. ADR 0163 later removed the `demand.topdown.edit` capability, and migration 0040 deletes its stored grants. `/edit/top-down` is a legacy URL of the Demand Plan page (`/demand/demand-plan`). The sections below describe the page as it was.",
+    "docs/adr/0054-top-down-allocation.md\t-Superseded in part by ADR 0160 (2026-09-30): the old `/edit/top-down` URL is a legacy entry of the Variant page in `lib/routes.ts`, and the sidebar and its capability map are keyed by page id.",
+    "docs/adr/0054-top-down-allocation.md\t+Superseded in part by ADR 0160 (2026-09-30): the old `/edit/top-down` URL is a legacy entry of the Demand Plan page in `lib/routes.ts` (ADR 0163 removed the Variant page), and the sidebar and its capability map are keyed by page id.",
+    "docs/adr/0130-app-shell-and-navigation.md\t-- **Top Down has no sidebar entry.** `/edit/top-down` redirects to",
+    "docs/adr/0130-app-shell-and-navigation.md\t+- **Top Down has no sidebar entry.** ADR 0054 removed the page, and",
+    "docs/adr/0130-app-shell-and-navigation.md\t+`/edit/top-down` is a legacy URL of the Demand Plan page",
+    "docs/adr/0130-app-shell-and-navigation.md\t+(`/demand/demand-plan`).",
+    "docs/adr/0160-route-table.md\t+- Top-down allocation was removed (ADR 0054); `demand/top-down` no longer",
+    "docs/adr/0160-route-table.md\t+exists. The old `/edit/top-down` URL is a legacy entry of the Demand Plan",
+    "docs/adr/0160-route-table.md\t+page."
+  ],
+  "missingLines": [
+    "docs/adr/0054-top-down-allocation.md\t+The user asked to remove the parked page. `app/(app)/demand/top-down/` (the page, its components and its server actions) and `requireTopDownAccess` are deleted; the last commit that has them is `a9fa138d`, so restoring the page starts from `git show a9fa138d:<path>`. Two things stay: the four `top_down_*` tables and the `top_down` forecast method, which still reads the stored targets for any variant that has it chosen. ADR 0163 later removed the `demand.topdown.edit` capability, and migration 0040 deletes its stored grants. `/edit/top-down` is a legacy URL of the Demand Plan page. The sections below describe the page as it was.",
+    "docs/adr/0130-app-shell-and-navigation.md\t+`/demand/demand-plan`; restoring it means adding the entry back to",
+    "docs/adr/0130-app-shell-and-navigation.md\t+`DEMAND_GROUPS` and dropping that redirect. Its `demand.topdown.edit`",
+    "docs/adr/0130-app-shell-and-navigation.md\t+capability was removed by ADR 0163.",
+    "docs/adr/0160-route-table.md\t+- Top-down allocation was removed (ADR 0054). The old `/edit/top-down` URL is a",
+    "docs/adr/0160-route-table.md\t+legacy entry of the Demand Plan page, like the Variant and Channels URLs",
+    "docs/adr/0160-route-table.md\t+that ADR 0163 removed."
+  ],
+  "gates": [
+    {
+      "cmd": "pnpm -s agents-refs",
+      "ok": true,
+      "tail": ""
+    }
+  ]
+}
