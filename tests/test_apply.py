@@ -138,7 +138,8 @@ class ApplyTests(unittest.TestCase):
         other_home = pathlib.Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, other_home)
         subprocess.run(["git", "-C", str(self.repo), "checkout", "-q", "-b", "feature"],
-                       env={**os.environ, "HOME": str(other_home)}, check=True, capture_output=True)
+                       env={**os.environ, "HOME": str(other_home), "PYTHONDONTWRITEBYTECODE": "1"},
+                       check=True, capture_output=True)
         self.assertEqual(sorted(path.name for path in other_home.iterdir()), [])
         subprocess.run(["git", "-C", str(self.repo), "checkout", "-q", "main"],
                        env={**os.environ, "HOME": str(self.home)}, check=True, capture_output=True)
