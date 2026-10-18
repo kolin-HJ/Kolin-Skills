@@ -38,7 +38,7 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 
 ## Model seats
 
-`models.md` assigns each role. Claude is the only provider, so every role and every panel entry runs as a native subagent through the Agent tool. Never call another provider's CLI or API, even when an upstream pstack skill names Codex, Grok or GPT. Read such a name as one more Claude subagent from the `models.md` list.
+`models.md` assigns each role. Claude is the only provider, so every role and every panel entry runs as a native subagent through the Agent tool. Never call another provider's CLI or API, even when a pstack skill names one. Read such a name as one more Claude subagent from `models.md`.
 
 Put the full brief in each subagent's prompt, because a subagent has none of your context. A subagent's output is a lead: open the code it cites before a finding becomes yours. A candidate that has to write and run the gates runs in its own worktree.
 
@@ -49,14 +49,15 @@ Put the full brief in each subagent's prompt, because a subagent has none of you
 - **Autonomy and Opening a PR** act without asking in pstack. Here a commit, push, PR, merge or deploy waits for approval in the session. Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask. `autopilot-full` is not used.
 - **External writes** (chat, tickets) wait for a yes unless the repo's `AGENTS.md` allows them.
 - **PR title and body** use the repo's template. pstack's Why, Scope, Tradeoffs, Blast Radius and Verification sections fill in only where the repo has none.
-- **`tdd`'s trigger** does not exempt any test from being seen failing first.
+- **`tdd`** follows AGENTS.md Tests and proof.
+- **Feature, Bug fix and Refactoring** start with the AGENTS.md value case. **Opening a PR** runs `scripts/diff-audit <base>` first.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a gate directive with `-- <reason>`.
 - **Reply style.** Keep pstack's Writing the reply rules. State the principles that changed a decision in one line, not a section.
 
 ## Other upstreams
 
 - `thermo-nuclear-code-quality-review` (cursor-team-kit) is vendored and linked like pstack. Read it for the diff pass in AGENTS.md Quality work, or when the user asks for a harsh structure review. `senior-reviewer` already carries its approval bar.
-- [ponytail](https://github.com/DietrichGebert/ponytail) is cloned to `~/.agents/vendor/ponytail`. `apply` links only `ponytail` and `ponytail-audit` (`VENDOR_SKILL_DIRS`). Use `ponytail` mode for all coding. Overrides: no `shortcut:` or why comment; each shortcut, its limit and its upgrade trigger go in the PR body `## Tradeoffs`. Its assert-based self-check becomes a test seen failing first. Use `ponytail-audit` for a whole-repo report. Not linked: `ponytail-review` (`senior-reviewer` reads every diff), `ponytail-debt` (it lists `shortcut:` comments, which do not exist here), `ponytail-gain` (a benchmark card) and `ponytail-help` (plugin hooks and config not installed here).
+- [ponytail](https://github.com/DietrichGebert/ponytail) is cloned to `~/.agents/vendor/ponytail`. `apply` links only `ponytail` and `ponytail-audit` (`VENDOR_SKILL_DIRS`). Use `ponytail` mode for all coding. Overrides: no `shortcut:` or why comment; each shortcut, its limit and its upgrade trigger go in the PR body `## Tradeoffs`. Its assert-based self-check follows AGENTS.md Tests and proof. Use `ponytail-audit` for a whole-repo report. Not linked: `ponytail-review` (`senior-reviewer` reads every diff), `ponytail-debt` (it lists `shortcut:` comments, which do not exist here), `ponytail-gain` (a benchmark card) and `ponytail-help` (plugin hooks and config not installed here).
 
 ## Kolin's own skills
 
@@ -65,6 +66,6 @@ Put the full brief in each subagent's prompt, because a subagent has none of you
 
 ## Verify the setup
 
-This adapter, the policy, the agents and the hooks live in the Kolin-Skills repo. Run `kolin-skills check` after you change any of them. It checks that home matches the repo (links, rendered settings, agent mirrors), the spend caps, and the hook and apply tests.
+This adapter, the policy, the agents and the hooks live in the Kolin-Skills repo. Run `kolin-skills check` after you change any of them. It checks links, rendered settings, agent mirrors, spend caps and tests.
 
 The check proves wiring, not behavior. For a routing or model-seat change, use `poteto-mode/playbooks/eval.md` with organic tasks and transcript evidence.

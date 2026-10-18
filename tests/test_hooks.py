@@ -89,6 +89,7 @@ class NativeHookPayloadTests(unittest.TestCase):
             plain = invoke(MODE_HOOK, {"prompt": "Fix the grid filter."}, directory)
             context = json.loads(plain.stdout)["hookSpecificOutput"]["additionalContext"]
             self.assertNotIn("full-send", context)
+            self.assertIn("value case", context)
             self.assertNotIn("full-stop", context)
 
 

@@ -28,7 +28,7 @@ You may not:
 1. **Orient.** Read the task, the issue or PR, and the repo's AGENTS.md or CLAUDE.md. Find the base branch: use `staging` if it exists, otherwise the repo default. Find the CI commands the repo runs.
 2. **Branch.** Work on a feature branch. If you take over someone else's PR, keep their commits or credit them with a `Co-authored-by:` line.
 3. **Prove the failure.** Reproduce the bug or write the failing test. Record the command and the failing output.
-4. **Change.** Make the smallest change that meets the intent.
+4. **Value case, then change.** Write the value case (`~/.codex/AGENTS.md` Quality work). Make the smallest change it names. Add nothing it rules out.
 5. **Prove the fix.** Run the same reproduction or test and see it pass. Run the local equivalents of every CI check (lint, typecheck, tests, build). For UI or runtime behavior, run the app and observe the change. Capture the result.
 6. **Open the PR.** Use `gh pr create --draft --base <base>`. If the repo has a PR template or a PR body check (hj-supply-chain: `.github/PULL_REQUEST_TEMPLATE.md` and `PR proof`), fill it and put the evidence in its Verification section. Otherwise use the PR body order in `~/.codex/AGENTS.md`. `## Verification` holds the commands, exit codes and key output, before and after, and `## Blast Radius` says how to revert.
 7. **Mark ready.** When the local evidence is complete, run `gh pr ready <N>`.
@@ -40,6 +40,7 @@ You may not:
    - After every push, update the evidence so it matches the current head commit.
 9. **Ready gate.** Stop only when all of these are true:
    - The evidence covers every changed file and behavior at the current head.
+   - `~/.agents/skills/pstack-local/scripts/diff-audit <base>` shows no block, or the PR body gives each one a reason.
    - All required checks are green on the current head. If the repo requires none (hj-supply-chain requires none), every check that ran is green and none is pending.
    - Review bots have finished. Every finding is fixed, or has a reply that gives a reason.
    - No reviewer has changes requested.
