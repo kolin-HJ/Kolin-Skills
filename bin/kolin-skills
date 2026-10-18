@@ -305,6 +305,7 @@ def upstream():
         missing = [skill for skill in skills if skill not in installed]
         if missing:
             subprocess.run(["npx", "--yes", "skills", "add", package, "--global", "--yes",
+                            "--agent", "claude-code", "--agent", "codex", "--agent", "cursor",
                             *[flag for skill in missing for flag in ("--skill", skill)]], check=True)
     return run_apply(check=False, quiet=False)
 
