@@ -8,6 +8,8 @@ Replaces `~/.cursor/rules/pstack-models.mdc`. Role labels match the ones pstack 
 
 No role runs on Grok, GPT or any non-Claude model, and no role runs above high effort. Read an upstream `grok-*` default as `sonnet` and an `xhigh` or `max` default as high.
 
+poteto-mode's "Match the model to the job" step changes the effort and speed of each spawn. Here change only the Agent tool's `effort`, from low up to high, and keep the role's model. Drop `-fast`: the Agent tool has no fast mode.
+
 A panel role is a list, with one subagent per entry. Each entry starts in a fresh context with its own brief and lens, so the entries do not anchor on each other. Diversity comes from separate contexts, lenses and models. Launch all entries in one message so they run in parallel.
 
 ```
