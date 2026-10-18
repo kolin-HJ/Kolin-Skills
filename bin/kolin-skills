@@ -24,7 +24,11 @@ STATE_DIR = HOME / ".kolin-skills"
 VENDOR = HOME / ".agents/vendor"
 OWN_SKILL_HOMES = [".agents/skills", ".claude/skills", ".cursor/skills"]
 VENDOR_SKILL_HOMES = [".agents/skills", ".claude/skills"]
-VENDOR_SKILL_DIRS = ["cursor-plugins/pstack/skills", "cursor-plugins/cursor-team-kit/skills"]
+VENDOR_SKILL_DIRS = {
+    "cursor-plugins/pstack/skills": None,
+    "cursor-plugins/cursor-team-kit/skills": None,
+    "ponytail/skills": {"ponytail", "ponytail-audit"},
+}
 VENDOR_SKIP = {"setup-pstack"}
 WATCHED_HOMES = [
     ".agents/skills", ".claude/skills", ".cursor/skills", ".codex/skills", ".grok/skills",
@@ -180,9 +184,9 @@ class Plan:
 
 def vendor_skills():
     skills = {}
-    for directory in VENDOR_SKILL_DIRS:
+    for directory, chosen in VENDOR_SKILL_DIRS.items():
         for skill in sorted((VENDOR / directory).glob("*/SKILL.md")):
-            if skill.parent.name not in VENDOR_SKIP:
+            if skill.parent.name not in VENDOR_SKIP and (chosen is None or skill.parent.name in chosen):
                 skills[skill.parent.name] = skill.parent
     return skills
 

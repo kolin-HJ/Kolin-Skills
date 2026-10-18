@@ -200,6 +200,21 @@ class ApplyTests(unittest.TestCase):
         self.assertNotEqual(self.run_cli("import", str(self.home / ".grok/skills/tdd")).returncode, 0)
         self.assertFalse((self.repo / "skills/tdd").exists())
 
+    def test_only_the_chosen_ponytail_skills_are_linked_and_guarded(self):
+        vendor = self.home / ".agents/vendor/ponytail/skills"
+        for name in ["ponytail", "ponytail-audit", "ponytail-debt", "ponytail-gain", "ponytail-help", "ponytail-review"]:
+            self.write_skill(vendor / name)
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        for home in [".agents/skills", ".claude/skills"]:
+            for name in ["ponytail", "ponytail-audit"]:
+                self.assertTrue((self.home / home / name / "SKILL.md").is_file(), f"{home}/{name}")
+            for name in ["ponytail-debt", "ponytail-gain", "ponytail-help", "ponytail-review"]:
+                self.assertFalse((self.home / home / name).exists(), f"{home}/{name}")
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+        self.write_skill(self.home / ".grok/skills/ponytail")
+        self.assertNotEqual(self.run_cli("import", str(self.home / ".grok/skills/ponytail")).returncode, 0)
+        self.assertFalse((self.repo / "skills/ponytail").exists())
+
     def test_a_declared_upstream_skill_missing_from_home_fails_check(self):
         (self.repo / "upstream/skills.json").write_text(json.dumps({"someone/skills": ["never-installed"]}))
         self.assertEqual(self.run_cli("apply").returncode, 0)
