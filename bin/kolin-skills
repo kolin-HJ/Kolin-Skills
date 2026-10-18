@@ -26,6 +26,19 @@ OWN_SKILL_HOMES = [".agents/skills", ".claude/skills", ".cursor/skills"]
 VENDOR_SKILL_HOMES = [".agents/skills", ".claude/skills"]
 VENDOR_SKILL_DIRS = ["cursor-plugins/pstack/skills", "cursor-plugins/cursor-team-kit/skills"]
 VENDOR_SKIP = {"setup-pstack"}
+WATCHED_HOMES = [
+    ".agents/skills", ".claude/skills", ".cursor/skills", ".codex/skills", ".grok/skills",
+    ".claude/agents", ".codex/agents", ".cursor/agents", ".grok/agents",
+    ".claude/commands", ".cursor/commands", ".grok/commands", ".codex/prompts",
+    ".claude/rules", ".cursor/rules", ".grok/rules", ".claude/output-styles",
+    ".claude/hooks", ".codex/hooks", ".claude/mods",
+]
+OTHER_INSTALLERS = {
+    "REA": ["reverse-engineer-anything"],
+    "claude.ai skill sync": ["synced"],
+    "herdr": ["herdr-agent-state.sh"],
+}
+NPX_SKILL_LOCK = HOME / ".agents/.skill-lock.json"
 LINKS = {
     "policy/AGENTS.md": [".codex/AGENTS.md", ".claude/CLAUDE.md", ".grok/AGENTS.md"],
     "policy/compact-instructions.md": [".codex/compact-instructions.md"],
@@ -111,6 +124,7 @@ class Plan:
     def __init__(self, check):
         self.check = check
         self.changes = []
+        self.owned = set()
         self.stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
     def note(self, message):
@@ -122,6 +136,7 @@ class Plan:
         shutil.move(str(path), str(destination))
 
     def link(self, target, path):
+        self.owned.add(path)
         if path.is_symlink() and os.readlink(path) == str(target):
             return
         self.note(f"link ~/{path.relative_to(HOME)} -> {target}")
@@ -135,6 +150,7 @@ class Plan:
         path.symlink_to(target)
 
     def write(self, path, text):
+        self.owned.add(path)
         if path.is_file() and not path.is_symlink() and path.read_text() == text:
             return
         self.note(f"write ~/{path.relative_to(HOME)}")
@@ -156,6 +172,7 @@ class Plan:
         self.write(path, json.dumps(data, indent=2) + "\n")
 
     def remove(self, path):
+        self.owned.add(path)
         self.note(f"remove ~/{path.relative_to(HOME)}")
         if not self.check:
             path.unlink()
@@ -201,14 +218,13 @@ def apply(plan, roots):
         plan.link(skill, HOME / ".agents/skills" / name)
         for home in VENDOR_SKILL_HOMES[1:]:
             plan.link(pathlib.Path(f"../../.agents/skills/{name}"), HOME / home / name)
-    for home in OWN_SKILL_HOMES:
-        prune_dangling(plan, HOME / home, roots)
 
     agents = sorted((REPO / "agents").glob("*.md"))
     for agent in agents:
         plan.link(agent, HOME / ".claude/agents" / agent.name)
         plan.write(HOME / ".codex/agents" / f"{agent.stem}.toml", codex_agent_toml(agent.read_text()))
-    prune_dangling(plan, HOME / ".claude/agents", roots)
+    for home in WATCHED_HOMES:
+        prune_dangling(plan, HOME / home, roots)
     state_file = STATE_DIR / "state.json"
     generated = {str(HOME / ".codex/agents" / f"{agent.stem}.toml") for agent in agents}
     previous = set(json.loads(state_file.read_text())["generated"]) if state_file.is_file() else set()
@@ -237,6 +253,27 @@ def apply(plan, roots):
         temporary.replace(state_file)
 
 
+def declared_upstream_skills():
+    return {skill for skills in json.loads((REPO / "upstream/skills.json").read_text()).values() for skill in skills}
+
+
+def ownership_problems(owned):
+    declared = declared_upstream_skills()
+    known = declared | {name for names in OTHER_INSTALLERS.values() for name in names}
+    problems = []
+    for home in WATCHED_HOMES:
+        directory = HOME / home
+        for path in sorted(directory.iterdir()) if directory.is_dir() else []:
+            if not path.name.startswith(".") and path not in owned and path.name not in known:
+                shown = f"~/{path.relative_to(HOME)}"
+                fix = "delete the link" if path.is_symlink() else f"run kolin-skills import {shown}, or delete it"
+                problems.append(f"not from the repo: {shown}; {fix}")
+    for skill in sorted(declared):
+        if not (HOME / ".agents/skills" / skill).exists():
+            problems.append(f"not installed: {skill} from upstream/skills.json; run kolin-skills upstream")
+    return problems
+
+
 def run_apply(check, quiet, adopt=False):
     owner = wired_repo()
     if owner and owner != str(REPO) and not adopt:
@@ -250,9 +287,41 @@ def run_apply(check, quiet, adopt=False):
         apply(plan, {str(REPO), owner} - {None})
     for change in plan.changes:
         print(change)
-    if not plan.changes and not quiet:
+    problems = ownership_problems(plan.owned)
+    for problem in problems:
+        print(problem)
+    if not plan.changes and not problems and not quiet:
         print("already in sync")
-    return 1 if check and plan.changes else 0
+    return 1 if check and (plan.changes or problems) else 0
+
+
+def import_into_repo(raw):
+    path = pathlib.Path(raw).expanduser().absolute()
+    if path.is_symlink():
+        raise SystemExit(f"{path} is a link to {os.readlink(path)}; delete it, or copy what it points to into the repo")
+    is_skill = (path / "SKILL.md").is_file()
+    locked = json.loads(NPX_SKILL_LOCK.read_text())["skills"] if NPX_SKILL_LOCK.is_file() else {}
+    if is_skill and path.name in locked:
+        manifest_file = REPO / "upstream/skills.json"
+        manifest = json.loads(manifest_file.read_text())
+        source = locked[path.name]["source"]
+        manifest.setdefault(source, []).append(path.name)
+        manifest_file.write_text(json.dumps(manifest, indent=2) + "\n")
+        print(f"listed {path.name} under {source} in upstream/skills.json")
+        return run_apply(check=False, quiet=False)
+    if is_skill:
+        destination = REPO / "skills" / path.name
+        provided = vendor_skills().keys() | declared_upstream_skills()
+    elif path.suffix == ".md" and path.parent.name == "agents":
+        destination = REPO / "agents" / path.name
+        provided = set()
+    else:
+        raise SystemExit(f"{path} is not a skill folder or an agent file; add it to the repo by hand")
+    if destination.exists() or path.name in provided:
+        raise SystemExit(f"the repo already provides {path.name}; compare the two and keep one")
+    shutil.move(str(path), str(destination))
+    print(f"moved {path} to {destination.relative_to(REPO)}")
+    return run_apply(check=False, quiet=False)
 
 
 def git(*args, timeout=5):
@@ -326,7 +395,7 @@ def spend_failures():
 def check():
     failures = []
     if run_apply(check=True, quiet=True):
-        failures.append("home drifted from the repo; run kolin-skills apply")
+        failures.append("home differs from the repo; fix each line above")
     if not vendor_skills():
         failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
     failures += spend_failures()
@@ -347,7 +416,7 @@ def check():
         print(f"FAIL: {failure}", file=sys.stderr)
     if failures:
         return 1
-    print("Home matches the repo. Spend caps, size budgets, Bun, vendored skills and tests passed.")
+    print("Home matches the repo and holds no strays. Spend caps, size budgets, Bun, vendored and third-party skills and tests passed.")
     print("Live agent routing and model-seat readiness are not checked.")
     return 0
 
@@ -361,14 +430,18 @@ def main():
     apply_parser.add_argument("--adopt", action="store_true", help="wire home to this checkout when another one owns it")
     pull_parser = commands.add_parser("pull", help="fast-forward the repo from its remote, then apply")
     pull_parser.add_argument("--quiet", action="store_true", help="print only changes")
+    import_parser = commands.add_parser("import", help="move a skill or agent made in home into the repo, or list an npx skill in upstream/skills.json, then apply")
+    import_parser.add_argument("path")
     commands.add_parser("upstream", help="update vendored pstack, ponytail and third-party skills, then apply")
-    commands.add_parser("check", help="the gate: drift, spend caps, budgets and tests")
+    commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets and tests")
     commands.add_parser("install", help="first run on a machine: upstream, apply, check")
     args = parser.parse_args()
     if args.command == "apply":
         return run_apply(args.check, args.quiet, args.adopt)
     if args.command == "pull":
         return pull(args.quiet)
+    if args.command == "import":
+        return import_into_repo(args.path)
     if args.command == "upstream":
         return upstream()
     if args.command == "check":

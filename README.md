@@ -38,6 +38,8 @@ flowchart LR
   - at the start of each Claude Code and Codex session (`kolin-skills pull`, which fast-forwards from GitHub first when the repo has no local edits),
   - after `git pull`, `git checkout` and `git rebase` in this repo (`.githooks/`).
 - `apply` is idempotent. A second run prints `already in sync`. A real file it replaces goes to `~/.kolin-skills/backup/<time>/`.
+- **Nothing made straight in home goes unseen.** `apply` lists every entry the repo does not own in a harness's skill, agent, command, rule, output-style, hook or mod folder (`WATCHED_HOMES` in `bin/kolin-skills`). It also lists each skill in `upstream/skills.json` that is not installed. Session start prints the same lines, and `check` fails on them.
+- **`kolin-skills import <path>` takes a stray in.** It moves a skill folder into `skills/` or an agent file into `agents/`. For a skill that `npx skills add` installed, it adds the package to `upstream/skills.json` and copies nothing. Then it applies.
 
 ## New machine
 
@@ -53,9 +55,10 @@ python3 ~/Documents/Github/Kolin-Skills/bin/kolin-skills install
 | Command | What it does |
 |---|---|
 | `kolin-skills apply` | Links and renders the repo into home. Offline. `--check` reports drift and changes nothing. |
+| `kolin-skills import <path>` | Moves a skill or agent made in home into the repo, or lists an `npx skills` install in `upstream/skills.json`, then applies. |
 | `kolin-skills pull` | Fast-forwards from the remote when the tree is clean, then applies. The session-start hook runs this. |
 | `kolin-skills upstream` | Updates pstack, cursor-team-kit, ponytail and the `npx skills` packages, then applies. |
-| `kolin-skills check` | The gate: drift, spend caps, size budgets, Bun, tests. |
+| `kolin-skills check` | The gate: drift, strays in home, missing third-party skills, spend caps, size budgets, Bun, tests. |
 | `kolin-skills install` | First run on a machine: `upstream`, then `check`. |
 
 ## Layout
@@ -78,4 +81,5 @@ python3 ~/Documents/Github/Kolin-Skills/bin/kolin-skills install
 
 - Codex `config.toml`, Cursor `mcp.json` and every credential file. They hold machine paths and secrets.
 - `permissions` and `autoMode` in `~/.claude/settings.json`. They are per machine and per project.
-- herdr's hooks, REA's `reverse-engineer-anything` skill and claude.ai synced skills. Their installers own them.
+- herdr's hooks, REA's `reverse-engineer-anything` skill and claude.ai synced skills. Their installers own them, and `OTHER_INSTALLERS` in `bin/kolin-skills` lists them so `check` allows them.
+- Dot-entries in watched folders, such as Claude Code's `.trash` and Codex's `.system`. The harness owns them.

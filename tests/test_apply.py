@@ -19,6 +19,7 @@ class ApplyTests(unittest.TestCase):
         (self.repo / "mods/usage-band").mkdir(parents=True)
         (self.repo / "mods/savvy-progress").mkdir(parents=True)
         (self.repo / "evals").mkdir()
+        (self.repo / "upstream/skills.json").write_text("{}\n")
 
     def tearDown(self):
         shutil.rmtree(self.home)
@@ -151,6 +152,74 @@ class ApplyTests(unittest.TestCase):
         data = json.loads(parsed.stdout)
         self.assertEqual(data["developer_instructions"].strip(), body)
         self.assertEqual(data["sandbox_mode"], "read-only")
+
+    def write_skill(self, directory):
+        directory.mkdir(parents=True)
+        (directory / "SKILL.md").write_text(f"---\nname: {directory.name}\ndescription: x\n---\nx\n")
+
+    def test_a_skill_or_agent_made_in_home_fails_check_until_imported(self):
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        skill = self.home / ".claude/skills/made-here"
+        self.write_skill(skill)
+        agent = self.home / ".claude/agents/made-here.md"
+        agent.write_text("---\nname: made-here\ndescription: x\n---\nx\n")
+        stray = self.run_cli("apply", "--check")
+        self.assertEqual(stray.returncode, 1)
+        self.assertIn("~/.claude/skills/made-here", stray.stdout)
+        self.assertIn("~/.claude/agents/made-here.md", stray.stdout)
+        for path in [skill, agent]:
+            imported = self.run_cli("import", str(path))
+            self.assertEqual(imported.returncode, 0, imported.stderr)
+        self.assertTrue((self.repo / "skills/made-here/SKILL.md").is_file())
+        self.assertTrue((self.repo / "agents/made-here.md").is_file())
+        self.assertTrue(skill.is_symlink() and agent.is_symlink())
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+
+    def test_importing_an_npx_skill_declares_it_instead_of_copying_it(self):
+        installed = self.home / ".agents/skills/from-npx"
+        self.write_skill(installed)
+        (self.home / ".agents/.skill-lock.json").write_text(
+            json.dumps({"skills": {"from-npx": {"source": "someone/skills"}}}))
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 1)
+        imported = self.run_cli("import", str(installed))
+        self.assertEqual(imported.returncode, 0, imported.stderr)
+        self.assertEqual(json.loads((self.repo / "upstream/skills.json").read_text()), {"someone/skills": ["from-npx"]})
+        self.assertFalse((self.repo / "skills/from-npx").exists())
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+
+    def test_import_refuses_a_name_the_repo_already_has(self):
+        self.write_skill(self.home / ".grok/skills/explainer")
+        before = (self.repo / "skills/explainer/SKILL.md").read_text()
+        self.assertNotEqual(self.run_cli("import", str(self.home / ".grok/skills/explainer")).returncode, 0)
+        self.assertEqual((self.repo / "skills/explainer/SKILL.md").read_text(), before)
+
+    def test_import_refuses_a_skill_that_would_shadow_a_vendored_one(self):
+        self.write_skill(self.home / ".agents/vendor/cursor-plugins/pstack/skills/tdd")
+        self.write_skill(self.home / ".grok/skills/tdd")
+        self.assertNotEqual(self.run_cli("import", str(self.home / ".grok/skills/tdd")).returncode, 0)
+        self.assertFalse((self.repo / "skills/tdd").exists())
+
+    def test_a_declared_upstream_skill_missing_from_home_fails_check(self):
+        (self.repo / "upstream/skills.json").write_text(json.dumps({"someone/skills": ["never-installed"]}))
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        result = self.run_cli("apply", "--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("never-installed", result.stdout)
+
+    def test_installs_owned_by_other_tools_stay_and_dangling_links_go(self):
+        self.write_skill(self.home / ".claude/skills/reverse-engineer-anything")
+        (self.home / ".claude/skills/.trash").mkdir()
+        herdr = self.home / ".codex/hooks/herdr-agent-state.sh"
+        herdr.parent.mkdir(parents=True)
+        herdr.write_text("x\n")
+        dangling = self.home / ".grok/skills/gone"
+        dangling.parent.mkdir(parents=True)
+        dangling.symlink_to("../../.agents/skills/gone")
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        self.assertFalse(dangling.is_symlink())
+        self.assertTrue(herdr.is_file())
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
     def test_check_reports_drift_without_touching_home(self):
         result = self.run_cli("apply", "--check")
