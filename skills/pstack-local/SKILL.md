@@ -25,7 +25,7 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 | `AskQuestion` | `AskUserQuestion` |
 | todolist | The harness's todo or task list. If there is none, a checklist in the reply. |
 | Cursor `/loop` | Claude Code `/loop`, with `ScheduleWakeup` or `Monitor`. Codex: keep working in the turn. |
-| Cursor built-in `create-skill` | `anthropic-skills:skill-creator`, then place the skill per the instruction-file rules in AGENTS.md. |
+| Cursor built-in `create-skill` | `anthropic-skills:skill-creator`. A repo skill goes where AGENTS.md Instruction files says. A global skill goes in Kolin-Skills `skills/<name>/`; if a tool wrote it into home, run `kolin-skills import <path>`. |
 | `/deslop`, `control-ui`, `control-cli` from `cursor-team-kit` | Vendored and linked with the same names. For proof, use the repo's own verification skill (its CLI and feature map) first; if the repo has none, build one with `create-verification-skill` rather than scripting a one-off. The chrome-devtools MCP is for ad-hoc inspection. |
 | `.cursor/skills/<name>/` output | `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. |
 | `agent-transcripts/`, `~/.cursor/projects/` | Claude Code: `~/.claude/projects/<cwd with each / and . as ->/*.jsonl`. Codex: `~/.codex/sessions/`. Read only the current workspace's transcripts. |
