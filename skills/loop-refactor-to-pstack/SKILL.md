@@ -167,7 +167,7 @@ Record every site a lane leaves unchanged, with its reason and the wave that unb
 
 Zero baselines prove the code is clean today. Trust needs the gates to stay honest when an agent is under pressure to go green. Walk `references/trust-audit.md` row by row. Prove each block by planting the loosening and watching it fail.
 
-1. **Tamper evidence.** The ratchet covers every gate setting and has its own tests. CI runs it twice, with the PR's copy and with the base branch's copy.
+1. **Tamper evidence.** The ratchet covers every gate setting, with one test per watched file kind and one where the PR edits the ratchet itself. CI runs it twice, with the PR's copy and with the base branch's copy.
 2. **Local enforcement.** Add a pre-commit hook, a pre-push hook, a `prepare` script that installs them, and the agent guard. Get the user's explicit yes before you write hooks or agent settings. Never route around a refusal.
 3. **Deploy gate.** The production deploy runs the full check command.
 4. **Server side.** Prepare a ruleset per long-lived branch (PR required, CI required, code-owner review on gate machinery, no force-push or deletion) and the command that applies it. Applying it is the user's call. Without required review, the ratchet's bypass label is a speed bump. Say so plainly.
