@@ -69,7 +69,7 @@ Number the orders so a brief can cite one ("order 12"). Paste them verbatim into
 1. **Where.** All work happens in `<worktree>` on the one program branch `<branch>`. Workers never create a branch or worktree, and never commit, push, stash, check out, reset, rebase or open a PR. The coordinator commits each verified unit, merges the base and pushes. Nobody rebases, amends or force-pushes the program branch.
 2. **Shared tree.** Workers write only the paths in their brief's SCOPE and preserve everyone else's edits. They format only the files they changed.
 3. **Behavior.** Behavior does not change unless the brief says so. A unit is done only when the parity recipes it touches show no change.
-4. **No comments.** Code carries no comments. A comment that records a real decision moves into a name, a type, a test or an ADR in the same unit.
+4. **No comments.** Code carries no comments. A comment that records a real decision moves into a name, a type, a test or the PR body.
 5. **Deletions.** A worker deletes a tracked file only when the brief names it. A refused deletion stops the worker, who reports it.
 6. **Tests.** A test calls the code the way its caller does and asserts a literal. A new test is seen failing without the change, and the report says how it failed. No module mocking; a test swaps a seam (for Effect code, a test layer).
 7. **Never written:** `<production, external services, shared databases, chat>`. The app is driven only through the verify CLI against a local instance.
