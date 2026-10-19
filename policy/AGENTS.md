@@ -44,13 +44,13 @@ The codebase is the agents' memory. Agents extend what exists, so a bad pattern 
 3. A skill or `AGENTS.md`, only for judgment no tool can check. Add these last.
 4. Review, for what the first three missed. A finding that recurs moves up the list.
 
-Each repo with a runnable surface has one verification skill. It holds a CLI that launches, drives and measures the real app, and one feature map file per user-facing feature. A script written twice goes into that CLI. Build one with `create-verification-skill` and keep it honest with `maintain-verification-skill`.
+Each repo with a runnable surface has one verification skill. It holds a CLI that launches, drives and measures the real app. A script written twice goes into that CLI. Build one with `create-verification-skill` and keep it honest with `maintain-verification-skill`.
 
 Paying down debt is standing work in its own PRs: delete a banned pattern, lower a baseline, turn a repeated finding into a rule.
 
 ## Overrides of pstack
 
-- **No comments.** Code carries no comments, JSDoc included. The reason goes into a name, a type, a test, a decision record or the PR body. The only exception is a gate directive with `-- <reason>` (`eslint-disable`, `oxlint-disable`, `@ts-expect-error`).
+- **No comments.** Code carries no comments, JSDoc included. The reason goes into a name, a type, a test or the PR body. The only exception is a gate directive with `-- <reason>` (`eslint-disable`, `oxlint-disable`, `@ts-expect-error`).
 - **The integration branch,** not `main`, is trunk wherever the repo names one.
 - **The repo's gate** (`pnpm check` or its equivalent) runs before work is called done. pstack checks add to it and never replace it.
 - **The repo's reviewer** (`senior-reviewer` unless the repo names another) reads every non-trivial diff. `interrogate` runs in addition for a schema, access rule, mutation or contested design. When you review yourself, use the finding format in `~/.claude/agents/senior-reviewer.md`.
@@ -66,7 +66,7 @@ The principle skills own the general rules. Read the leaf before you apply it: `
 - No try/catch around code you control, no swallowed error or silent fallback.
 - Before a change pushes a file past 1,000 lines, split the file in its own change.
 - Independent async work runs in parallel. Related writes stay atomic.
-- Trace each change past the file: callers, consumers of a changed shape, config, tests, migrations, docs, and how the project runs (env, secrets, ports, manual steps). Name every observable behavior change.
+- Trace each change past the file: callers, consumers of a changed shape, config, tests, migrations and how the project runs (env, secrets, ports, manual steps). Name every observable behavior change.
 - Never let a change bypass a gate: a feature flag, a permission check, a tenant or division scope. If removing one is the purpose, say so plainly.
 
 ## Security
@@ -85,14 +85,11 @@ Done means proven on the real artifact (`principle-prove-it-works`). Run the rep
 
 ## Before a PR ships
 
-The reviewer reads a release PR as a whole.
+PR body order: `Value: <kind> — <one sentence>`, `## Why`, `## Scope`, `## Tradeoffs`, `## Blast Radius`, `## Verification`. Where the repo's template differs, follow the repo. Omit empty sections except `## Verification`. Do not add a `## What to check` section.
 
-PR body order: `Value: <kind> — <one sentence>`, `## Why`, `## Scope`, `## Tradeoffs`, `## Blast Radius`, `## Verification`. Where the repo's template differs, follow the repo. Do not add a `## What to check` section.
-
-- `## Scope` is a table of PR, kind, what it gives and lines. A release lists every PR, with PRs that cancel each other merged into one net row.
+- `## Scope`, for a release only, is a table of PR, kind, what it gives and lines, with PRs that cancel each other merged into one net row, counted with `git log`.
 - `## Blast Radius` names migrations, access grants, config, deploy order, and every change a planner or user will notice. State a manual production step with its date.
 - `## Verification` has one line per check, `Ran:` or `Not run: <check>, because <why>`. A release says which pages were driven and which saves were not.
-- Count PRs and lines from `git log`, not from memory.
 - Mark docs, feature maps, tests, lockfiles, agent tooling, workflows and scripts `linguist-generated=true` in `.gitattributes`, so Files changed shows app code first. No bot that comments a file map.
 - A hand edit in a shared account (NetSuite, a live dashboard) ships with a PR that brings the repo in line.
 
@@ -122,7 +119,9 @@ Read every hunk of a delegated diff and what each new test asserts. Reject a cha
 
 Prose follows `unslop` and `technical-writing`, about 80% of the way to ASD-STE100, in every reply, PR body, commit, review and doc. Code names, paths and domain terms stay exact.
 
-Draw a mechanism with its real module, table and function names: ASCII in a reply, Mermaid in a doc, ADR or PR body. Skip it for a single fact.
+Draw a mechanism with its real module, table and function names: ASCII in a reply, Mermaid in a PR body. Skip it for a single fact.
+
+An ADR holds only context, decision, reason and consequences, no step, function, table or cache lists. Change it only when a decision changes. Never edit a doc to restate code.
 
 An `explainer` page or a video needs my yes first; offer it in one line. A video is Manim with free local text-to-speech, or a paid voice API only with my key.
 

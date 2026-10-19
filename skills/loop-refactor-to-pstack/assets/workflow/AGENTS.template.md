@@ -21,7 +21,7 @@ This repo runs Lauren Tan's pstack method ([upstream](https://github.com/cursor/
 |---|---|
 | Commit, push, open or merge PRs without asking | <the approval rule> |
 | Trunk is `main` | Branch from and PR into **`<integration branch>`**. |
-| Keep a comment for a non-obvious why | **No comments.** The why goes into a name, a type, a test, an ADR or the PR body. A gate enforces it. |
+| Keep a comment for a non-obvious why | **No comments.** The why goes into a name, a type, a test or the PR body. A gate enforces it. |
 | Its own checks | `<check command>` is the gate. pstack's checks add to it and never replace it. |
 | Post to chat, update tickets freely | <the external-write rule> |
 
@@ -56,11 +56,11 @@ The `verifier` agent proves a change in a fresh context and returns the PR's Ver
 
 ## Architecture
 
-`.pstack/architecture.md` is the module map: each module, the state it owns, its interface and what it may import. The ADRs in `docs/adr/` hold each subsystem's rules. Read the owning ADR before changing its module, and update it in the same change.
+`.pstack/architecture.md` is the module map: each module, the state it owns, its interface and what it may import. Each ADR in `docs/adr/` holds one decision: context, decision, reason and consequences, with no step, function or table lists. Read the owning ADR before changing its module. Update it only when the change alters that decision.
 
 ## Writing
 
-Replies, PR bodies, commit messages and docs follow the `unslop` and `technical-writing` skills. PR titles are Conventional Commits. The body fills `.github/PULL_REQUEST_TEMPLATE.md`.
+Replies, PR bodies, commit messages and docs follow the `unslop` and `technical-writing` skills. PR titles are Conventional Commits. The body fills `.github/PULL_REQUEST_TEMPLATE.md` and omits empty sections except `## Verification`.
 
 ## Commands
 
