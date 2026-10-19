@@ -90,6 +90,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/heavy-jobs.py'",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PostToolUse": [
