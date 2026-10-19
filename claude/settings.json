@@ -14,7 +14,7 @@
   "enabledPlugins": {
     "code-simplifier@claude-plugins-official": false,
     "typesafe@typesafe-ai": true,
-    "mattpocock-skills@claude-plugins-official": true,
+    "mattpocock-skills@claude-plugins-official": false,
     "cc-plugin-you-should-know@builtin": true
   },
   "extraKnownMarketplaces": {
@@ -56,6 +56,16 @@
             "type": "command",
             "command": "python3 '{{REPO}}/hooks/compact-context.py' after",
             "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/bin/context-audit' --notice",
+            "timeout": 5
           }
         ]
       }
@@ -116,5 +126,33 @@
         ]
       }
     ]
+  },
+  "skillOverrides": {
+    "anthropic-skills:docs": "user-invocable-only",
+    "anthropic-skills:docx": "user-invocable-only",
+    "anthropic-skills:pptx": "user-invocable-only",
+    "anthropic-skills:xlsx": "user-invocable-only",
+    "anthropic-skills:pdf": "user-invocable-only",
+    "anthropic-skills:google-workspace": "user-invocable-only",
+    "anthropic-skills:morning": "user-invocable-only",
+    "anthropic-skills:import-memory": "user-invocable-only",
+    "anthropic-skills:deep-research": "user-invocable-only",
+    "firecrawl": "user-invocable-only",
+    "firecrawl-crawl": "user-invocable-only",
+    "firecrawl-map": "user-invocable-only",
+    "firecrawl-scrape": "user-invocable-only",
+    "firecrawl-search": "user-invocable-only",
+    "find-skills": "user-invocable-only",
+    "improve": "user-invocable-only",
+    "ponytail-audit": "user-invocable-only",
+    "loop-refactor-to-pstack": "user-invocable-only",
+    "full-send": "user-invocable-only",
+    "full-stop": "user-invocable-only",
+    "schedule": "user-invocable-only",
+    "workflow-authoring": "user-invocable-only",
+    "dataviz": "name-only",
+    "anthropic-skills:computer-use": "name-only",
+    "reverse-engineer-anything": "name-only",
+    "code-review": "name-only"
   }
 }

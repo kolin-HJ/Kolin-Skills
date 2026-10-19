@@ -60,6 +60,7 @@ python3 ~/Documents/Github/Kolin-Skills/bin/kolin-skills install
 | `kolin-skills upstream` | Updates pstack, cursor-team-kit, ponytail and the `npx skills` packages, then applies. |
 | `kolin-skills check` | The gate: drift, strays in home, missing third-party skills, spend caps, size budgets, Bun, tests. |
 | `kolin-skills install` | First run on a machine: `upstream`, then `check`. |
+| `context-audit` | Lists skills, tools and MCP servers that cost context in every session and went unused for 30 days. The session-start hook prints one line when they pass 500 tokens and refreshes the report weekly in the background. |
 
 ## Layout
 
