@@ -22,11 +22,21 @@ HEAVY = re.compile(
     r"|java\b.*\btlc2\.TLC\b"
     r")"
 )
+DOCKER_DB = re.compile(
+    COMMAND_START + r"docker(?:-compose)?\b[^\n]*\b(?:supabase|postgres|psql|pg_dump)",
+    re.IGNORECASE,
+)
 LONG_LIVED = re.compile(r"--watch\b|\bwatch\b|\bdev\b")
 POLL_MESSAGE = (
     "Blocked: a sleep loop that polls holds this turn and hits the Bash timeout. "
     "Start the job with run_in_background: true and you are notified when it exits. "
     "To wait for a file, a port or a log line, use the Monitor tool with an until-loop."
+)
+
+DOCKER_DB_MESSAGE = (
+    "Blocked: local Supabase and Postgres run in the Supabase CLI's native runtime, one stack per checkout, "
+    "never in Docker. Read ~/.agents/skills/local-supabase/SKILL.md: run `supabase start --runtime native "
+    "--output-format json` and connect with its env.DB_URL. A repo still on Docker moves in its own change."
 )
 
 
@@ -39,6 +49,10 @@ def main() -> int:
     command = tool_input.get("command") or ""
     background = bool(tool_input.get("run_in_background"))
     code = QUOTED.sub(" ", HEREDOC.sub(" ", command))
+
+    if DOCKER_DB.search(code):
+        print(DOCKER_DB_MESSAGE, file=sys.stderr)
+        return 2
 
     poll = POLL_LOOP.search(code)
     if poll and float(poll.group(1)) >= 2 and not background:
