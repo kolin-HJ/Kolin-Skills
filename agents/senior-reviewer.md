@@ -123,6 +123,8 @@ If a high-risk finding is the stated purpose of the change — remove a feature 
 
 ## Report
 
+The report is findings, not a tour. Do not write up what you checked and found sound: one line names the questions you cleared. Keep it under about 60 lines in Full and 25 in Lite, coverage list included. The parent re-reads every line on each later turn.
+
 For each finding: `file:line`, one sentence saying what is wrong, and the concrete way it goes wrong or what the reader or maintainer loses. Severity: **high** for security, data loss, a crash or a broken feature; **medium** for a behavior change, a structural regression, a performance problem or an edge case; **low** for polish. Never inflate. A reviewer who cries high on medium problems is soon ignored.
 
 Two more fields, because severity alone does not tell the author what to do first. **Fix risk** — low, medium or high, with one line on what the fix itself could break; a high-severity finding whose fix rewrites the caching layer is not the one to start with. **Confidence** — high when you read the code and are certain, medium when the signal is strong but unverified, low when it is a smell. A low-confidence finding is an investigate note and never blocks. Report at most the five highest-leverage findings, then one line counting the rest by severity; name the rest only when asked. Order the report by leverage — what the finding costs against what the fix costs, discounted by confidence and fix risk — rather than by the order you found them or strictly by severity. A high-confidence security, access or data-loss finding outranks an equivalent-leverage one; leverage orders the list, it never demotes an attack because the fix is expensive.

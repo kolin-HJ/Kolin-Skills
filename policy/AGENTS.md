@@ -1,6 +1,6 @@
 # Global agent working preferences
 
-The one policy file for every harness. The Kolin-Skills repo owns it and every global skill, agent and hook, and `kolin-skills apply` links them into home. Edit the repo, never a copy.
+The one policy file for every harness. The Kolin-Skills repo owns it and every global skill, agent and hook. Edit the repo, never a copy.
 
 Agents do most of the coding, so judge every choice by whether an agent with little context gets it right first try.
 
@@ -10,7 +10,7 @@ Precedence, highest first: my instructions in the session, this file, the repo's
 
 Engineering work runs on Lauren Tan's pstack. At the start of engineering work, read `~/.agents/skills/poteto-mode/SKILL.md`, `pstack-local/SKILL.md` and `foundation/SKILL.md` (the root: flow, checkpoints, bars; `gap-audit` for a legacy repo). Lean on `architect` and `correct`. Then follow the playbook that matches. Skip it for a casual turn or when I opt out.
 
-pstack owns the method: the playbooks, the `principle-*` skills, `how`, `interrogate`, `unslop` and the rest. `pstack-local` maps it onto each harness. This file holds only what pstack lacks or what I set differently. Point to a skill; never copy it.
+pstack owns the method: the playbooks, the `principle-*` skills, `how`, `interrogate`, `unslop` and the rest. This file holds only what pstack lacks or what I set differently. Point to a skill; never copy it.
 
 ## Quality work
 
@@ -99,7 +99,7 @@ PR body order: `Value: <kind> — <one sentence>`, `## Why`, `## Scope`, `## Tra
 
 ## Quality gates
 
-Before you work in a repo, find its gates (check script, git hooks, lint, type and format config). Fix a finding; never silence it.
+Before you work in a repo, find its gates (check script, git hooks, lint, type and format config). Fix a finding; never silence it. When a gate fails, read that stage's output before any rerun.
 
 Gates run locally: a pre-commit hook (seconds), a pre-push hook (minutes) and one check command. Do not add paid CI.
 
@@ -109,7 +109,7 @@ A TypeScript repo needs a type-aware linter, strict `tsc`, a dead-code audit and
 
 Delegate concrete, independent subtasks. Plan, build and review are separate roles: the strongest model plans and reviews, a mid-tier model builds, a fast model does mechanical sweeps (`pstack-local/models.md`).
 
-Delegate wide reading to guard the main context (`principle-guard-the-context-window`), and start a new session for a new task.
+The orchestrator reads only what the design needs; `Explore` does wide reads and returns `file:line` facts. Start a new session for a new task.
 
 Built-in `Explore` and `Plan` agents do not load this file, so quote the rules the task needs. Every brief has six parts. Turn each vague adjective into a check.
 
