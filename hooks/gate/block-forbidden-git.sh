@@ -23,11 +23,13 @@ fi
 guard api-merge; rc=$?
 (( rc == 0 )) && deny "merging via the API is forbidden"
 (( rc != 1 )) && [[ $cmd =~ (merge|automerge|auto_merge|enablePullRequestAutoMerge) && $cmd =~ gh[[:space:]]+api ]] && deny "merging via the API is forbidden"
-if [[ $cmd =~ git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+push ]]; then
-  [[ $cmd =~ (--force|[[:space:]]-f([[:space:]]|$)|[[:space:]]\+[^[:space:]]|--mirror|--delete|[[:space:]]-d([[:space:]]|$)) ]] && deny "force-push / delete / mirror push is forbidden"
-  [[ $cmd =~ (^|[[:space:]:/])main([[:space:]]|$) ]] && deny "pushing to main is forbidden"
+pushes=$(sed -e ':a' -e '/\\$/N; s/\\\n/ /; ta' <<<"$cmd" | tr -d "\"'" | grep -oiE 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+push([[:space:]][^;&|`]*)?')
+if [[ -n $pushes ]]; then
+  [[ $pushes =~ (--for|--de|--m|--pru|[[:space:]]-[^-[:space:]]*[fd]|[[:space:]][+:][^[:space:]]) ]] && deny "force-push / delete / mirror push is forbidden"
+  protected='(main|master|staging|sandbox)'
+  [[ $pushes =~ (^|[[:space:]]|:|refs/heads/)$protected([[:space:]]|\)|$) ]] && deny "pushing to ${BASH_REMATCH[2]} is forbidden; it changes only through a PR"
   branch=$(git -C "${cwd:-.}" rev-parse --abbrev-ref HEAD 2>/dev/null)
-  [[ $branch == main ]] && deny "pushing while on $branch is forbidden"
+  [[ $branch =~ ^$protected$ ]] && deny "pushing while on $branch is forbidden; it changes only through a PR"
 fi
 guard d4; rc=$?
 (( rc == 0 )) && deny "D4: skipping the local gate or editing hook files is forbidden for agents"
