@@ -6,14 +6,18 @@ import sys
 import time
 
 
-SLOTS = 3
+SLOTS = int(os.environ.get("HEAVY_SLOTS") or 3)
 SLOT_DIR = os.environ.get("HEAVY_SLOT_DIR") or f"/tmp/heavy-slots-{os.getuid()}"
+# HEAVY_SLOT_LOCK: one shared lock file (e.g. /workspace/runs/heavy.lock); implies a single slot.
+SLOT_LOCK = os.environ.get("HEAVY_SLOT_LOCK")
 
 
 def take_free_slot():
-    os.makedirs(SLOT_DIR, exist_ok=True)
-    for index in range(SLOTS):
-        fd = os.open(os.path.join(SLOT_DIR, str(index)), os.O_CREAT | os.O_RDWR, 0o600)
+    paths = [SLOT_LOCK] if SLOT_LOCK else [os.path.join(SLOT_DIR, str(i)) for i in range(SLOTS)]
+    if not SLOT_LOCK:
+        os.makedirs(SLOT_DIR, exist_ok=True)
+    for path in paths:
+        fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             return fd

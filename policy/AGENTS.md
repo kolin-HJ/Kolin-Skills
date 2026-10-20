@@ -1,12 +1,12 @@
 # Global agent working preferences
 
-The one policy file for every harness. `~/Documents/Github/Kolin-Skills` owns it and every global skill, agent and hook; `kolin-skills apply` links them. Edit the repo, never a copy.
+The one policy file for every harness. This repo (cloned anywhere; `kolin-skills apply` records the path) owns it and every global skill, agent and hook; `kolin-skills apply` links them. Edit the repo, never a copy.
 
 Precedence, highest first: my instructions in the session, the repo's `AGENTS.md`, this file, then pstack. Where the repo file and this file conflict, follow the stricter one and say which one you followed.
 
 ## pstack is the method
 
-Engineering work runs on Lauren Tan's pstack. At the start of engineering work, read `~/.agents/skills/poteto-mode/SKILL.md` and `~/.agents/skills/pstack-local/SKILL.md`. Then follow the playbook that matches. Skip it for a casual turn or when I opt out.
+Engineering work runs on Lauren Tan's pstack. At the start of engineering work, read `~/.agents/skills/poteto-mode/SKILL.md`, `pstack-local/SKILL.md` and `foundation/SKILL.md` (the root: flow, checkpoints, bars; `gap-audit` for a legacy repo). Lean on `architect` and `correct`. Then follow the playbook that matches. Skip it for a casual turn or when I opt out.
 
 pstack owns the method: the playbooks, the `principle-*` skills, `how`, `interrogate`, `unslop` and the rest. `pstack-local` maps its Cursor terms onto each harness and lists every place where this file overrides it. This file holds only what pstack lacks or what I set differently. Do not copy pstack rules into this file or into a repo file. Point to the skill.
 
@@ -21,7 +21,7 @@ Less code wins only at the same bar for correctness, tests and proof.
 
 ## Initiative
 
-Treat "can you", "I want to" and "help me" as instructions to do the work. Carry the task to the outcome, not a plan, an offer or a partial result.
+Treat "can you", "I want to" and "help me" as instructions to do the work. Carry it to the outcome, not a plan or an offer.
 
 Ask one to three questions only when a wrong reading would change the work. Otherwise state the assumption and continue. Continue independent work while you wait for an answer. Keep the active goal when I add a correction or a side question.
 
@@ -44,9 +44,9 @@ The codebase is the agents' memory. Agents extend what exists, so a bad pattern 
 3. A skill or `AGENTS.md`, only for judgment no tool can check. Add these last.
 4. Review, for what the first three missed. A finding that recurs moves up the list.
 
-Each repo with a runnable surface has one verification skill. It holds a CLI that launches, drives and measures the real app, and one feature map file per user-facing feature. A script written twice goes into that CLI. Build one with `create-verification-skill` and keep it honest with `maintain-verification-skill`.
+Each repo with a runnable surface has one verification skill: a CLI that launches, drives and measures the real app, and one feature map per user-facing feature. A script written twice goes into that CLI. Build one with `create-verification-skill` and keep it honest with `maintain-verification-skill`.
 
-Paying down debt is standing work in its own PRs: delete a banned pattern, lower a baseline, turn a repeated finding into a rule.
+Paying down debt is standing work in its own PRs: delete a banned pattern, lower a baseline, add a rule.
 
 ## Overrides of pstack
 
@@ -106,7 +106,7 @@ A TypeScript repo needs a type-aware linter, strict `tsc`, a dead-code audit and
 
 Delegate concrete, independent subtasks when that saves time or raises quality. A subagent costs about four chat turns, and a multi-agent run about fifteen.
 
-The main thread's context is the largest cost (`principle-guard-the-context-window`). Delegate wide reading so only conclusions come back, and start a new session for a new task.
+The main thread's context is the largest cost (`principle-guard-the-context-window`). Delegate wide reading, and start a new session for a new task.
 
 Built-in `Explore` and `Plan` agents do not load this file, so quote the rules the task needs. Each brief holds:
 
