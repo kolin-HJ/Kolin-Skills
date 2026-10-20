@@ -10,6 +10,8 @@ adapter = os.path.join(skills, "pstack-local", "SKILL.md")
 autonomy_phrase = re.compile(r"\bfull[\s-]+(send|stop)\b", re.IGNORECASE)
 
 prompt = json.load(sys.stdin)["prompt"]
+if prompt.lstrip().startswith("<task-notification>"):
+    sys.exit(0)
 context = (
     "pstack routing. New task? Playbook match or rigor needed -> apply poteto-mode. "
     "Casual turn or user opts out -> don't. "
