@@ -24,6 +24,16 @@ SKIP_BLOCKED = [
     "bash -c '" + GIT + " commit " + NV + " -m x'",
     "bash <<EOF\n" + GIT + " commit " + NV + " -m x\nEOF",
     GIT + " commit " + NV + " -m 'unterminated",
+    GIT + " -c core.hooksPath=/dev/null commit -m x",
+    GIT + " -c core.hookspath=/tmp/empty push origin feature",
+    "HUSKY=0 " + GIT + " commit -m x",
+    "export HUSKY=0",
+    GIT + " config core.hooksPath /dev/null",
+    "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null " + GIT + " commit -m x",
+    "echo hi # note\n" + GIT + " commit " + NV + " -m x",
+    'echo "$(' + GIT + " commit " + NV + ' -m x)"',
+    'echo "`' + GIT + " commit " + NV + ' -m x`"',
+    GIT + " commit -m x \\\n  " + NV,
 ]
 SKIP_ALLOWED = [
     "cat > notes.md <<'EOF'\nNever use " + NV + " or " + GIT + " commit -n.\nEOF",
@@ -34,6 +44,11 @@ SKIP_ALLOWED = [
     "python3 -c 'print(\"" + NV + "\")'",
     GIT + " commit -m 'explain why " + NV + " is banned'",
     GIT + " push -n origin feature",
+    GIT + " -c user.name=x commit -m y",
+    "rg HUSKY docs/",
+    "HUSKY=0 npm install",
+    GIT + " config user.name x",
+    "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=user.name GIT_CONFIG_VALUE_0=x " + GIT + " commit -m y",
 ]
 API_BLOCKED = [
     GH + " api -X PUT repos/o/r/pulls/1/merge",
@@ -42,6 +57,29 @@ API_BLOCKED = [
     "cd x && " + GH + " api repos/o/r/pulls/1/merge -X PUT",
     GH + " api graphql -f query='mutation { enablePullRequestAutoMerge(input:{}) { clientMutationId } }'",
     GH + " pr merge 5 && echo done",
+    "echo `" + GH + " pr merge 5`",
+    "echo hi # note\n" + GH + " pr merge 5",
+    'echo "$(' + GH + ' pr merge 5)"',
+    'echo "`' + GH + ' pr merge 5`"',
+]
+PR_MERGE_MENTIONS_ALLOWED = [
+    GIT + ' grep -nE "' + GH + ' pr merge|baseRefName" -- \':!tests\'',
+    "rg '" + GH + " pr merge' hooks/ | head",
+    "echo '" + GH + " pr merge 5' > notes.txt",
+]
+FILE_BLOCKED = [
+    ".git/hooks/pre-commit",
+    ".husky/pre-push",
+    "lefthook.yml",
+    os.path.expanduser("~/.claude/hooks/block-forbidden-git.sh"),
+    "/x/.git/config",
+    "/x/.githooks/pre-push",
+    "/x/.GIT/hooks/pre-commit",
+]
+FILE_ALLOWED = [
+    str(REPO / "hooks/gate/git_guard.py"),
+    "src/app.py",
+    "docs/husky-notes.md",
 ]
 API_ALLOWED = [
     GH + " api repos/o/r/issues/1/timeline --jq '.[] | select(.event==\"merged\")'",
@@ -98,6 +136,7 @@ GATE_SKIP_BLOCKED = [
     "cp x ~/.claude/hooks/block-forbidden-git.sh",
     "echo x > .git/hooks/pre-commit",
     "rm -f .husky/pre-push",
+    "echo hi # note\nrm -f .husky/pre-push",
 ]
 GATE_SKIP_ALLOWED = [
     "cat ~/.claude/hooks/README.md",
@@ -111,6 +150,12 @@ def run_hook(command, cwd, env=None):
     payload = {"tool_input": {"command": command}, "cwd": cwd}
     return subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
                           capture_output=True, cwd=cwd, env=env, timeout=20)
+
+
+def run_file_hook(path, cwd, key="tool_input"):
+    payload = {key: {"file_path": path}, "cwd": cwd}
+    return subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
+                          capture_output=True, cwd=cwd, timeout=20)
 
 
 class ForbiddenGitHookTests(unittest.TestCase):
@@ -154,6 +199,16 @@ class ForbiddenGitHookTests(unittest.TestCase):
                 fake.chmod(0o755)
                 env = {**os.environ, "PATH": directory + os.pathsep + os.environ["PATH"]}
                 self.assertEqual(run_hook(GH + " pr merge 5", directory, env).returncode, expected)
+
+    def test_a_read_only_search_that_mentions_pr_merge_is_allowed(self):
+        self.check(PR_MERGE_MENTIONS_ALLOWED, 0)
+
+    def test_file_tools_cannot_edit_hook_files_but_can_edit_this_repos_hooks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for key in ("tool_input", "toolInput"):
+                for path, expected in [(p, 2) for p in FILE_BLOCKED] + [(p, 0) for p in FILE_ALLOWED]:
+                    with self.subTest(key=key, path=path):
+                        self.assertEqual(run_file_hook(path, directory, key).returncode, expected)
 
     def test_the_codex_and_cursor_payload_shape_is_guarded_too(self):
         with tempfile.TemporaryDirectory() as directory:

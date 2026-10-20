@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 '{{REPO}}/bin/kolin-skills' pull --quiet || true",
+            "command": "python3 '{{REPO}}/bin/kolin-skills' pull --quiet",
             "timeout": 15
           }
         ]
@@ -24,7 +24,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|Write|Edit|MultiEdit",
         "hooks": [
           {
             "type": "command",
