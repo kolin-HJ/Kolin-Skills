@@ -33,9 +33,9 @@ If a skill makes you pause, ask, or leave work undone, link the exact `SKILL.md`
 
 ## Approvals
 
-Reversible work proceeds without asking: reading, edits in a branch or worktree, gates, local runs, reviews and fixes. An approval I gave once covers that action for the session.
+Reversible work proceeds without asking: reading, edits, gates, local runs, reviews, fixes, and work-branch commits, pushes and PRs. One approval covers that action for the session.
 
-Never commit, push, merge or deploy without my approval in the session. Ask before an external write: a message to a person, a ticket, a production database, a third-party system. A data structure or system flow needs my yes before the build (`foundation`, "Where Kolin steps in"). Prepare and verify first, and bundle the asks, so my yes is the last step.
+`main`, `master`, `sandbox` and `staging` change only through a PR. Never merge or deploy without my yes. Ask before an external write: a message, a ticket, a production database, a third-party system. A data structure or system flow needs my yes before the build (`foundation`, "Where Kolin steps in"). Prepare, verify and bundle the asks, so my yes is the last step.
 
 ## How agents earn trust
 
