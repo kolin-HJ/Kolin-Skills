@@ -83,3 +83,8 @@ The styling split: clsx for ad-hoc conditional classes; cva when a component has
 - **Rendering a 1,000+ row list directly** → Virtuoso before reaching for pagination hacks.
 - **A `useState`-per-component web of props for shared state** → zustand.
 - **Template-literal className ternaries three conditions deep** → clsx (or cva if it's variant-shaped).
+
+
+## Kolin's overrides
+
+In Kolin's repos, `foundation/SKILL.md` (UI bar) wins over this list: AG Grid and AG Charts Community behind one wrapper instead of recharts, shadcn on Base UI, and Polaris web components in Shopify apps.

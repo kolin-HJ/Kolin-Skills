@@ -21,7 +21,7 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 | `readonly: true` | `Explore`, or a reviewer agent without Edit and Write. |
 | `environment: "cloud"`, `cloud_base_branch` | A local worktree (`isolation: "worktree"`) created from that branch. |
 | `model: <slug>` | The role line in `models.md` next to this file. |
-| `~/.cursor/rules/pstack-models.mdc`, `/setup-pstack` | `models.md` next to this file. Edit it to change a role. Never write `~/.claude/rules/pstack-models.md`. |
+| `~/.cursor/rules/pstack-models.mdc`, `/setup-pstack` | `models.md` next to this file. Never write `~/.claude/rules/pstack-models.md`. |
 | `AskQuestion` | `AskUserQuestion` |
 | todolist | The harness's todo or task list. If there is none, a checklist in the reply. |
 | Cursor `/loop` | Claude Code `/loop`, with `ScheduleWakeup` or `Monitor`. Codex: keep working in the turn. |
@@ -54,15 +54,21 @@ Put the full brief in each subagent's prompt, because a subagent has none of you
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a gate directive with `-- <reason>`.
 - **Reply style.** Keep pstack's Writing the reply rules. State the principles that changed a decision in one line, not a section.
 
-## Other upstreams
+## Skill index
 
-- `thermo-nuclear-code-quality-review` (cursor-team-kit) is vendored and linked like pstack. Read it for the diff pass in AGENTS.md Quality work, or when the user asks for a harsh structure review. `senior-reviewer` already carries its approval bar.
-- [ponytail](https://github.com/DietrichGebert/ponytail) is cloned to `~/.agents/vendor/ponytail`. `apply` links only `ponytail` and `ponytail-audit` (`VENDOR_SKILL_DIRS`). Use `ponytail` mode for all coding. Overrides: no `shortcut:` or why comment; each shortcut, its limit and its upgrade trigger go in the PR body `## Tradeoffs`. Its assert-based self-check follows AGENTS.md Tests and proof. Use `ponytail-audit` for a whole-repo report. Not linked: `ponytail-review` (`senior-reviewer` reads every diff), `ponytail-debt` (it lists `shortcut:` comments, which do not exist here), `ponytail-gain` (a benchmark card) and `ponytail-help` (plugin hooks and config not installed here).
+`foundation` is the root; every skill below inherits its flow, check points and bars. `apply` links all of them flat into each harness, so the groups live here, not in folders.
 
-## Kolin's own skills
+| Group | Skills |
+|---|---|
+| Core | `foundation` (with `references/ui-bar.md`), this adapter and `models.md` |
+| Process playbooks | pstack (`poteto-mode` and its playbooks, `architect`, `correct`, `interrogate`, `sharpen`), `gap-audit`, `loop-refactor-to-pstack`, `full-stop`, `full-send` |
+| Principles | pstack `principle-*` |
+| Project | `slickjoy` (repo rules live only in project skills) |
+| Utilities | `local-supabase`, `explainer`, the UI craft skills (`emil-design-eng`, `break-ui`, `mobile-native`, `pick-ui-library`, `prototype`, `apple-design`, `ask-sonner`, animation skills), and the upstreams in `references/upstreams.md` (cursor-team-kit, ponytail) |
 
-- `local-supabase` (`~/.agents/skills/local-supabase/SKILL.md`) owns every local Supabase or Postgres database in every repo: one stack per checkout in the Supabase CLI's native runtime, never Docker. Read it before you start, seed or connect to one.
-- `full-stop` and `full-send` (`~/.agents/skills/full-*/SKILL.md`) are the in-session approval when Kolin invokes them: full stop covers commit, push and a ready PR, and full send adds the merge of that one PR. `scripts/mode-reminder` flags either phrase on each prompt.
+`full-stop` and `full-send` are the in-session approval when Kolin invokes them: full stop covers commit, push and a ready PR; full send adds the merge of that one PR. `scripts/mode-reminder` flags either phrase.
+
+Use `ponytail` mode for all coding and read `thermo-nuclear-code-quality-review` for the diff pass; their overrides are in `references/upstreams.md`.
 
 ## Verify the setup
 

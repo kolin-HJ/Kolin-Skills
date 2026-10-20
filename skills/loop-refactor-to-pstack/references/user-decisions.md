@@ -14,6 +14,12 @@ Every one of these came up mid-program before. Ask the ones that apply in the fi
 | Compile check | A parity app launch, or a production build | One user skipped the build because parity already launches the app |
 | Subagent model and effort | Sonnet 5.5 at medium effort, pinned in the agent definitions and checked by `assets/check-subagents.sh` | Briefs must be written for that tier (`references/subagents.md`) |
 | Decisions toward the goal | "I approve reversible decisions that serve the goal" | Stops a question every hour. It never covers push, merge or deploy. |
+| The lens for every choice | Agent-first: pick the option an unsupervised agent gets right on the first try, with code a person can still read | The goal is a codebase agents manage with no supervision |
+| Effects library | None. Plain strict TypeScript: a `Result` union, tagged errors that carry a fix hint, one retry owner, one rate limiter per external connection, and dependencies passed as one typed argument | Every model writes this pattern correctly with no library to learn; adopt Effect (`references/effect.md`) only when the user asks for it |
+| Where gates run | The user's call: CI, or local only (pre-commit, pre-push, and a `verify` command that writes an evidence file per SHA). Agents may never skip the local gate | With local-only gates, `references/trust-audit.md` Local enforcement is the whole defence, so every row there must hold |
+| Out-of-scope code | Delete it, after a tag on the last commit that has it; never park it | One live example per side, and nothing dead for agents to copy |
+| Runtime versions | One pinned runtime version (for example one Node LTS) in every repo, the box and the host | No "works on my Node" |
+| Build models | Opus plans and reviews in a fresh read-only thread; Sonnet builds; Haiku does mechanical sweeps; effort set per task | The reviewer must not share the builder's context |
 | Verifier model families | One different family per risky unit, through `pstack-local/models.md` seats | A same-family reviewer shares the worker's blind spots; say so when only one family is available |
 
 ## Landing (ask with the setup batch)
@@ -28,7 +34,7 @@ The program lands as one branch and one PR at the user's request. These calls sh
 | Mid-program landing | Allowed at any wave boundary on the user's word; the branch then continues from the merged base | Agents on the base have none of the gates until the PR merges |
 | Base drift | Merge the base into the branch at every wave boundary; never rebase | A rebase rewrites every pushed SHA, voids every ledger verdict and needs a force-push |
 
-## Effect (ask with the setup batch when the program adopts Effect)
+## Effect (ask only when the user chose Effect over plain TypeScript)
 
 | Call | Recommended | Why it matters |
 |---|---|---|
