@@ -492,8 +492,14 @@ def spend_failures():
     return failures
 
 
+def without_git_repo_env():
+    local = git("rev-parse", "--local-env-vars").stdout.split()
+    return {key: value for key, value in os.environ.items() if key not in local}
+
+
 def check():
     failures = []
+    test_env = without_git_repo_env()
     owner = wired_repo()
     if owner not in (None, str(REPO)):
         print(f"Home is wired to {owner}, so home drift was not checked; this run checks the repo only.")
@@ -516,13 +522,13 @@ def check():
         if shutil.which(tool) is None:
             failures.append(f"{tool} is missing from PATH; {purpose}")
     tests = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", str(REPO / "tests")],
-                           cwd=REPO, text=True, capture_output=True, timeout=300)
+                           cwd=REPO, env=test_env, text=True, capture_output=True, timeout=300)
     print(tests.stderr.strip().splitlines()[-1])
     if tests.returncode:
         print(tests.stderr, file=sys.stderr)
         failures.append("tests failed")
     template_tests = subprocess.CompletedProcess([], 0) if shutil.which("node") is None else subprocess.run(["node", "--test", "skills/loop-refactor-to-pstack/assets/**/*.test.mjs"],
-                                    cwd=REPO, text=True, capture_output=True, timeout=300)
+                                    cwd=REPO, env=test_env, text=True, capture_output=True, timeout=300)
     if template_tests.returncode:
         print(template_tests.stdout, file=sys.stderr)
         failures.append("loop-refactor-to-pstack gate template tests failed")
