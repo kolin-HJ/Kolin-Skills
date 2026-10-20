@@ -8,9 +8,9 @@ Precedence, highest first: my instructions in the session, this file, the repo's
 
 ## pstack is the method
 
-Engineering work runs on Lauren Tan's pstack. At the start of engineering work, read `~/.agents/skills/poteto-mode/SKILL.md`, `pstack-local/SKILL.md` and `foundation/SKILL.md` (the root: flow, checkpoints, bars; `gap-audit` for a legacy repo). Lean on `architect` and `correct`. Then follow the playbook that matches. Skip it for a casual turn or when I opt out.
+Engineering work runs on Lauren Tan's pstack. At the start, the main session reads `~/.agents/skills/poteto-mode/SKILL.md`, `pstack-local/SKILL.md` and `foundation/SKILL.md` (the root: flow, checkpoints, bars; `gap-audit` for a legacy repo), then follows the matching playbook. A subagent reads only what its brief names. Lean on `architect` and `correct`. Skip it for a casual turn or when I opt out.
 
-pstack owns the method: the playbooks, the `principle-*` skills, `how`, `interrogate`, `unslop` and the rest. This file holds only what pstack lacks or what I set differently. Point to a skill; never copy it.
+pstack owns the method: the playbooks, the `principle-*` skills and the rest. This file holds only what pstack lacks or what I set differently. Point to a skill; never copy it.
 
 ## Quality work
 
@@ -109,7 +109,7 @@ A TypeScript repo needs a type-aware linter, strict `tsc`, a dead-code audit and
 
 Delegate concrete, independent subtasks. Plan, build and review are separate roles: the strongest model plans and reviews, a mid-tier model builds, a fast model does mechanical sweeps (`pstack-local/models.md`).
 
-The orchestrator reads only what the design needs; `Explore` does wide reads and returns `file:line` facts. Start a new session for a new task.
+The orchestrator reads only what the design needs; `Explore` does wide reads and returns `file:line` facts.
 
 Built-in `Explore` and `Plan` agents do not load this file, so quote the rules the task needs. Every brief has six parts. Turn each vague adjective into a check.
 
@@ -120,7 +120,7 @@ Built-in `Explore` and `Plan` agents do not load this file, so quote the rules t
 5. **Effort:** the model and effort level for the job.
 6. **Stop when:** a drifted file, a check that fails twice, or work outside its files. Stop and report.
 
-Agents message each other only when the other must act: no acknowledgements, no progress pings, one summary at the end. Multi-step work keeps `.pstack/status.md` (goal, done, next, blocked) current at each step, so I can check in any time.
+Agents message each other only when the other must act: no acknowledgements, no progress pings, one summary at the end. Work of more than one unit keeps `.pstack/status.md` (goal, done, next, blocked) current, so I can check in any time. A playbook that derives it wins.
 
 Read every hunk of a delegated diff and what each new test asserts. Reject a change outside the assigned files. After two revision rounds, rewrite the brief.
 

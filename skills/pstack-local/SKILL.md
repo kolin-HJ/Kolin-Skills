@@ -54,16 +54,9 @@ The global policy (`policy/AGENTS.md`) lists the rules that override pstack (App
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a gate directive with `-- <reason>`.
 - **Reply style.** Keep pstack's Writing the reply rules. State the principles that changed a decision in one line, not a section.
 
-## Skill index
+## Own skills
 
-`foundation` is the root; every skill below inherits its flow, check points and bars. `apply` links all of them flat into each harness, so the groups live here and in the README, not in folders. `kolin-skills check` fails when a skill is missing from either.
-
-| Group | Skills |
-|---|---|
-| Core | `foundation` (with `references/ui-bar.md`), this adapter `pstack-local` and `models.md` |
-| Process playbooks | pstack (`poteto-mode` and its playbooks, `architect`, `correct`, `interrogate`, `sharpen`), `gap-audit`, `loop-refactor-to-pstack`, `full-stop`, `full-send` |
-| Principles | pstack `principle-*` |
-| Utilities | `local-supabase`, `explainer`, UI craft (`emil-design-eng`, `break-ui`, `mobile-native`), cursor-team-kit (`deslop`, `control-ui`, `control-cli`, `thermo-nuclear-code-quality-review`), `find-skills` |
+`foundation` is the root; every other skill inherits its flow, check points and bars. The grouped index lives in the Kolin-Skills README.
 
 `full-stop` and `full-send` are the in-session approval when Kolin invokes them: full stop covers a ready PR; full send adds the merge of that one PR. `scripts/mode-reminder` flags either phrase.
 
