@@ -63,6 +63,8 @@ flowchart LR
 
 ## New machine
 
+Prerequisites: git, Python 3, and Node >= 22.20 (for the `npx skills` third-party installs). With an older Node, `install` prints a clear message, skips the third-party skills, and still runs `apply` and `check`.
+
 ```sh
 git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Documents/Github/Kolin-Skills   # any path works, e.g. /workspace/kolin-skills on the bot box
 python3 ~/Documents/Github/Kolin-Skills/bin/kolin-skills install
@@ -76,7 +78,7 @@ python3 ~/Documents/Github/Kolin-Skills/bin/kolin-skills install
 |---|---|
 | `kolin-skills apply` | Links and renders the repo into home. Offline. `--check` reports drift and changes nothing. |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo, or lists an `npx skills` install in `upstream/skills.json`, then applies. |
-| `kolin-skills pull` | Fast-forwards from the remote when the tree is clean, then applies. The session-start hook runs this. |
+| `kolin-skills pull` | Fast-forwards from the remote when the tree is clean, then applies. The Claude and Codex session-start hooks run `pull --quiet` (fast-forward only, skipped on local edits, 10s cap, never blocks the session). |
 | `kolin-skills upstream` | Updates pstack, cursor-team-kit, ponytail and the `npx skills` packages, then applies. |
 | `kolin-skills check` | The gate: drift, strays in home, missing third-party skills, spend caps, size budgets, Bun, tests. |
 | `kolin-skills install` | First run on a machine: `upstream`, then `check`. |
