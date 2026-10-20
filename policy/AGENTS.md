@@ -1,6 +1,6 @@
 # Global agent working preferences
 
-The one policy file for every harness. `~/Documents/Github/Kolin-Skills` owns it and every global skill, agent and hook; `kolin-skills apply` links them. Edit the repo, never a copy.
+The one policy file for every harness. This repo (cloned anywhere; `kolin-skills apply` records the path) owns it and every global skill, agent and hook; `kolin-skills apply` links them. Edit the repo, never a copy.
 
 Precedence, highest first: my instructions in the session, the repo's `AGENTS.md`, this file, then pstack. Where the repo file and this file conflict, follow the stricter one and say which one you followed.
 

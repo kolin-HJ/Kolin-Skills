@@ -44,7 +44,7 @@ flowchart LR
 ## New machine
 
 ```sh
-git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Documents/Github/Kolin-Skills
+git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Documents/Github/Kolin-Skills   # any path works, e.g. /workspace/kolin-skills on the bot box
 python3 ~/Documents/Github/Kolin-Skills/bin/kolin-skills install
 ```
 
