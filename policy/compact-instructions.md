@@ -5,7 +5,7 @@ You are writing the handoff that replaces this conversation. The agent that resu
 Keep, in this order:
 
 1. The user's requests in their own words, quoted, with every correction and constraint they added since. Mark each one done, in progress or not started.
-2. Standing rules and approvals from the session: what the user authorized, what they refused, and what still waits on their approval (commit, push, PR, deploy, data writes). An approval covers only the action it named.
+2. Standing rules and approvals from the session: what the user authorized, what they refused, and what still waits on their approval (merge, deploy, a push to a protected branch, data writes). An approval covers only the action it named.
 3. Where the work lives: repository, worktree path, branch, and the database or environment target, exactly as confirmed.
 4. What changed: each file created, edited or deleted, with one line on why. Name functions, types and tables exactly. Quote code only when the next step depends on its exact text.
 5. Decisions and the reason for each, including the alternatives the user or the evidence ruled out, so the next agent does not reopen them.
