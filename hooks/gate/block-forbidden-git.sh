@@ -8,6 +8,7 @@ here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 guard() { python3 "$here/git_guard.py" "$1" <<<"$cmd"; }
 shopt -s nocasematch
 nv="--no-""verify"
+protected='(main|master|staging|sandbox)'
 guard skip-hooks; rc=$?
 (( rc == 0 )) && deny "skipping git hooks is forbidden"
 (( rc != 1 )) && { [[ $cmd == *"$nv"* ]] || [[ $cmd =~ git[[:space:]]+commit([^;&|]*)[[:space:]]-[a-z]*n ]]; } && deny "skipping git hooks is forbidden (unparsed command)"
@@ -17,7 +18,7 @@ if [[ $cmd =~ gh[[:space:]]+pr[[:space:]]+merge ]]; then
   repo=$(grep -oE '(-R|--repo)[= ][^ ]+' <<<"$cmd" | head -1 | sed -E 's/^(-R|--repo)[= ]//')
   [[ -z $pr ]] && deny "gh pr merge needs a PR number"
   base=$(cd "${cwd:-.}" 2>/dev/null; gh pr view "$pr" ${repo:+-R "$repo"} --json baseRefName -q .baseRefName 2>/dev/null)
-  [[ -z $base || $base == main || $base == master ]] && deny "merging into main (production) needs Kolin"
+  [[ -z $base || $base =~ ^$protected$ ]] && deny "merging into ${base:-an unknown base} needs Kolin; it changes only through a PR he merges"
 fi
 [[ ! $cmd =~ gh[[:space:]]+pr[[:space:]]+merge ]] && [[ $cmd =~ --auto([[:space:]]|$) && $cmd =~ gh[[:space:]] ]] && deny "auto-merge is forbidden"
 guard api-merge; rc=$?
@@ -26,7 +27,6 @@ guard api-merge; rc=$?
 pushes=$(sed -e ':a' -e '/\\$/N; s/\\\n/ /; ta' <<<"$cmd" | tr -d "\"'" | grep -oiE 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+push([[:space:]][^;&|`]*)?')
 if [[ -n $pushes ]]; then
   [[ $pushes =~ (--for|--de|--m|--pru|[[:space:]]-[^-[:space:]]*[fd]|[[:space:]][+:][^[:space:]]) ]] && deny "force-push / delete / mirror push is forbidden"
-  protected='(main|master|staging|sandbox)'
   [[ $pushes =~ (^|[[:space:]]|:|refs/heads/)$protected([[:space:]]|\)|$) ]] && deny "pushing to ${BASH_REMATCH[2]} is forbidden; it changes only through a PR"
   branch=$(git -C "${cwd:-.}" rev-parse --abbrev-ref HEAD 2>/dev/null)
   [[ $branch =~ ^$protected$ ]] && deny "pushing while on $branch is forbidden; it changes only through a PR"
