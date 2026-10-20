@@ -2,7 +2,7 @@
 
 Replaces `~/.cursor/rules/pstack-models.mdc`. Role labels match the ones pstack skills name. Claude is the only provider. Every role runs as a native Claude subagent through the Agent tool, and no other provider's CLI or API is called.
 
-- `default`: a native subagent with no `model` passed. `CLAUDE_CODE_SUBAGENT_MODEL` in `~/.claude/settings.json` makes that Sonnet 5.5, and `~/.claude/hooks/agent-default-model.py` does the same for `Explore` and `claude-code-guide`, which pin `inherit`. An agent definition's `model` and the Agent tool's `model` still win.
+- `default`: a native subagent with no `model` passed. `~/.claude/hooks/agent-default-model.py` sets Sonnet 5.5 on every Agent call with no `model` whose definition pins none: `general-purpose`, `Explore`, `claude-code-guide`, and any user or repo agent with no `model:` line that can edit (no `tools:` line, or one with `Edit` or `Write`), such as a repo's own implementer. A read-only agent with no pin (a repo's reviewer) inherits the session's Opus. `CLAUDE_CODE_SUBAGENT_MODEL` alone did not reach a repo agent on 2026-10-20, so the hook is the guarantee. A definition's `model` and the Agent tool's `model` still win.
 - `haiku-worker`: the `haiku-worker` agent definition (Haiku 5.5, medium). Bounded mechanical work only. The advisor on `default`, `sonnet` or `opus` writes its brief and reads every hunk (`loop-refactor-to-pstack/references/subagents.md`, "Advisor pattern").
 - `opus`, `sonnet`: a native subagent with that model passed as the Agent tool's `model`.
 
@@ -48,6 +48,21 @@ Plan, build and review are separate seats:
 | Sweeper | `haiku-worker` | Haiku 5.5, medium | Recipe work: renames, codemods, fixtures, searches the brief spells out |
 | Searcher | `Explore` | Sonnet (hook default) | Wide read-only search; returns conclusions, not file dumps |
 | Reviewer | `senior-reviewer` | Opus 5.5, high, read-only | Fresh review of every non-trivial diff; never the builder |
-| Comment sweep | `comment-sicko` (pstack) | inherits | Deletes comments before review |
+| Comment sweep | `comment-sicko` (pstack) | Sonnet (hook default) | Deletes comments before review |
 
 Routing by job, with the Haiku cost results measured on 2026-10-07, lives in `loop-refactor-to-pstack/references/subagents.md`.
+
+## Spend
+
+Every turn re-reads the whole context, so a tool call costs about the context's size. On 2026-10-20 a 15-file feature took 180 Opus turns at about 130k context each. These rules cut turns and context, not rigor:
+
+- **Size tier.** For one owner and about 10 files or fewer, skip `how`, `architect` and the throughput checkpoint, and say so in one line. The value case, `.pstack/status.md`, the builder, the fresh review and the verification skill stay.
+- **Read once.** Read skill files with parallel `Read` calls. One `cat` of several files overflows the Bash output limit and is read twice. The orchestrator reads ranges (`rg -n`, `sed -n a,b`), not whole files, and passes the `file:line` anchors and the neighbor it chose in the brief, so the builder and the reviewer do not explore again.
+- **Batch.** Put independent reads and searches in one turn. Use `rg -g '*.ts'`, not an unquoted zsh glob.
+- **Edit with Edit.** A `sed -i` or heredoc edit gets only the late Bash lint pass, and the diff is harder to read.
+- **Gate once.** The builder runs targeted tests and the repo's known-trap check (for example `fallow:audit`) while it builds, and the full gate once at the end. The orchestrator runs the repo gate once, after the review fixes.
+- **Background and parallel.** Spawn the builder in the background, and start the app stack (database, dev server) while it builds. Run the reviewer and the verification skill in parallel, and tell the reviewer the verification is running.
+- **Watchers.** Stop a `Monitor` when its target changes. Run the last gate in the foreground, so the turn ends with the report and not with "waiting".
+- **Sleep before load.** When a gate stalls or tests time out, read `pmset -g log | grep -E ' (Sleep|Wake|DarkWake) '` and the transcript's "computer was asleep" errors before blaming load. On 2026-10-20 a 1-minute gate took 8 hours because the Mac slept; `heavy-slot.py` now holds `caffeinate -i` for each heavy job. Then check `uptime`, and stop your own dev server and browser.
+- **Review fixes go to the builder.** Send the reviewer's findings back to the builder with `SendMessage`, then rerun the repo's known-trap check. On 2026-10-20 the orchestrator fixed findings itself with heredocs, and its edit added a `fallow:audit` failure that stood for 5 hours.
+- **The push hook is the gate.** When the pre-push hook runs the full gate (for example `verify:pr`), do not run it again just before the push.
