@@ -13,14 +13,29 @@ HEREDOC = re.compile(
 )
 
 
-def operands(command: str):
-    stripped = HEREDOC.sub(" ", command)
+EXISTENCE_CHECKS = {"ls", "test", "[", "stat"}
+SIMPLE_COMMAND_SPLIT = re.compile(r"(;|&&|\|\||\||\n)")
+PIPE_READERS = {"xargs", "cat", "source", "."}
+SUBSHELL = re.compile(r"\$\(|`")
+
+
+def tokens_of(text: str):
     try:
-        tokens = shlex.split(stripped, comments=False)
+        return shlex.split(text, comments=False)
     except ValueError:
-        tokens = stripped.split()
-    for token in tokens:
-        yield token.strip("`'\"")
+        return text.split()
+
+
+def operands(command: str):
+    parts = SIMPLE_COMMAND_SPLIT.split(HEREDOC.sub(" ", command))
+    for index in range(0, len(parts), 2):
+        tokens = tokens_of(parts[index])
+        if tokens and tokens[0] in EXISTENCE_CHECKS and not SUBSHELL.search(parts[index]):
+            piped_to = tokens_of(parts[index + 2])[:1] if parts[index + 1:index + 2] == ["|"] else []
+            if not set(piped_to) & PIPE_READERS:
+                continue
+        for token in tokens:
+            yield token.strip("`'\"")
 
 
 def main() -> int:

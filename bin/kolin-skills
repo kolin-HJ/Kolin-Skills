@@ -54,6 +54,7 @@ LINKS = {
     "hooks/lint-changed-lines.py": [".codex/hooks/lint-changed-lines.py"],
     "hooks/compact-context.py": [".codex/hooks/compact-context.py"],
     "hooks/block-env-reads.py": [".claude/hooks/block-env-reads.py"],
+    "hooks/heavy-slot.py": [".kolin-skills/bin/heavy-slot.py"],
     "hooks/agent-default-model.py": [".claude/hooks/agent-default-model.py"],
     "hooks/gate/block-forbidden-git.sh": [".claude/hooks/block-forbidden-git.sh"],
     "bin/kolin-skills": [".local/bin/kolin-skills"],
