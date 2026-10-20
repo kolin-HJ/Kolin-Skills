@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import contextlib
 import datetime
 import fcntl
 import json
@@ -309,6 +310,14 @@ def ownership_problems(owned):
     return problems + vendor_pin_problems()
 
 
+@contextlib.contextmanager
+def state_lock():
+    STATE_DIR.mkdir(exist_ok=True)
+    with open(STATE_DIR / "lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
 def run_apply(check, quiet, adopt=False, if_wired=False):
     owner = wired_repo()
     if if_wired and owner != str(REPO):
@@ -318,9 +327,7 @@ def run_apply(check, quiet, adopt=False, if_wired=False):
               "Run `kolin-skills apply --adopt` from this checkout to switch.", file=sys.stderr)
         return 1
     plan = Plan(check)
-    STATE_DIR.mkdir(exist_ok=True)
-    with open(STATE_DIR / "lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with state_lock():
         apply(plan, {str(REPO), owner} - {None})
     for change in plan.changes:
         print(change)
@@ -361,16 +368,16 @@ def import_into_repo(raw):
     return run_apply(check=False, quiet=False)
 
 
+GIT = ["git", "-C", str(REPO), "-c", "core.hooksPath=/dev/null"]
+
+
 def git(*args, timeout=5):
-    return subprocess.run(["git", "-C", str(REPO), *args], text=True, capture_output=True, timeout=timeout,
+    return subprocess.run([*GIT, *args], text=True, capture_output=True, timeout=timeout,
                           env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
 
 
 def fast_forward_to_trunk():
-    try:
-        fetched = git("fetch", "--quiet", "--prune", "origin", timeout=10)
-    except subprocess.TimeoutExpired:
-        return f"git fetch timed out after 10s; {TRUNK} was not checked"
+    fetched = git("fetch", "--quiet", "--prune", "origin", timeout=10)
     if fetched.returncode or git("rev-parse", "--verify", "--quiet", f"origin/{TRUNK}").returncode:
         return None
     dirty = bool(git("status", "--porcelain").stdout.strip())
@@ -380,20 +387,28 @@ def fast_forward_to_trunk():
         print(f"kolin-skills: {branch} is merged; switched to {TRUNK}")
         branch = TRUNK
     before = git("rev-parse", "HEAD").stdout.strip()
+    merge_failure = None
     if not dirty and branch == TRUNK:
-        git("merge", "--ff-only", "--quiet", f"origin/{TRUNK}")
+        merge = git("merge", "--ff-only", "--quiet", f"origin/{TRUNK}")
+        if merge.returncode:
+            merge_failure = (merge.stderr.strip() or merge.stdout.strip() or f"exit {merge.returncode}").splitlines()[-1]
     if git("rev-parse", "HEAD").stdout.strip() != before:
         print(f"kolin-skills pulled {git('log', '--oneline', f'{before}..HEAD').stdout.strip()}")
     behind = int(git("rev-list", "--count", f"HEAD..origin/{TRUNK}").stdout.strip())
     if not behind:
         return None
-    blocker = "it has local edits" if dirty else f"it is on {branch}, not {TRUNK}" if branch != TRUNK else "it has commits origin lacks"
+    blocker = (f"git merge --ff-only failed: {merge_failure}" if merge_failure
+               else "it has local edits" if dirty else f"it is on {branch}, not {TRUNK}" if branch != TRUNK else "it has commits origin lacks")
     return (f"stale setup: {REPO} is {behind} commits behind origin/{TRUNK} and was not updated, because {blocker}. "
             f"Commit or discard the edits and switch to {TRUNK}, then run kolin-skills pull")
 
 
 def pull(quiet):
-    problem = fast_forward_to_trunk()
+    try:
+        with state_lock():
+            problem = fast_forward_to_trunk()
+    except subprocess.TimeoutExpired as timed_out:
+        problem = f"{' '.join(timed_out.cmd[len(GIT):])} timed out after {timed_out.timeout}s; {TRUNK} was not updated"
     if problem:
         print(f"kolin-skills: {problem}")
     return run_apply(check=False, quiet=quiet)
@@ -521,17 +536,25 @@ def check():
     for tool, purpose in REQUIRED_TOOLS.items():
         if shutil.which(tool) is None:
             failures.append(f"{tool} is missing from PATH; {purpose}")
-    tests = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", str(REPO / "tests")],
-                           cwd=REPO, env=test_env, text=True, capture_output=True, timeout=300)
-    print(tests.stderr.strip().splitlines()[-1])
-    if tests.returncode:
-        print(tests.stderr, file=sys.stderr)
-        failures.append("tests failed")
-    template_tests = subprocess.CompletedProcess([], 0) if shutil.which("node") is None else subprocess.run(["node", "--test", "skills/loop-refactor-to-pstack/assets/**/*.test.mjs"],
-                                    cwd=REPO, env=test_env, text=True, capture_output=True, timeout=300)
-    if template_tests.returncode:
-        print(template_tests.stdout, file=sys.stderr)
-        failures.append("loop-refactor-to-pstack gate template tests failed")
+    try:
+        tests = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", str(REPO / "tests")],
+                               cwd=REPO, env=test_env, text=True, capture_output=True, timeout=300)
+        summary = tests.stderr.strip().splitlines()
+        if summary:
+            print(summary[-1])
+        if tests.returncode:
+            print(tests.stderr, file=sys.stderr)
+            failures.append("tests failed")
+    except subprocess.TimeoutExpired:
+        failures.append("python tests timed out after 300s; run python3 -m unittest discover -s tests to find the hang")
+    try:
+        template_tests = subprocess.CompletedProcess([], 0) if shutil.which("node") is None else subprocess.run(["node", "--test", "skills/loop-refactor-to-pstack/assets/**/*.test.mjs"],
+                                        cwd=REPO, env=test_env, text=True, capture_output=True, timeout=300)
+        if template_tests.returncode:
+            print(template_tests.stdout, file=sys.stderr)
+            failures.append("loop-refactor-to-pstack gate template tests failed")
+    except subprocess.TimeoutExpired:
+        failures.append("loop-refactor-to-pstack gate template tests timed out after 300s; run node --test on skills/loop-refactor-to-pstack/assets to find the hang")
     for failure in failures:
         print(f"FAIL: {failure}", file=sys.stderr)
     if failures:

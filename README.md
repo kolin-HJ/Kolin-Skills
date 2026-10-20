@@ -64,7 +64,7 @@ flowchart LR
 
 ## New machine
 
-Prerequisites: git, Python 3, `jq` (the git guard hook reads tool calls with it), and Node >= 22.20 (for `npx skills`). With an older Node, `install` prints a clear message, skips the third-party skills, and still runs `apply` and `check`. Offline, it skips each vendor it cannot fetch, links the rest, and exits 1.
+Prerequisites: git, `jq` (the git guard hook reads tool calls with it), Python >= 3.9 (`skills/pstack-local/scripts/diff-audit` uses `str.removeprefix` and the walrus operator), and Node >= 22.20 (for `npx skills`). With an older Node, `install` prints a clear message, skips the third-party skills, and still runs `apply` and `check`. Offline, it skips each vendor it cannot fetch, links the rest, and exits 1.
 
 ```sh
 git clone https://github.com/kolin-HJ/Kolin-Skills.git <path>
@@ -87,7 +87,7 @@ python3 <path>/bin/kolin-skills install
 
 ## Gate
 
-`.githooks/pre-push` runs `kolin-skills check` (about 20 s). There is no CI. `check` also runs every test, including `tests/test_no_comments.py`, which fails on a comment line in any tracked code file.
+`.githooks/pre-push` runs `kolin-skills check` (about 45 s). There is no CI. `check` also runs every test, including `tests/test_no_comments.py`, which fails on a comment line in any tracked code file.
 
 ## Layout
 
@@ -97,7 +97,7 @@ python3 <path>/bin/kolin-skills install
 | `policy/compact-instructions.md` | Compaction brief | `~/.codex/compact-instructions.md` |
 | `skills/` | Own skills | `~/.agents/skills`, `~/.claude/skills`, `~/.cursor/skills` |
 | `agents/` | Subagents. pstack's `comment-sicko` is linked from the vendor clone. | `~/.claude/agents`, `~/.codex/agents/*.toml` |
-| `hooks/` | Hook scripts: git guard, `.env` read guard, changed-line lint, subagent model default, heavy-job queue, compaction context | Run from the repo |
+| `hooks/` | Hook scripts: git guard, `.env` read guard, changed-line lint, subagent model default, heavy-job queue, compaction context, and `skills/pstack-local/scripts/mode-reminder` (the UserPromptSubmit hook) | Run from the repo |
 | `claude/` | Managed settings keys, status line, output style | `~/.claude/` |
 | `codex/`, `cursor/` | Hook config and the Cursor policy rule | `~/.codex/hooks.json`, `~/.cursor/` |
 | `upstream/` | Vendored (`vendor.json`) and `npx skills` (`skills.json`) sources | `~/.agents/vendor`, `~/.agents/skills` |
