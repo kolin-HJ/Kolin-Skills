@@ -2,6 +2,8 @@
 import fcntl
 import os
 import select
+import shutil
+import subprocess
 import sys
 import time
 
@@ -39,6 +41,13 @@ def hold_until_exit(fd, shell_pid):
     os._exit(0)
 
 
+def keep_awake_until_exit(shell_pid):
+    caffeinate = shutil.which("caffeinate")
+    if caffeinate:
+        subprocess.Popen([caffeinate, "-i", "-w", str(shell_pid)], start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def wait_for_exit(pid):
     if hasattr(os, "pidfd_open"):
         select.select([os.pidfd_open(pid)], [], [])
@@ -50,6 +59,7 @@ def wait_for_exit(pid):
 
 def main() -> int:
     shell_pid, max_wait = int(sys.argv[1]), float(sys.argv[2])
+    keep_awake_until_exit(shell_pid)
     started = time.monotonic()
     fd = take_free_slot()
     while fd is None and time.monotonic() - started < max_wait:
