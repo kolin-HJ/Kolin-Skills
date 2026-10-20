@@ -1,6 +1,6 @@
 # Kolin-Skills
 
-This repo is the source of truth for Kolin's agent setup on every machine: the global policy, own skills, subagents, hooks, harness settings and Claude Code mods. Home directories hold only links to it or files rendered from it. `README.md` has the layout and the bootstrap.
+This repo is the source of truth for Kolin's agent setup on every machine: the global policy, own skills, subagents, hooks and harness settings. Home directories hold only links to it or files rendered from it. `README.md` has the layout and the bootstrap.
 
 ## Rules
 
@@ -10,8 +10,10 @@ This repo is the source of truth for Kolin's agent setup on every machine: the g
 - Hook commands and machine paths use `{{HOME}}` and `{{REPO}}` in the templates under `claude/`, `codex/` and `cursor/`. Never commit a literal home path.
 - A hook entry is managed when its command names a path in this repo. `apply` replaces managed entries and keeps every other entry, such as herdr's.
 - `claude/settings.json` holds only the keys this repo manages. Machine-specific keys (`permissions`, `autoMode`) stay in `~/.claude/settings.json`.
-- Third-party skills are not copied here. pstack and ponytail are listed in `upstream/vendor.json`, and `npx skills` packages in `upstream/skills.json`. `kolin-skills upstream` installs them.
+- Third-party skills and agents are not copied here. pstack and cursor-team-kit are listed in `upstream/vendor.json`, and `npx skills` packages in `upstream/skills.json`. `kolin-skills upstream` installs them.
 - No secret goes into this repo: no token, `auth.json`, MCP credential or `.env` value.
+- Clone plus `install` must keep working on any machine, macOS or Linux: no machine path, no manual step, no tool missing from the README prerequisites.
+- Nothing project-specific goes here. Project rules live in that project's `AGENTS.md`.
 
 ## Add something
 
@@ -25,4 +27,4 @@ This repo is the source of truth for Kolin's agent setup on every machine: the g
 
 ## Gate
 
-`kolin-skills check` is the gate. It fails when home has drifted from the repo, a watched home folder holds an entry the repo does not own, a skill in `upstream/skills.json` is not installed, a spend cap is off, the policy or `skills/pstack-local/SKILL.md` is over its size budget, or a test fails. Run it before you call work done.
+`kolin-skills check` is the gate, and `.githooks/pre-push` runs it. There is no CI. It fails when home has drifted from the repo, a watched home folder holds an entry the repo does not own, a skill in `upstream/skills.json` is not installed, a spend cap is off, a required tool is missing, the policy or `skills/pstack-local/SKILL.md` is over its size budget, or a test fails. It also fails on a comment in code and on a skill missing from the README or the `pstack-local` index. Run it before you call work done.

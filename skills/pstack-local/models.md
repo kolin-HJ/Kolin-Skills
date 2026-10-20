@@ -39,4 +39,15 @@ Interrogate gives each reviewer one lens:
 2. Security and access: authorization, secrets and external writes.
 3. Operations: migrations, rollback, deploy order and failure modes.
 
-Code delegates run as `poteto-agent`, whose definition pins Sonnet 5.5 at medium, so the implementer reads the repo's AGENTS.md and gates natively. Routing by job, with the measured Haiku results, lives in `loop-refactor-to-pstack/references/subagents.md`.
+Plan, build and review are separate seats:
+
+| Seat | Runs as | Model | Does |
+|---|---|---|---|
+| Orchestrator | the main session | Opus | Value case, plan, Kolin's asks, six-part briefs, `.pstack/status.md`, reads every delegated hunk |
+| Builder | `poteto-agent` | Sonnet 5.5, medium | One unit per brief, runs the gate, reports once |
+| Sweeper | `haiku-worker` | Haiku 5.5, medium | Recipe work: renames, codemods, fixtures, searches the brief spells out |
+| Searcher | `Explore` | Sonnet (hook default) | Wide read-only search; returns conclusions, not file dumps |
+| Reviewer | `senior-reviewer` | Opus 5.5, high, read-only | Fresh review of every non-trivial diff; never the builder |
+| Comment sweep | `comment-sicko` (pstack) | inherits | Deletes comments before review |
+
+Routing by job, with the Haiku cost results measured on 2026-10-07, lives in `loop-refactor-to-pstack/references/subagents.md`.

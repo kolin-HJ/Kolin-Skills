@@ -38,6 +38,9 @@ class DiffAuditTests(unittest.TestCase):
             "test-removed": ("src/price.test.ts", "it('doubles', () => {\n  expect(price(2)).toBe(4);\n});\n"),
             "weak-assert": ("src/price.test.ts", "it('doubles', () => {\n  expect(price(2)).toBeTruthy();\n});\n"
                             "it('zero', () => {\n  expect(price(0)).toBe(0);\n});\n"),
+            "doc-read": ("src/price.test.ts", "it('doubles', () => {\n  expect(price(2)).toBe(4);\n});\n"
+                         "it('zero', () => {\n  expect(price(0)).toBe(0);\n});\n"
+                         "it('docs', () => {\n  expect(readFileSync('AGENTS.md', 'utf8')).toContain('x');\n});\n"),
             "escape-hatch": ("src/price.ts", "export function price(n: any) {\n  return n * 2;\n}\n"),
             "swallowed-error": ("src/price.ts", "export function price(n: number) {\n"
                                 "  try { return n * 2; } catch {}\n}\n"),
@@ -58,11 +61,13 @@ class DiffAuditTests(unittest.TestCase):
         self.write("src/tax.ts", "export function tax(n: number) {\n  return n / 10;\n}\n")
         self.write("src/price.ts", "// eslint-disable-next-line no-console -- logs the audit trail\n"
                    "export function price(n: number) {\n  return n * 2;\n}\n")
+        self.write("src/tax.test.ts", "it('reads a fixture', () => {\n  expect(readFileSync(fixture, 'utf8')).toBe('a');\n});\n")
         result = self.audit()
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("new file: src/tax.ts", result.stdout)
         self.assertIn("new symbol: tax (src/tax.ts)", result.stdout)
-        self.assertIn("net lines: +4 -0", result.stdout)
+        self.assertIn("new test: src/tax.test.ts:1", result.stdout)
+        self.assertIn("net lines: +7 -0", result.stdout)
         self.assertNotIn("block", result.stdout)
 
 

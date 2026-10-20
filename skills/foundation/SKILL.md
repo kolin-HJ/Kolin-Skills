@@ -5,7 +5,7 @@ description: Kolin's portable engineering foundation for any repo — the north 
 
 # Foundation
 
-The root skill. Every other skill inherits from it: process playbooks (pstack, `loop-refactor-to-pstack`, `gap-audit`), principles (`principle-*`), project skills (`slickjoy`) and utilities. It fits any repo and names no project. Project rules go in a project skill (for example `slickjoy`) or the repo's `AGENTS.md`. The global policy (`~/.claude/CLAUDE.md`, the same file as `policy/AGENTS.md`) owns approvals, code rules, tests and PR format. This file adds the flow and the bars, and does not repeat the policy.
+The root skill. Every other skill inherits from it: process playbooks (pstack, `loop-refactor-to-pstack`, `gap-audit`), principles (`principle-*`) and utilities. It fits any repo and names no project. Project rules go in that repo's `AGENTS.md` or its own project skill, never here. The global policy (`policy/AGENTS.md`, linked as `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`) owns approvals, code rules, tests, briefs and PR format. This file adds the flow and the bars, and does not repeat the policy.
 
 ## North star
 
@@ -34,7 +34,7 @@ When to bring him in is your judgment call. Signals that point toward asking: a 
 |---|---|---|---|
 | 1 Idea | Write the value case: the outcome, for whom, the cost of doing nothing, the smallest change | `figure-it-out` | Five-line value case |
 | 2 Plan (Phase 0) | Spec: scope, units, decisions with a recommended option, estimate. Docs only | `poteto-mode` playbook | **Kolin reviews the plan before any build** |
-| 3 Architecture | Module map, boundaries, data shapes and state machines, each boundary a gate | `architect`, then `interrogate` | **Kolin approves data structures**, then ADR plus gate rules seeded at today's count |
+| 3 Architecture | Sketch the types, signatures, module map, boundaries and state machines before any code; each boundary a gate | `architect`, then `interrogate` | **Kolin approves data structures and system flows**, then ADR plus gate rules seeded at today's count |
 | 4 Build | Small units, one thread each, one check that proves each unit | `poteto-mode` playbooks, `principle-sequence-verifiable-units` | Unit passes the local gate |
 | 5 Review | A fresh read-only reviewer that did not build the unit, at most two rounds | `senior-reviewer`, `interrogate` by risk | PASS |
 | 6 Verify | Proof on the real artifact: the repo's verification skill, staging first, parity against the base | `principle-prove-it-works`, the verification skill | Evidence pasted |
@@ -46,15 +46,15 @@ When to bring him in is your judgment call. Signals that point toward asking: a 
 He checks these himself. Everything else is reversible and proceeds.
 
 - The Phase 0 plan, before any build starts.
-- **Data structures (design-approval gate).** Before you add or change a data structure in any repo (types, tables, schemas, payloads, state machines), show Kolin the proposed layout: the shapes, relations and a short reason. Ask: "Here is how we will lay this out. Does this make sense? Is this what you had in mind?" Wait for his approval before you implement it.
-- Merges, and every push to main, production or another protected branch. Deploys.
+- **Data structures and system flows (design-approval gate).** Before you add or change a data structure (types, tables, schemas, payloads, state machines) or a system flow (who calls whom, in what order, through which queue or job), show Kolin the proposed layout: the shapes, relations, the flow and a short reason. Ask: "Here is how we will lay this out. Does this make sense? Is this what you had in mind?" Wait for his approval before you implement it.
+- Commits, pushes and merges (policy, Approvals). Deploys and production releases.
 - Money: billing, pricing, purchases, spend caps.
 - Secrets and credentials: creating, rotating or sharing them.
 - App Store and marketplace submissions.
 - Schema changes and migrations, each with a backup step.
 - Messages to people and other external writes.
 
-Ask once: one bundled question, recommended option first, with the work already prepared so his yes is the last step. Between those points, hand off quietly: no status pings. Report when there is a real result, a real decision or a block.
+Ask once: one bundled question, recommended option first, with the work already prepared so his yes is the last step. Between those points, report only a real result, a real decision or a block (policy, Delegation).
 
 ## Quality bars (definition of done for every unit)
 
@@ -62,7 +62,7 @@ Each bar is a command with pass/fail output and fix text, so an agent knows it i
 
 - Readable: small files (target 400 lines), short functions (about 60 lines), shallow nesting (3 levels), one name per concept.
 - Typed: strict mode; no `any`, cast, non-null assertion or `as unknown as`. The count only falls.
-- Tested: every entry point and failure path, fast (under 60 s per module), no sleeps. External APIs replay recorded contract fixtures (for example MSW in Vitest); no live accounts in tests.
+- Tested: every behavior a caller relies on (policy, Tests and proof), fast (under 60 s per module), no sleeps. External APIs replay recorded contract fixtures (for example MSW in Vitest); no live accounts in tests.
 - Small scope: the unit changes only what its brief names. Out-of-scope code is deleted (tag the last commit first), never parked.
 - One home: a concept lives in one module. Extend the owner; no parallel helper.
 - Componentized: one shared component per UI pattern and one wrapper per third-party library, so a later switch changes one place.
@@ -75,7 +75,7 @@ Each bar is a command with pass/fail output and fix text, so an agent knows it i
 - Strict TypeScript where the repo uses TS; a type-aware linter (OXC: oxlint and oxfmt) and the newest TypeScript the tools support.
 - Errors in plain TypeScript, with no effects library unless the user asks: a `Result` union, tagged error kinds that each carry a fix hint, an exhaustive `switch` on the kind, one retry owner, one rate limiter per external connection, dependencies passed as one typed argument.
 - One pinned runtime version (for example one Node LTS) in every repo, the box and the host.
-- Gates run locally when the repo has no CI: pre-commit (about 10 s), pre-push (a few minutes) and a `verify` command that writes evidence per commit SHA. Pushes to protected branches need that evidence. Agents may never skip the local gate; the owner hooks block the skip flags.
+- Gates run locally, never in paid CI: pre-commit (about 10 s), pre-push (a few minutes) and a `verify` command that writes evidence per commit SHA. Pushes to protected branches need that evidence. Agents never skip a gate; `hooks/gate/block-forbidden-git.sh` blocks the skip flags.
 - Parity with the base or staging is a gate: routes, handlers and jobs match the baseline unless a delete was approved.
 - Local databases run without Docker (`local-supabase`).
 
@@ -85,8 +85,8 @@ Desktop and phone both clean and professional, tables become cards on phones, to
 
 ## Agents and briefs
 
-- Models: Opus plans and reviews in a fresh read-only thread; Sonnet builds; Haiku does mechanical sweeps. Effort is set per task (`pstack-local/models.md`). Check plan usage before each batch.
-- Every brief to an agent, and every ask Kolin sends, uses five headings: **Goal**, **Done when**, **Evidence**, **Constraints**, **Stop when**. Cite the plan sections and skills by path (`loop-refactor-to-pstack/references/brief-templates.md` has the full nine-field form).
+- Roles and models: `pstack-local/models.md`. The builder never reviews its own work.
+- Every brief uses the six parts in the policy (Delegation). Cite plan sections and skills by path.
 - Writing is plain, STE-style (policy "Writing").
 
 ## Legacy repos

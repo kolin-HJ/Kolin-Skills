@@ -1,9 +1,0 @@
-case	worker	rounds	worker_agent	advisor_agent
-renumber	haiku	1	a630f2b701321445d	afec2bde5c19a340c
-renumber	sonnet	1	a71446523b56ea61b	af2748aa917f8b1ed
-adr-sync	haiku	2	a567bc00eed80c159	a36b223b2e7f411ce
-adr-sync	sonnet	2	a536ce5236bffa6fc	ae09c4847d851de61
-dead-exports	haiku	1	abcb155bd4540f015	a650d932b13be2e38
-dead-exports	sonnet	1	a138ec8a884515666	a5d8d4e9070cafcd6
-modal-shell	haiku	2	a0d5d459819ea0886	adbab4dd999666cbc
-modal-shell	sonnet	2	ab1f214dcb0b27d2a	af5588a2f6425cdb1

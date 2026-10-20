@@ -12,15 +12,14 @@ Every one of these came up mid-program before. Ask the ones that apply in the fi
 | Live data reads | Read-only queries against production and staging when a check needs real values, with nothing stored in code, briefs or reports | Stored-data rules need proof that no real row breaks them |
 | Parity bar | "Behaves exactly like the base branch"; each intended change named and approved | This is the definition of done |
 | Compile check | A parity app launch, or a production build | One user skipped the build because parity already launches the app |
-| Subagent model and effort | Sonnet 5.5 at medium effort, pinned in the agent definitions and checked by `assets/check-subagents.sh` | Briefs must be written for that tier (`references/subagents.md`) |
+| Models per role | Opus plans and reviews in a fresh read-only thread; Sonnet 5.5 at medium builds; Haiku does mechanical sweeps. Pinned in the agent definitions and checked by `assets/check-subagents.sh` | The reviewer must not share the builder's context, and briefs are written for the builder's tier (`references/subagents.md`) |
 | Decisions toward the goal | "I approve reversible decisions that serve the goal" | Stops a question every hour. It never covers push, merge or deploy. |
 | The lens for every choice | Agent-first: pick the option an unsupervised agent gets right on the first try, with code a person can still read | The goal is a codebase agents manage with no supervision |
 | Effects library | None. Plain strict TypeScript: a `Result` union, tagged errors that carry a fix hint, one retry owner, one rate limiter per external connection, and dependencies passed as one typed argument | Every model writes this pattern correctly with no library to learn; adopt Effect (`references/effect.md`) only when the user asks for it |
-| Where gates run | The user's call: CI, or local only (pre-commit, pre-push, and a `verify` command that writes an evidence file per SHA). Agents may never skip the local gate | With local-only gates, `references/trust-audit.md` Local enforcement is the whole defence, so every row there must hold |
+| Where gates run | Locally: pre-commit, pre-push, and one `verify` command that writes an evidence file per SHA. Keep CI only where the repo already has it for free; never add paid CI. Agents never skip the local gate. The user's yes here covers writing the git hooks | Without CI, `references/trust-audit.md` Local enforcement is the whole defence, so every row there must hold |
 | Out-of-scope code | Delete it, after a tag on the last commit that has it; never park it | One live example per side, and nothing dead for agents to copy |
 | Runtime versions | One pinned runtime version (for example one Node LTS) in every repo, the box and the host | No "works on my Node" |
-| Build models | Opus plans and reviews in a fresh read-only thread; Sonnet builds; Haiku does mechanical sweeps; effort set per task | The reviewer must not share the builder's context |
-| Verifier model families | One different family per risky unit, through `pstack-local/models.md` seats | A same-family reviewer shares the worker's blind spots; say so when only one family is available |
+| Verifier seats | A fresh Claude subagent on a different model or lens per risky unit | A seat with the builder's model and context shares its blind spots |
 
 ## Landing (ask with the setup batch)
 
@@ -28,8 +27,8 @@ The program lands as one branch and one PR at the user's request. These calls sh
 
 | Call | Recommended | Why it matters |
 |---|---|---|
-| Push cadence | A standing yes to merge the base and push the program branch at every wave boundary | One earlier program held 225 commits unpushed to the end. Pushing each wave backs the work up and runs CI on it |
-| When the PR opens | Right after Phase 1, so CI runs every gate on every push | A PR opened at the end hides weeks of red CI |
+| Push cadence | A standing yes to merge the base and push the program branch at every wave boundary | One earlier program held 225 commits unpushed to the end. Pushing each wave backs the work up and runs the pre-push gate on it |
+| When the PR opens | Right after Phase 1, so the user sees the work at every push | A PR opened at the end hides weeks of unreviewed work |
 | Merge style | A merge commit, never a squash | A squash turns hundreds of verified unit commits into one, and `git bisect` can no longer find the unit that broke something |
 | Mid-program landing | Allowed at any wave boundary on the user's word; the branch then continues from the merged base | Agents on the base have none of the gates until the PR merges |
 | Base drift | Merge the base into the branch at every wave boundary; never rebase | A rebase rewrites every pushed SHA, voids every ledger verdict and needs a force-push |
@@ -61,8 +60,8 @@ The program lands as one branch and one PR at the user's request. These calls sh
 
 | Call | Options | Note |
 |---|---|---|
-| Git hooks and agent hook settings | Add them, or not | The permission check may refuse workers who write them, so the yes must come from the user |
-| Rulesets: required CI, PRs on every long-lived branch, code-owner review | An admin applies the prepared ruleset, or skip | Check the plan and the user's role with `gh api` first. A write-role user needs an admin. |
+| Agent hook settings | Add them, or not | The permission check may refuse workers who write them, so the yes must come from the user |
+| Rulesets: PRs on every long-lived branch, code-owner review, and a required status check only where free CI exists | An admin applies the prepared ruleset, or skip | Check the plan and the user's role with `gh api` first. A write-role user needs an admin. |
 | Who owns gate changes (CODEOWNERS) | A named person, or none | Without one, an agent can approve the bypass label on its own gate change |
 | New tools: secret scanning, mutation testing | Each as its own change, or none | Mutation testing turns "seen failing" into a gate; secret scanning catches keys before they burn |
 | Landing the program PR | Merge now at a wave boundary, or hold to the end | Gates on an unmerged branch enforce nothing; say so in every update while holding |

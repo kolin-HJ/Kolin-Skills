@@ -21,7 +21,7 @@ test("an app change that says why verify did not run passes", () => {
   const body = [
     "## Verification",
     "- Ran: `pnpm check` all gates pass",
-    "- Not run: verify on the page, because BigQuery credentials are missing on this machine",
+    "- Not run: verify on the page, because database credentials are missing on this machine",
   ].join("\n");
   assert.deepEqual(proofProblems({ body, changedFiles: APP_FILE }), []);
 });
@@ -64,7 +64,7 @@ test("the word verify outside a verify command does not count as an app run", ()
   const body = [
     "## Verification",
     "- Ran: `pnpm check` and I will verify later",
-    "- Not run: the browser, because verify needs BigQuery",
+    "- Not run: the browser, because verify needs database credentials",
   ].join("\n");
   assert.deepEqual(proofProblems({ body, changedFiles: APP_FILE }), [
     "the change touches app source but ## Verification has no `pnpm -s verify` or parity-pair run, and no `Not run: verify ..., because ...` line saying why",
@@ -74,23 +74,23 @@ test("the word verify outside a verify command does not count as an app run", ()
 test("a parity-pair run counts as an app run", () => {
   const body = [
     "## Verification",
-    "- Ran: `node .agents/skills/verify-supply-chain/scripts/parity-pair.mjs --base ../base --head . --out ../p` 0 changes",
+    "- Ran: `node .agents/skills/verify-app/scripts/parity-pair.mjs --base ../base --head . --out ../p` 0 changes",
   ].join("\n");
   assert.deepEqual(proofProblems({ body, changedFiles: APP_FILE }), []);
 });
 
-const pr = (baseRef, headRef, headRepo, baseRepo = "HydroJug/hj-supply-chain") => ({
+const pr = (baseRef, headRef, headRepo, baseRepo = "owner/repo") => ({
   base: { ref: baseRef, repo: { full_name: baseRepo } },
   head: { ref: headRef, repo: { full_name: headRepo } },
 });
 
 test("a staging to main PR from this repository is a release", () => {
-  assert.equal(isReleasePr(pr("main", "staging", "HydroJug/hj-supply-chain")), true);
+  assert.equal(isReleasePr(pr("main", "staging", "owner/repo")), true);
 });
 
 test("a feature PR, a PR into staging and a fork branch named staging are not releases", () => {
-  assert.equal(isReleasePr(pr("main", "fix/x", "HydroJug/hj-supply-chain")), false);
-  assert.equal(isReleasePr(pr("staging", "staging", "HydroJug/hj-supply-chain")), false);
-  assert.equal(isReleasePr(pr("main", "staging", "someone/hj-supply-chain")), false);
+  assert.equal(isReleasePr(pr("main", "fix/x", "owner/repo")), false);
+  assert.equal(isReleasePr(pr("staging", "staging", "owner/repo")), false);
+  assert.equal(isReleasePr(pr("main", "staging", "someone/repo")), false);
   assert.equal(isReleasePr(undefined), false);
 });

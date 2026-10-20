@@ -28,6 +28,15 @@
         "hooks": [
           {
             "type": "command",
+            "command": "'{{REPO}}/hooks/gate/block-forbidden-git.sh'"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
             "command": "python3 '{{REPO}}/hooks/block-env-reads.py'",
             "timeout": 5
           }

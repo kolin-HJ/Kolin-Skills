@@ -1,6 +1,6 @@
 # Parity that is fast and still proves "nothing changed"
 
-Parity drives every feature map on the base branch's app and the work branch's app and compares what a user would see. Measured in hj-supply-chain on 2026-09-30, the lockstep pair below took 13m39s where the three-run bracket took about 27 minutes, and it caught a real change the bracket had been misread as drift.
+Parity drives every feature map on the base branch's app and the work branch's app and compares what a user would see. Measured on 2026-09-30 in an earlier program, the lockstep pair below took 13m39s where the three-run bracket took about 27 minutes, and it caught a real change the bracket had been misread as drift.
 
 ## The contract the verify CLI needs
 
@@ -31,7 +31,7 @@ Both apps run the work branch's recipes, so a recipe the branch deletes or narro
 ## What does not work
 
 - **Seeding the work app with the base app's data cache.** Next's `unstable_cache` keys include the callback's source text, so every loader the change edited misses the copied cache and fetches live, while the base app serves its older cached copy. That guarantees a difference exactly where the change touched code.
-- **Explaining a difference as drift by argument.** Show it: a difference that reproduces in two lockstep passes is code. In hj-supply-chain one such row was an intended fix, not drift.
+- **Explaining a difference as drift by argument.** Show it: a difference that reproduces in two lockstep passes is code. In one earlier program such a row was an intended fix, not drift.
 
 ## Base drift
 
