@@ -33,7 +33,7 @@ When to bring him in is your judgment call. Signals that point toward asking: a 
 | Step | What happens | pstack owner | Exit |
 |---|---|---|---|
 | 1 Idea | Write the value case: the outcome, for whom, the cost of doing nothing, the smallest change | `figure-it-out` | Five-line value case |
-| 2 Plan (Phase 0) | Spec: scope, units, decisions with a recommended option, estimate. Docs only | `poteto-mode` playbook | **Kolin reviews the plan before any build** |
+| 2 Plan (Phase 0) | Spec: scope, units, decisions with a recommended option, estimate. Docs only | `poteto-mode` playbook | Multi-phase work: **Kolin reviews the plan before any build**. Smaller work proceeds on the value case |
 | 3 Architecture | Sketch the types, signatures, module map, boundaries and state machines before any code; each boundary a gate | `architect`, then `interrogate` | **Kolin approves data structures and system flows**, then ADR plus gate rules seeded at today's count |
 | 4 Build | Small units, one thread each, one check that proves each unit | `poteto-mode` playbooks, `principle-sequence-verifiable-units` | Unit passes the local gate |
 | 5 Review | A fresh read-only reviewer that did not build the unit, at most two rounds | `senior-reviewer`, `interrogate` by risk | PASS |
@@ -45,7 +45,7 @@ When to bring him in is your judgment call. Signals that point toward asking: a 
 
 He checks these himself. Everything else is reversible and proceeds.
 
-- The Phase 0 plan, before any build starts.
+- A multi-phase plan (Phase 0), before its build starts. Work of one or a few units proceeds on the value case.
 - **Data structures and system flows (design-approval gate).** Before you add or change a data structure (types, tables, schemas, payloads, state machines) or a system flow (who calls whom, in what order, through which queue or job), show Kolin the proposed layout: the shapes, relations, the flow and a short reason. Ask: "Here is how we will lay this out. Does this make sense? Is this what you had in mind?" Wait for his approval before you implement it.
 - Merges, and any change to `main`, `master`, `staging` or `sandbox` (policy, Approvals). Deploys and production releases.
 - Money: billing, pricing, purchases, spend caps.
@@ -60,7 +60,7 @@ Ask once: one bundled question, recommended option first, with the work already 
 
 Each bar is a command with pass/fail output and fix text, so an agent knows it is done without asking.
 
-- Readable: small files (target 400 lines), short functions (about 60 lines), shallow nesting (3 levels), one name per concept.
+- Readable: small files (aim for 400 lines; split before the policy's 1,000), short functions (about 60 lines), shallow nesting (3 levels), one name per concept.
 - Typed: strict mode; no `any`, cast, non-null assertion or `as unknown as`. The count only falls.
 - Tested: every behavior a caller relies on (policy, Tests and proof), fast (under 60 s per module), no sleeps. External APIs replay recorded contract fixtures (for example MSW in Vitest); no live accounts in tests.
 - Small scope: the unit changes only what its brief names. Out-of-scope code is deleted (tag the last commit first), never parked.
@@ -82,12 +82,6 @@ Each bar is a command with pass/fail output and fix text, so an agent knows it i
 ## UI bar
 
 Desktop and phone both clean and professional, tables become cards on phones, tokens only, Kolin's library picks and inspiration: `references/ui-bar.md`.
-
-## Agents and briefs
-
-- Roles and models: `pstack-local/models.md`. The builder never reviews its own work.
-- Every brief uses the six parts in the policy (Delegation). Cite plan sections and skills by path.
-- Writing is plain, STE-style (policy "Writing").
 
 ## Legacy repos
 
