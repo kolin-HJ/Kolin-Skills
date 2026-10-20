@@ -229,7 +229,11 @@ def apply(plan, roots):
             continue
         plan.link(skill, HOME / ".agents/skills" / name)
         for home in VENDOR_SKILL_HOMES[1:]:
-            plan.link(pathlib.Path(f"../../.agents/skills/{name}"), HOME / home / name)
+            existing = HOME / home / name
+            if existing.exists() and not existing.is_symlink():
+                plan.owned.add(existing)  # bot box: a real skill folder already there wins; never replace it
+                continue
+            plan.link(pathlib.Path(f"../../.agents/skills/{name}"), existing)
 
     agents = sorted((REPO / "agents").glob("*.md"))
     for agent in agents:
