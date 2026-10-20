@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+import os
 import re
 import shlex
+import subprocess
 import sys
 
 SKIP_FLAG = "--no-" + "verify"
@@ -19,6 +21,20 @@ HOOKS_PATH_CONFIG = re.compile(r"^(--config-env=)?core\.hookspath(=|$)", re.I)
 SUBSTITUTION = re.compile(r"\$\((.*)\)|`([^`]*)`", re.S)
 HUSKY_OFF = re.compile(r"^HUSKY=0$")
 GIT_CONFIG_HOOKS_ENV = re.compile(r"^GIT_CONFIG_KEY_\d+=core\.hookspath$", re.I)
+READ_ONLY_GIT = {"status", "log", "diff", "show", "rev-parse", "ls-files", "blame", "grep", "fetch", "rev-list",
+                 "merge-base", "for-each-ref", "ls-remote", "describe", "cat-file"}
+BRANCH_VALUE_FLAGS = {"--merged", "--no-merged", "--contains", "--no-contains"}
+BRANCH_READS = {"--show-current", "--list", "-a", "-r", "-v", "-vv"} | BRANCH_VALUE_FLAGS
+CONFIG_READS = {"--get", "--get-all", "--get-regexp", "--list", "-l"}
+WORKTREE_ALLOWED = {"add", "list", "prune", "remove"}
+INSTALL_FILE_MESSAGE = (
+    "This checkout is the live install every session runs from. "
+    "Make the change in a Kolin-Skills worktree and ship it through a PR."
+)
+INSTALL_MESSAGE = (
+    "This checkout is the live install every session runs from. Only `kolin-skills pull` updates it. "
+    "Work in a worktree: `git -C {install} worktree add ~/.t3/worktrees/Kolin-Skills/<name> -b <branch> origin/main`."
+)
 WRITERS = {"cp", "mv", "rm", "ln", "tee", "chmod", "install", "truncate", "touch", "dd", "rsync"}
 
 
@@ -121,6 +137,75 @@ def git_subcommand(words):
         else:
             return word, words[i + 1:], configs
     return None, [], configs
+
+
+def git_target(words, cwd):
+    target = cwd
+    i = 1
+    while i < len(words):
+        word = words[i]
+        if word == "-C" and i + 1 < len(words):
+            target = os.path.join(target, os.path.expanduser(words[i + 1]))
+            i += 2
+        elif word in GIT_OPTS_WITH_VALUE:
+            i += 2
+        elif word.startswith("-"):
+            i += 1
+        else:
+            break
+    return target
+
+
+def toplevel(directory):
+    if not os.path.isdir(directory):
+        return None
+    found = subprocess.run(["git", "-C", directory, "rev-parse", "--show-toplevel"], text=True, capture_output=True)
+    return os.path.realpath(found.stdout.strip()) if found.returncode == 0 else None
+
+
+def live_install():
+    link = os.path.join(os.path.expanduser("~"), ".claude", "CLAUDE.md")
+    return toplevel(os.path.dirname(os.path.realpath(link))) if os.path.exists(link) else None
+
+
+def read_only_in_install(sub, args):
+    if sub is None or sub in READ_ONLY_GIT:
+        return True
+    if sub == "worktree":
+        return bool(args) and args[0] in WORKTREE_ALLOWED
+    if sub == "stash":
+        return args[:1] == ["list"]
+    if sub == "branch":
+        return all(arg in BRANCH_READS or (not arg.startswith("-") and previous in BRANCH_VALUE_FLAGS)
+                   for previous, arg in zip([None] + args, args))
+    if sub == "remote":
+        return all(arg in ("-v", "--verbose") for arg in args)
+    if sub == "config":
+        return bool(args) and (args[0] in CONFIG_READS or (len(args) == 1 and not args[0].startswith("-")))
+    return False
+
+
+def install_guard(cwd):
+    install = live_install()
+    state = {"cwd": os.path.realpath(cwd or ".")}
+
+    def check(words, raw):
+        words = strip_prefix(words)
+        if not install or not words:
+            return False
+        if words[0] in ("cd", "pushd"):
+            destination = os.path.expanduser(words[1]) if len(words) > 1 else os.path.expanduser("~")
+            state["cwd"] = os.path.realpath(os.path.join(state["cwd"], destination))
+            return False
+        if program(words[0]) != "git":
+            return False
+        sub, args, _ = git_subcommand(words)
+        if toplevel(git_target(words, state["cwd"])) != install or read_only_in_install(sub, args):
+            return False
+        print(INSTALL_MESSAGE.format(install=install))
+        return True
+
+    return check
 
 
 def skips_hooks(words, raw):
@@ -231,12 +316,26 @@ def scan(text, check, depth=0):
     return False
 
 
+def file_in_install(path, cwd):
+    install = live_install()
+    directory = os.path.dirname(os.path.realpath(os.path.join(cwd or ".", os.path.expanduser(path))))
+    while directory and not os.path.isdir(directory):
+        directory = os.path.dirname(directory)
+    if install and toplevel(directory) == install:
+        print(INSTALL_FILE_MESSAGE)
+        return True
+    return False
+
+
 def main():
     if sys.argv[1] == "file-hooks":
         sys.exit(0 if FILE_HOOK_PATH.search(sys.stdin.read()) else 1)
+    if sys.argv[1] == "file-install":
+        sys.exit(0 if file_in_install(sys.stdin.read().strip(), sys.argv[2]) else 3)
     checks = {"skip-hooks": skips_hooks, "api-merge": api_merges, "pr-merge": pr_merges, "d4": d4_violation}
+    check = install_guard(sys.argv[2] if len(sys.argv) > 2 else None) if sys.argv[1] == "install" else checks[sys.argv[1]]
     try:
-        found = scan(sys.stdin.read(), checks[sys.argv[1]])
+        found = scan(sys.stdin.read(), check)
     except ParseError:
         sys.exit(3)
     sys.exit(0 if found else 1)
