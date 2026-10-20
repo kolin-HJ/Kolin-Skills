@@ -27,4 +27,4 @@ This repo is the source of truth for Kolin's agent setup on every machine: the g
 
 ## Gate
 
-`kolin-skills check` is the gate, and `.githooks/pre-push` runs it. There is no CI. It fails when home has drifted from the repo, a watched home folder holds an entry the repo does not own, a skill in `upstream/skills.json` is not installed, a spend cap is off, a required tool is missing, the policy or `skills/pstack-local/SKILL.md` is over its size budget, or a test fails. It also fails on a comment in code and on a skill missing from the README or the `pstack-local` index. Run it before you call work done.
+`kolin-skills check` is the gate, and `.githooks/pre-push` runs it. There is no CI. It fails when home has drifted from the repo, a watched home folder holds an entry the repo does not own, a skill in `upstream/skills.json` is not installed, a spend cap is off, a required tool is missing, the policy or `skills/pstack-local/SKILL.md` is over its size budget, or a test fails. It also fails on a comment in code and on a skill missing from the README index. Run it before you call work done.

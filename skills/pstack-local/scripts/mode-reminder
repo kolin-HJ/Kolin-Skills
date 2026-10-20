@@ -7,20 +7,13 @@ import sys
 skills = os.path.expanduser("~/.agents/skills")
 mode = os.path.join(skills, "poteto-mode", "SKILL.md")
 adapter = os.path.join(skills, "pstack-local", "SKILL.md")
+foundation = os.path.join(skills, "foundation", "SKILL.md")
 autonomy_phrase = re.compile(r"\bfull[\s-]+(send|stop)\b", re.IGNORECASE)
 
 prompt = json.load(sys.stdin)["prompt"]
 if prompt.lstrip().startswith("<task-notification>"):
     sys.exit(0)
-context = (
-    "pstack routing. New task? Playbook match or rigor needed -> apply poteto-mode. "
-    "Casual turn or user opts out -> don't. "
-    f"To apply it, read {mode} and {adapter}, match a playbook, and follow it. "
-    "The global policy (~/.claude/CLAUDE.md, ~/.codex/AGENTS.md) outranks the repo's AGENTS.md and pstack; "
-    "use the repo file for project facts. "
-    "Code task? Before the first edit, write the value case (AGENTS.md Quality work). No outcome, no code. "
-    f"Follow 'Spend' in {os.path.join(skills, 'pstack-local', 'models.md')}."
-)
+context = f"New engineering task: read {mode}, {adapter} and {foundation} once, and write the value case before the first edit."
 for kind in sorted({match.lower() for match in autonomy_phrase.findall(prompt)}):
     context += (
         f" The prompt says \"full {kind}\". If Kolin invokes it for a task or PR, load the full-{kind} skill "
