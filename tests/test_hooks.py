@@ -81,16 +81,29 @@ class NativeHookPayloadTests(unittest.TestCase):
                                            "tool_input": {"command": "rg -n value edited.ts"}}, directory)
             self.assertEqual(written.returncode, 2, written.stderr)
             self.assertIn("Lint: 1 error on lines you changed in edited.ts", written.stderr)
+            for command in ["sed -E -i '' s/1/2/ edited.ts", "printf 'const value = 2;' > edited.ts",
+                            "python3 -c \"json.dump(1, open('edited.ts','w'))\""]:
+                with self.subTest(command=command):
+                    result = invoke(LINT_HOOK, {"cwd": directory, "tool_name": "Bash",
+                                                "tool_input": {"command": command}}, directory)
+                    self.assertEqual(result.returncode, 2, result.stderr)
             search = invoke(LINT_HOOK, {"cwd": directory, "tool_name": "Bash",
                                         "tool_input": {"command": "rg -n '=>' src > /tmp/out <<< x"}}, directory)
             self.assertEqual((read_only.returncode, read_only.stderr), (0, ""))
             self.assertEqual((search.returncode, search.stderr), (0, ""))
+            for name in "abcde":
+                (root / f"{name}.ts").write_text("const value = 1;\n")
+            many = invoke(LINT_HOOK, {"cwd": directory, "tool_name": "Bash", "tool_input": {
+                "command": "sed -i '' 's/1/2/' a.ts b.ts c.ts d.ts e.ts"}}, directory)
+            self.assertEqual(many.returncode, 2, many.stderr)
+            self.assertEqual(many.stderr.count("Lint: 1 error on lines you changed in"), 4, many.stderr)
+            self.assertIn("Not linted, so run the repo's lint for: e.ts.", many.stderr)
 
     def test_agent_model_defaults_only_unpinned_agents(self):
         with tempfile.TemporaryDirectory() as directory:
             agents = pathlib.Path(directory) / ".claude/agents"
             agents.mkdir(parents=True)
-            (agents / "repo-builder.md").write_text("---\nname: repo-builder\n---\nBuild.\n")
+            (agents / "repo-builder.md").write_text("---\nname: repo-builder\n---\nBody with model: words.\n")
             (agents / "repo-reviewer.md").write_text("---\nname: repo-reviewer\nmodel: claude-opus-5-5\n---\n")
             (agents / "read-only.md").write_text("---\nname: read-only\ntools: Read, Grep, Bash\n---\n")
             (agents / "inherits.md").write_text("---\nname: inherits\nmodel: inherit\n---\n")
@@ -102,10 +115,13 @@ class NativeHookPayloadTests(unittest.TestCase):
                 ({"subagent_type": "Plan"}, None),
                 ({"subagent_type": "read-only"}, None),
                 ({"subagent_type": "inherits"}, None),
+                ({"subagent_type": "no-such-agent"}, None),
             ]
+            nested = pathlib.Path(directory, "app/src")
+            nested.mkdir(parents=True)
             for tool_input, expected in cases:
                 with self.subTest(tool_input=tool_input):
-                    result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": tool_input}, directory)
+                    result = invoke(MODEL_HOOK, {"cwd": str(nested), "tool_input": tool_input}, directory)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     model = json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"]["model"] if result.stdout else None
                     self.assertEqual(model, expected)
@@ -143,6 +159,8 @@ class NativeHookPayloadTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stderr)
                     context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
                     self.assertIn(f"~/.agents/skills/{skill}/SKILL.md", context)
+            notice = invoke(MODE_HOOK, {"prompt": "<task-notification>\n<status>completed</status>"}, directory)
+            self.assertEqual((notice.returncode, notice.stdout), (0, ""))
             plain = invoke(MODE_HOOK, {"prompt": "Fix the grid filter."}, directory)
             context = json.loads(plain.stdout)["hookSpecificOutput"]["additionalContext"]
             self.assertNotIn("full-send", context)
