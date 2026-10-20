@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 LINTABLE = {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"}
 COSMETIC = {
@@ -20,6 +21,8 @@ HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 PATCH_FILE = re.compile(r"^\*\*\* (?:Add|Update) File: (.+?)\s*$", re.M)
 PATH_KEYS = ("file_path", "path", "target_file", "filePath", "relative_workspace_path")
 PATCH_KEYS = ("command", "input", "patch")
+SHELL_WRITE = re.compile(r"\bsed\s+-i|\bperl\s+-\w*i|write_text|\.write\(|<<|\btee\b")
+SHELL_WRITE_WINDOW = 120
 
 
 def find_up(start, rel):
@@ -49,10 +52,31 @@ def touched_paths(payload, cwd):
             value = "\n".join(map(str, value))
         if isinstance(value, str) and "*** Begin Patch" in value:
             found.extend(PATCH_FILE.findall(value))
+    if payload.get("tool_name") == "Bash" and isinstance(tool_input.get("command"), str):
+        found.extend(shell_written_paths(tool_input["command"], cwd))
     top = payload.get("file_path")
     if isinstance(top, str):
         found.append(top)
     return [p if os.path.isabs(p) else os.path.join(cwd, p) for p in found]
+
+
+def shell_written_paths(command, cwd):
+    if not SHELL_WRITE.search(command):
+        return []
+    top = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"],
+                         capture_output=True, text=True).stdout.strip()
+    if not top:
+        return []
+    listed = subprocess.run(
+        ["git", "-C", top, "ls-files", "-m", "-o", "--exclude-standard"],
+        capture_output=True, text=True,
+    )
+    if listed.returncode != 0:
+        return []
+    cutoff = time.time() - SHELL_WRITE_WINDOW
+    paths = [os.path.join(top, name) for name in listed.stdout.splitlines()]
+    return [p for p in paths if os.path.basename(p) in command
+            and os.path.isfile(p) and os.path.getmtime(p) >= cutoff]
 
 
 def changed_lines(path):
@@ -162,7 +186,8 @@ def report_for(path, cwd):
     errors = sum(1 for m in relevant if m["severity"] == 2)
     label = "error" if errors else "warning"
     header = "Lint: {} {}{} on lines you changed in {}".format(
-        len(relevant), label, "" if len(relevant) == 1 else "s", os.path.relpath(path, cwd))
+        len(relevant), label, "" if len(relevant) == 1 else "s",
+        os.path.relpath(os.path.realpath(path), os.path.realpath(cwd)))
     body = "\n".join(
         "  {}:{}  {}  {}  ({})".format(
             m["line"], m["column"], "error" if m["severity"] == 2 else "warn ",

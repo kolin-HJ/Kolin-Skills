@@ -38,7 +38,7 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 
 ## Model seats
 
-`models.md` assigns each role. Claude is the only provider, so every role and every panel entry runs as a native subagent through the Agent tool. Never call another provider's CLI or API, even when a pstack skill names one. Read such a name as one more Claude subagent from `models.md`.
+`models.md` assigns each role and holds the Spend rules. Claude is the only provider, so every role and every panel entry runs as a native subagent through the Agent tool. Never call another provider's CLI or API, even when a pstack skill names one. Read such a name as one more Claude subagent from `models.md`.
 
 Put the full brief in each subagent's prompt, because a subagent has none of your context. A subagent's output is a lead: open the code it cites before a finding becomes yours. A candidate that has to write and run the gates runs in its own worktree.
 

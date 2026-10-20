@@ -14,6 +14,7 @@ ENV_HOOK = REPO / "hooks/block-env-reads.py"
 MODE_HOOK = REPO / "skills/pstack-local/scripts/mode-reminder"
 HEAVY_HOOK = REPO / "hooks/heavy-jobs.py"
 SLOT = REPO / "hooks/heavy-slot.py"
+MODEL_HOOK = REPO / "hooks/agent-default-model.py"
 
 
 def invoke(hook, payload, cwd):
@@ -56,6 +57,58 @@ class NativeHookPayloadTests(unittest.TestCase):
                     self.assertEqual(result.stdout, "")
                     self.assertIn("Lint: 1 error on lines you changed in edited.ts", result.stderr)
                     self.assertIn("1:7  error  Unused value.  (fixture/no-unused-value)", result.stderr)
+
+    def test_lint_covers_files_a_shell_command_wrote(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            subprocess.run(["git", "init", "-q", directory], check=True)
+            (root / "package.json").write_text("{}")
+            executable = root / "node_modules/.bin/eslint"
+            executable.parent.mkdir(parents=True)
+            executable.write_text(
+                f"#!{sys.executable}\n"
+                "import json,sys\n"
+                "print(json.dumps([{'messages': [{'ruleId': 'fixture/no-unused-value', "
+                "'severity': 2, 'line': 1, 'column': 7, 'message': 'Unused value.'}]}]))\n"
+                "sys.exit(1)\n"
+            )
+            executable.chmod(0o755)
+            (root / ".gitignore").write_text("node_modules\n")
+            (root / "edited.ts").write_text("const value = 1;\n")
+            written = invoke(LINT_HOOK, {"cwd": directory, "tool_name": "Bash",
+                                         "tool_input": {"command": "sed -i '' 's/1/2/' edited.ts"}}, directory)
+            read_only = invoke(LINT_HOOK, {"cwd": directory, "tool_name": "Bash",
+                                           "tool_input": {"command": "rg -n value edited.ts"}}, directory)
+            self.assertEqual(written.returncode, 2, written.stderr)
+            self.assertIn("Lint: 1 error on lines you changed in edited.ts", written.stderr)
+            search = invoke(LINT_HOOK, {"cwd": directory, "tool_name": "Bash",
+                                        "tool_input": {"command": "rg -n '=>' src > /tmp/out <<< x"}}, directory)
+            self.assertEqual((read_only.returncode, read_only.stderr), (0, ""))
+            self.assertEqual((search.returncode, search.stderr), (0, ""))
+
+    def test_agent_model_defaults_only_unpinned_agents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            agents = pathlib.Path(directory) / ".claude/agents"
+            agents.mkdir(parents=True)
+            (agents / "repo-builder.md").write_text("---\nname: repo-builder\n---\nBuild.\n")
+            (agents / "repo-reviewer.md").write_text("---\nname: repo-reviewer\nmodel: claude-opus-5-5\n---\n")
+            (agents / "read-only.md").write_text("---\nname: read-only\ntools: Read, Grep, Bash\n---\n")
+            (agents / "inherits.md").write_text("---\nname: inherits\nmodel: inherit\n---\n")
+            cases = [
+                ({"subagent_type": "repo-builder"}, "sonnet"),
+                ({"subagent_type": "general-purpose"}, "sonnet"),
+                ({"subagent_type": "repo-reviewer"}, None),
+                ({"subagent_type": "repo-builder", "model": "opus"}, None),
+                ({"subagent_type": "Plan"}, None),
+                ({"subagent_type": "read-only"}, None),
+                ({"subagent_type": "inherits"}, None),
+            ]
+            for tool_input, expected in cases:
+                with self.subTest(tool_input=tool_input):
+                    result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": tool_input}, directory)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    model = json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"]["model"] if result.stdout else None
+                    self.assertEqual(model, expected)
 
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -133,6 +186,22 @@ class NativeHookPayloadTests(unittest.TestCase):
                 with self.subTest(command=command):
                     light = invoke(HEAVY_HOOK, {"tool_input": {"command": command}}, directory)
                     self.assertEqual((light.returncode, light.stdout, light.stderr), (0, "", ""))
+
+    def test_heavy_slot_keeps_the_machine_awake_until_the_job_exits(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bin_dir = pathlib.Path(directory) / "bin"
+            bin_dir.mkdir()
+            record = pathlib.Path(directory) / "caffeinate-args"
+            fake = bin_dir / "caffeinate"
+            fake.write_text(f"#!/bin/sh\necho \"$@\" > '{record}'\n")
+            fake.chmod(0o755)
+            env = {**os.environ, "HEAVY_SLOT_DIR": directory, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+            job = subprocess.run(["sh", "-c", f"python3 '{SLOT}' $$ 0; echo $$"], env=env,
+                                 capture_output=True, text=True, timeout=10)
+            deadline = time.monotonic() + 5
+            while not record.exists() and time.monotonic() < deadline:
+                time.sleep(0.05)
+            self.assertEqual(record.read_text(), f"-i -w {job.stdout.strip()}\n")
 
     def test_heavy_slot_runs_three_jobs_and_queues_the_fourth_until_one_exits(self):
         with tempfile.TemporaryDirectory() as directory:
