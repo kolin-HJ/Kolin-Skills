@@ -46,7 +46,7 @@ Put the full brief in each subagent's prompt, because a subagent has none of you
 
 The global policy (`policy/AGENTS.md`) lists the rules that override pstack (Approvals, Overrides of pstack). It also outranks the repo's `AGENTS.md`, which adds project facts. Both win every conflict with pstack. This adapter adds only how those rules land on pstack's own steps:
 
-- **Autonomy and Opening a PR** act without asking in pstack. Here a commit, push, PR, merge or deploy waits for approval in the session. Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask. `autopilot-full` is not used.
+- **Autonomy and Opening a PR** act without asking in pstack. Here work-branch commits, pushes and PRs go ahead; merges and deploys wait (policy). Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask. `autopilot-full` is not used.
 - **External writes** (chat, tickets) wait for a yes unless the repo's `AGENTS.md` allows them.
 - **PR title and body** use the repo's template. pstack's Why, Scope, Tradeoffs, Blast Radius and Verification sections fill in only where the repo has none.
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Tests and proof. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.

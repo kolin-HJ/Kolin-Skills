@@ -7,13 +7,13 @@ Every one of these came up mid-program before. Ask the ones that apply in the fi
 | Call | Recommended | Why it matters |
 |---|---|---|
 | Where the work lives | One program worktree and branch cut from the base branch, for the whole program | Other sessions share the main checkout, and the program lands as one PR |
-| Commit approval | One local commit per verified unit; no push, PR, merge or deploy without a fresh yes | Units stay small and revertable |
+| Commit approval | One commit per verified unit, pushed to the program branch (policy, Approvals); no merge or deploy without a fresh yes | Units stay small and revertable |
 | Systems never written | Production, external services, shared databases and chat; local writes only if restored | Parity needs a still world |
 | Live data reads | Read-only queries against production and staging when a check needs real values, with nothing stored in code, briefs or reports | Stored-data rules need proof that no real row breaks them |
 | Parity bar | "Behaves exactly like the base branch"; each intended change named and approved | This is the definition of done |
 | Compile check | A parity app launch, or a production build | One user skipped the build because parity already launches the app |
 | Models per role | Opus plans and reviews in a fresh read-only thread; Sonnet 5.5 at medium builds; Haiku does mechanical sweeps. Pinned in the agent definitions and checked by `assets/check-subagents.sh` | The reviewer must not share the builder's context, and briefs are written for the builder's tier (`references/subagents.md`) |
-| Decisions toward the goal | "I approve reversible decisions that serve the goal" | Stops a question every hour. It never covers push, merge or deploy. |
+| Decisions toward the goal | "I approve reversible decisions that serve the goal" | Stops a question every hour. It never covers a merge, a deploy or a push to a protected branch. |
 | The lens for every choice | Agent-first: pick the option an unsupervised agent gets right on the first try, with code a person can still read | The goal is a codebase agents manage with no supervision |
 | Effects library | None. Plain strict TypeScript: a `Result` union, tagged errors that carry a fix hint, one retry owner, one rate limiter per external connection, and dependencies passed as one typed argument | Every model writes this pattern correctly with no library to learn; adopt Effect (`references/effect.md`) only when the user asks for it |
 | Where gates run | Locally: pre-commit, pre-push, and one `verify` command that writes an evidence file per SHA. Keep CI only where the repo already has it for free; never add paid CI. Agents never skip the local gate. The user's yes here covers writing the git hooks | Without CI, `references/trust-audit.md` Local enforcement is the whole defence, so every row there must hold |
@@ -27,7 +27,7 @@ The program lands as one branch and one PR at the user's request. These calls sh
 
 | Call | Recommended | Why it matters |
 |---|---|---|
-| Push cadence | A standing yes to merge the base and push the program branch at every wave boundary | One earlier program held 225 commits unpushed to the end. Pushing each wave backs the work up and runs the pre-push gate on it |
+| Push cadence | Merge the base and push the program branch at every wave boundary | One earlier program held 225 commits unpushed to the end. Pushing each wave backs the work up and runs the pre-push gate on it |
 | When the PR opens | Right after Phase 1, so the user sees the work at every push | A PR opened at the end hides weeks of unreviewed work |
 | Merge style | A merge commit, never a squash | A squash turns hundreds of verified unit commits into one, and `git bisect` can no longer find the unit that broke something |
 | Mid-program landing | Allowed at any wave boundary on the user's word; the branch then continues from the merged base | Agents on the base have none of the gates until the PR merges |

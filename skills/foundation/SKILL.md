@@ -47,7 +47,7 @@ He checks these himself. Everything else is reversible and proceeds.
 
 - The Phase 0 plan, before any build starts.
 - **Data structures and system flows (design-approval gate).** Before you add or change a data structure (types, tables, schemas, payloads, state machines) or a system flow (who calls whom, in what order, through which queue or job), show Kolin the proposed layout: the shapes, relations, the flow and a short reason. Ask: "Here is how we will lay this out. Does this make sense? Is this what you had in mind?" Wait for his approval before you implement it.
-- Commits, pushes and merges (policy, Approvals). Deploys and production releases.
+- Merges, and any change to `main`, `master`, `staging` or `sandbox` (policy, Approvals). Deploys and production releases.
 - Money: billing, pricing, purchases, spend caps.
 - Secrets and credentials: creating, rotating or sharing them.
 - App Store and marketplace submissions.
