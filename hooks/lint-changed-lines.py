@@ -27,6 +27,7 @@ SHELL_WRITE = re.compile(
 SHELL_WRITE_WINDOW = 120
 MAX_PATHS = 4
 DEADLINE_SECONDS = 40
+LINT_TIMEOUT_SECONDS = 45
 
 
 def find_up(start, rel):
@@ -107,15 +108,15 @@ def changed_lines(path):
 OXLINT_CONFIGS = (".oxlintrc.json", "oxlint.config.ts")
 
 
-def lint_did_not_run(linter, run):
-    reason = (run.stderr or run.stdout).strip().splitlines()
+def lint_did_not_run(linter, outcome, output):
+    reason = output.strip().splitlines()
     return {
         "ruleId": "lint-did-not-run",
         "line": 0,
         "column": 0,
         "severity": 1,
-        "message": "{} exited {} and checked nothing: {}".format(
-            linter, run.returncode, reason[0][:200] if reason else "no output"),
+        "message": "{} {} and checked nothing: {}".format(
+            linter, outcome, reason[0][:200] if reason else "no output"),
     }
 
 
@@ -124,7 +125,13 @@ def lint(path):
     if not pkg:
         return []
     root = os.path.dirname(pkg)
-    return eslint_messages(path, root) + oxlint_messages(path, root)
+    messages = []
+    for name, linter in (("eslint", eslint_messages), ("oxlint", oxlint_messages)):
+        try:
+            messages += linter(path, root)
+        except subprocess.TimeoutExpired:
+            messages.append(lint_did_not_run(name, "timed out after {}s".format(LINT_TIMEOUT_SECONDS), ""))
+    return messages
 
 
 def eslint_messages(path, root):
@@ -133,15 +140,15 @@ def eslint_messages(path, root):
         return []
     base = [eslint, "--format", "json", "--no-error-on-unmatched-pattern"]
     run = subprocess.run(base + ["--pass-on-unpruned-suppressions", path],
-                         cwd=root, capture_output=True, text=True, timeout=45)
+                         cwd=root, capture_output=True, text=True, timeout=LINT_TIMEOUT_SECONDS)
     if run.returncode == 2 and "pass-on-unpruned-suppressions" in run.stderr:
-        run = subprocess.run(base + [path], cwd=root, capture_output=True, text=True, timeout=45)
+        run = subprocess.run(base + [path], cwd=root, capture_output=True, text=True, timeout=LINT_TIMEOUT_SECONDS)
     if run.returncode not in (0, 1):
-        return [lint_did_not_run("eslint", run)]
+        return [lint_did_not_run("eslint", "exited {}".format(run.returncode), run.stderr or run.stdout)]
     try:
         results = json.loads(run.stdout)
     except json.JSONDecodeError:
-        return []
+        return [lint_did_not_run("eslint", "exited {}".format(run.returncode), run.stdout)]
     return [m for r in results for m in r.get("messages", []) if m.get("ruleId")]
 
 
@@ -153,13 +160,13 @@ def oxlint_messages(path, root):
     cmd = [oxlint, "--format", "json"]
     if os.path.exists(os.path.join(root, "node_modules/.bin/tsgolint")):
         cmd.append("--type-aware")
-    run = subprocess.run(cmd + [path], cwd=root, capture_output=True, text=True, timeout=45)
+    run = subprocess.run(cmd + [path], cwd=root, capture_output=True, text=True, timeout=LINT_TIMEOUT_SECONDS)
     if run.returncode not in (0, 1):
-        return [lint_did_not_run("oxlint", run)]
+        return [lint_did_not_run("oxlint", "exited {}".format(run.returncode), run.stderr or run.stdout)]
     try:
         diagnostics = json.loads(run.stdout).get("diagnostics", [])
     except json.JSONDecodeError:
-        return []
+        return [lint_did_not_run("oxlint", "exited {}".format(run.returncode), run.stdout)]
     messages = []
     for d in diagnostics:
         spans = [label["span"] for label in d.get("labels", []) if "span" in label]
@@ -255,8 +262,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    try:
-        sys.exit(main(sys.argv[1:]))
-    except Exception as exc:
-        print("lint-changed-lines: skipped ({})".format(exc), file=sys.stderr)
-        sys.exit(0)
+    sys.exit(main(sys.argv[1:]))
