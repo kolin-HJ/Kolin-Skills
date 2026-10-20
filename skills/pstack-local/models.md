@@ -43,11 +43,11 @@ Plan, build and review are separate seats:
 
 | Seat | Runs as | Model | Does |
 |---|---|---|---|
-| Orchestrator | the main session | Opus | Value case, plan, Kolin's asks, six-part briefs, `.pstack/status.md`, reads every delegated hunk |
-| Builder | `poteto-agent` | Sonnet 5.5, medium | One unit per brief, runs the gate, reports once |
+| Orchestrator | the main session | Opus | Value case, plan, Kolin's asks, six-part briefs, `.pstack/status.md`, reads every delegated hunk. Reads only what the design needs; every token it reads is re-read on each later turn |
+| Builder | `poteto-agent`, or the repo's implementer | Sonnet 5.5, medium (hook default when the agent pins no model) | One unit per brief, runs the gate, reports once |
 | Sweeper | `haiku-worker` | Haiku 5.5, medium | Recipe work: renames, codemods, fixtures, searches the brief spells out |
-| Searcher | `Explore` | Sonnet (hook default) | Wide read-only search; returns conclusions, not file dumps |
-| Reviewer | `senior-reviewer` | Opus 5.5, high, read-only | Fresh review of every non-trivial diff; never the builder |
-| Comment sweep | `comment-sicko` (pstack) | inherits | Deletes comments before review |
+| Searcher | `Explore` | Sonnet (hook default) | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
+| Reviewer | `senior-reviewer` | Opus 5.5, high, read-only | Fresh review of every non-trivial diff; never the builder. A Lite re-review of follow-up fix hunks passes `model: "sonnet"` |
+| Comment sweep | `comment-sicko` (pstack) | Sonnet (hook default) | Deletes comments before review |
 
 Routing by job, with the Haiku cost results measured on 2026-10-07, lives in `loop-refactor-to-pstack/references/subagents.md`.

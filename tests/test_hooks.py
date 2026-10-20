@@ -13,6 +13,7 @@ LINT_HOOK = REPO / "hooks/lint-changed-lines.py"
 ENV_HOOK = REPO / "hooks/block-env-reads.py"
 MODE_HOOK = REPO / "skills/pstack-local/scripts/mode-reminder"
 HEAVY_HOOK = REPO / "hooks/heavy-jobs.py"
+MODEL_HOOK = REPO / "hooks/agent-default-model.py"
 SLOT = REPO / "hooks/heavy-slot.py"
 
 
@@ -33,6 +34,10 @@ class NativeHookPayloadTests(unittest.TestCase):
             root = pathlib.Path(directory)
             (root / "package.json").write_text("{}")
             (root / "edited.ts").write_text("const value = 1;\n")
+            (root / "sub").mkdir()
+            routed = root / "app/(app)/routed.ts"
+            routed.parent.mkdir(parents=True)
+            routed.write_text("const value = 1;\n")
             executable = root / "node_modules/.bin/eslint"
             executable.parent.mkdir(parents=True)
             executable.write_text(
@@ -48,6 +53,10 @@ class NativeHookPayloadTests(unittest.TestCase):
                 {"toolInput": {"target_file": "edited.ts"}},
                 {"tool_input": {"path": "edited.ts"}},
                 {"tool_input": "*** Begin Patch\n*** Update File: edited.ts\n*** End Patch"},
+                {"tool_input": {"command": "sed -i '' 's/1/2/' 'edited.ts'"}},
+                {"tool_input": {"command": "python3 - <<'EOF'\np='edited.ts'\nopen(p,'w').write(s)\nEOF"}},
+                {"tool_input": {"command": "cd sub && cat > ../edited.ts <<'EOF'\nconst value = 1;\nEOF"}},
+                {"tool_input": {"command": "sed -E -i '' 's/1/2/' edited.ts"}},
             ]
             for payload in payloads:
                 with self.subTest(payload=payload):
@@ -56,6 +65,22 @@ class NativeHookPayloadTests(unittest.TestCase):
                     self.assertEqual(result.stdout, "")
                     self.assertIn("Lint: 1 error on lines you changed in edited.ts", result.stderr)
                     self.assertIn("1:7  error  Unused value.  (fixture/no-unused-value)", result.stderr)
+            for name in "abcde":
+                (root / f"{name}.ts").write_text("const value = 1;\n")
+            many = invoke(LINT_HOOK, {"cwd": directory, "tool_input": {
+                "command": "sed -i '' 's/1/2/' a.ts b.ts c.ts d.ts e.ts"}}, directory)
+            self.assertEqual(many.returncode, 2, many.stderr)
+            self.assertIn("Lint: 1 error on lines you changed in d.ts", many.stderr)
+            self.assertIn("Not linted, so run the repo's lint for: e.ts.", many.stderr)
+            inline = invoke(LINT_HOOK, {"cwd": directory, "tool_input": {
+                "command": "python3 -c \"open('app/(app)/routed.ts','w').write('const value = 1;')\""}}, directory)
+            self.assertEqual(inline.returncode, 2, inline.stderr)
+            self.assertIn("on lines you changed in app/(app)/routed.ts", inline.stderr)
+            for command in ["npx vitest run edited.ts 2>&1 | tail -5", "grep -n value edited.ts > /tmp/hits.txt",
+                            "npx vitest run edited.ts 2>&1 | tee /tmp/out.txt", "sed -n 1,5p edited.ts"]:
+                with self.subTest(command=command):
+                    result = invoke(LINT_HOOK, {"cwd": directory, "tool_input": {"command": command}}, directory)
+                    self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
 
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -90,10 +115,37 @@ class NativeHookPayloadTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stderr)
                     context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
                     self.assertIn(f"~/.agents/skills/{skill}/SKILL.md", context)
+            notice = invoke(MODE_HOOK, {"prompt": "<task-notification>\n<status>completed</status>"}, directory)
+            self.assertEqual((notice.returncode, notice.stdout), (0, ""))
             plain = invoke(MODE_HOOK, {"prompt": "Fix the grid filter."}, directory)
             context = json.loads(plain.stdout)["hookSpecificOutput"]["additionalContext"]
             self.assertNotIn("full-send", context)
             self.assertNotIn("full-stop", context)
+
+    def test_agent_default_model_fills_only_an_unpinned_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            agents = pathlib.Path(directory, ".claude/agents")
+            agents.mkdir(parents=True)
+            (agents / "repo-builder.md").write_text("---\nname: repo-builder\ndescription: builds\n---\nBody with model: words.\n")
+            (agents / "pinned.md").write_text("---\nname: pinned\nmodel: claude-opus-5-5\n---\nBody\n")
+            nested = pathlib.Path(directory, "app/src")
+            nested.mkdir(parents=True)
+            cases = [
+                ({"subagent_type": "repo-builder"}, "sonnet"),
+                ({"subagent_type": "Explore"}, "sonnet"),
+                ({"subagent_type": "pinned"}, None),
+                ({"subagent_type": "repo-builder", "model": "opus"}, None),
+                ({"subagent_type": "no-such-agent"}, None),
+            ]
+            for tool_input, model in cases:
+                with self.subTest(tool_input=tool_input):
+                    result = invoke(MODEL_HOOK, {"cwd": str(nested), "tool_input": tool_input}, directory)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    if model is None:
+                        self.assertEqual(result.stdout, "")
+                    else:
+                        updated = json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"]
+                        self.assertEqual(updated, {**tool_input, "model": model})
 
     def test_heavy_jobs_blocks_sleep_polling_in_the_foreground_only(self):
         with tempfile.TemporaryDirectory() as directory:

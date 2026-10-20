@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 LINTABLE = {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"}
 COSMETIC = {
@@ -20,6 +21,24 @@ HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 PATCH_FILE = re.compile(r"^\*\*\* (?:Add|Update) File: (.+?)\s*$", re.M)
 PATH_KEYS = ("file_path", "path", "target_file", "filePath", "relative_workspace_path")
 PATCH_KEYS = ("command", "input", "patch")
+SHELL_WRITE = re.compile(
+    r"\bsed\b[^|;&\n]*\s(?:-\w*i|--in-place)|\bperl\s+-\w*i|open\([^\n]*?,\s*['\"][wa]|\.write_text\("
+    r"|(?:>>?|\btee\s+(?:-a\s+)?)\s*['\"]?[^\s'\"&]+\.(?:tsx?|jsx?|mjs|cjs)\b")
+MAX_PATHS = 4
+DEADLINE_SECONDS = 40
+SHELL_SOURCE = re.compile(r"[^\s'\"<>|;&=$`]+\.(?:tsx?|jsx?|mjs|cjs)\b")
+SHELL_CD = re.compile(r"\bcd\s+([^\s;&|]+)")
+
+
+def shell_written_paths(command, cwd):
+    if not SHELL_WRITE.search(command):
+        return []
+    text = command.replace("\\", "").replace("'", " ").replace('"', " ")
+    bases = [cwd] + [os.path.join(cwd, d) for d in SHELL_CD.findall(text)]
+    found = []
+    for token in SHELL_SOURCE.findall(text):
+        found.extend(p for p in (os.path.join(b, token) for b in bases) if os.path.isfile(p))
+    return found
 
 
 def find_up(start, rel):
@@ -49,6 +68,8 @@ def touched_paths(payload, cwd):
             value = "\n".join(map(str, value))
         if isinstance(value, str) and "*** Begin Patch" in value:
             found.extend(PATCH_FILE.findall(value))
+        elif key == "command" and isinstance(value, str):
+            found.extend(shell_written_paths(value, cwd))
     top = payload.get("file_path")
     if isinstance(top, str):
         found.append(top)
@@ -193,12 +214,23 @@ def main(argv):
     if not paths:
         return 0
 
-    reports = [r for r in (report_for(p, cwd) for p in paths) if r]
-    if not reports:
+    started = time.monotonic()
+    reports, skipped = [], paths[MAX_PATHS:]
+    for i, path in enumerate(paths[:MAX_PATHS]):
+        if time.monotonic() - started > DEADLINE_SECONDS:
+            skipped = paths[i:]
+            break
+        report = report_for(path, cwd)
+        if report:
+            reports.append(report)
+    footer = "Problems on lines you did not touch are not shown."
+    if skipped:
+        footer += " Not linted, so run the repo's lint for: {}.".format(
+            ", ".join(os.path.relpath(p, cwd) for p in skipped))
+    if not reports and not skipped:
         return 0
 
-    text = "\n\n".join(r["text"] for r in reports)
-    footer = "Problems on lines you did not touch are not shown."
+    text = "\n\n".join(r["text"] for r in reports) or "Lint: no problems in the files checked."
     has_errors = any(r["errors"] for r in reports)
 
     if emit == "cursor":
