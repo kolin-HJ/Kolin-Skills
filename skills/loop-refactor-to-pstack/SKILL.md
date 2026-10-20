@@ -1,6 +1,6 @@
 ---
 name: loop-refactor-to-pstack
-description: "Run a long, multi-session program that refactors a whole repository to pstack standards and architecture on one branch, with Lauren Tan's (poteto's) method, and sets up the pstack workflow so later agents stay trustworthy: one instruction file routed through poteto-mode, one check command CI and the deploy run, strict gates at zero allowance, repeated mistakes made impossible with `correct`, a target module architecture enforced by gates, a verification skill with lockstep parity against the base branch, a verifier agent and PR proof check, a tamper-evident ratchet and agent guards, and optionally effectful code moved onto Effect (Effect-TS). It works in waves of codemods and delegated lanes, one verified commit per unit on a single program branch that lands as one PR, without changing what users see. Use it whenever the user wants to adopt pstack in a repo, refactor a codebase to pstack or poteto's practices or architecture, drive lint baselines to zero, make agents trustworthy in a codebase, set up the pstack workflow, adopt Effect across a codebase, or resume such a program after a compaction, even if they don't name the skill. Not for one bug fix or one feature; those use poteto-mode's playbooks."
+description: "Run a long, multi-session program that refactors a whole repository to pstack standards and architecture on one branch, with Lauren Tan's (poteto's) method, and sets up the pstack workflow so later agents stay trustworthy: one instruction file routed through poteto-mode, one check command CI and the deploy run, strict gates at zero allowance, repeated mistakes made impossible with `correct`, a target module architecture enforced by gates, a verification skill with lockstep parity against the base branch, a verifier agent and PR proof check, a tamper-evident ratchet and agent guards. Errors and effects use plain strict TypeScript (foundation skill); Effect (Effect-TS) only when the user asks for it. It works in waves of codemods and delegated lanes, one verified commit per unit on a single program branch that lands as one PR, without changing what users see. Use it whenever the user wants to adopt pstack in a repo, refactor a codebase to pstack or poteto's practices or architecture, drive lint baselines to zero, make agents trustworthy in a codebase, set up the pstack workflow, adopt Effect when the user asks for it, or resume such a program after a compaction, even if they don't name the skill. Not for one bug fix or one feature; those use poteto-mode's playbooks."
 ---
 
 # Loop: refactor a repo to pstack on one branch
@@ -53,11 +53,11 @@ Check every row at the end of each wave. Keep looping until all hold. Never rela
 3. The last full lockstep parity run against the current base shows only changes the user approved.
 4. The target architecture in `.pstack/architecture.md` is reached. A gate enforces every boundary in its module map, and its red-flag census reads zero (`references/architecture.md`).
 5. Every mistake class `correct` found has a row in the instruction file's rule table, and each row names the check that enforces it.
-6. Effect adoption is complete: the `effect-adoption` baseline is deleted, every language-service diagnostic runs at error, and each legacy helper Effect replaced is deleted and banned. Skip this row only if the user declined Effect.
+6. Only if the user chose Effect: adoption is complete: the `effect-adoption` baseline is deleted, every language-service diagnostic runs at error, and each legacy helper Effect replaced is deleted and banned. Skip this row by default.
 7. The workflow is installed. Every row of `references/workflow-setup.md` holds, and the last `maintain-verification-skill` pass ended `clean`.
 8. The trust audit (`references/trust-audit.md`) has no open row, or the user chose to leave a row open.
 9. Every question in `gates.md` is answered or recorded as the user's decision.
-10. The one PR is open into the base, CI is green at the branch tip without the ratchet's bypass label, the base was merged in during the last wave, and the PR body carries the wave table. Merging it is the user's call.
+10. The one PR is open into the base, CI is green at the branch tip (or, when the user chose local-only gates, the `verify` evidence file exists for the tip SHA) without the ratchet's bypass label, the base was merged in during the last wave, and the PR body carries the wave table. Merging it is the user's call.
 
 ## Phase 0: frame (once)
 
@@ -76,7 +76,7 @@ Check every row at the end of each wave. Keep looping until all hold. Never rela
 Build the environment before cleaning anything. Each item is its own verified commit on the branch.
 
 1. **The workflow** per `references/workflow-setup.md`: one `AGENTS.md` that routes every task through poteto-mode, vendored pstack with its source pin and link check, the `.pstack/` folder, the PR template with its proof check, and the agent guard. The templates are in `assets/workflow/`.
-2. **One check command** runs every gate. CI runs exactly that command as one step, and so does the production deploy.
+2. **One check command** runs every gate. CI (or, with local-only gates, pre-push and `verify`) runs exactly that command, and so does the production deploy.
 3. **Every gate the language supports, at strict settings.** Propose each new tool before you add it. The list is a formatter, a type-aware linter at error, strict types, and tests with test-shape rules. It also holds no comments, dead code with import boundaries, a file-length limit, an authorization guard gate with a reviewed public list, and a doc-reference gate.
 4. **Gate policy as data.** Every threshold, scope and owner or exemption list lives in one JSON file, so the ratchet sees it.
 5. **A baseline registry and its tools:** `baselines.json` with target 0 and an owner unit per baseline, plus `gates:files`, `gates:lower`, `gates:status` and the ratchet in CI. The contract is in `references/gates-contract.md`. JS and TS implementations with tests are in `assets/node-gates/`.
@@ -91,7 +91,7 @@ Run `create-verification-skill`. It must end with a CLI that launches the real a
 
 Follow `references/architecture.md`. Ground each subsystem with `how` and `why`, sketch the target module map with `architect`, screen it against the design red flags, and run `interrogate` on the synthesis. Record the result in `.pstack/architecture.md` and an ADR. Each boundary becomes a gate rule (an import boundary, a banned import or an owner list) seeded at today's count. Each red flag the census found becomes a baseline with its owner wave.
 
-When the program adopts Effect, the Effect service graph is part of this design. Follow `references/effect.md` steps 1 to 4 here: the census, the design with an ADR, the foundation unit, then a one-slice pilot proven by parity and timing. Nothing fans out until the pilot lands. The remaining Effect steps run as waves inside the loop.
+Plain TypeScript is the default (`foundation`, Guardrails). Only when the user chose Effect, the Effect service graph is part of this design. Follow `references/effect.md` steps 1 to 4 here: the census, the design with an ADR, the foundation unit, then a one-slice pilot proven by parity and timing. Nothing fans out until the pilot lands. The remaining Effect steps run as waves inside the loop.
 
 ## Phase 4: make the repeated mistakes impossible
 
@@ -192,7 +192,7 @@ After each wave, tell the user in a few plain sentences: what landed on the bran
 - `references/architecture.md`: the target architecture phase, the red-flag census and the boundary gates.
 - `references/workflow-setup.md`: the workflow a pstack repo ends with, and the template for each piece.
 - `references/subagents.md`: which agent does which job, the model pin, panels, and briefs written for the pinned model.
-- `references/effect.md`: the Effect target, phase order, paved modules, legacy mapping, traps and gates.
+- `references/effect.md` (only when the user chose Effect): the Effect target, phase order, paved modules, legacy mapping, traps and gates.
 - `references/program-store.md`: the orch store, `RESUME.md` template, standing orders and commit helper.
 - `references/user-decisions.md`: the calls the user owns, with recommended defaults.
 - `references/brief-templates.md`: the nine-field brief, codemod first, and the common, lane, Effect, split and verifier briefs.

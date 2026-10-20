@@ -36,6 +36,8 @@ A gate is only as strong as the easiest way around it. Walk this table before la
 | Hooks never installed | A `prepare` script sets `core.hooksPath` inside a git work tree and does nothing elsewhere (CI, Vercel) | Run `pnpm install` in a fresh clone, then `git config core.hooksPath` |
 | The agent settings file is gitignored, so the guard never ships | `git check-ignore -v .claude/settings.json` prints a negation rule, and the ratchet watches the file once tracked | `git ls-files .claude/settings.json` lists it |
 | `--no-verify`, `commit -n`, or setting `core.hooksPath` elsewhere | An agent PreToolUse hook (`.claude/settings.json`) blocks them. Only Claude Code reads that file; other agents rely on the server side. | Feed the hook the command JSON; it exits 2 |
+| No CI at all (the user chose local-only gates) | pre-push refuses unless the `verify` evidence file exists for the pushed SHA on protected branches, and `verify` fails when a skip variable (such as `SKIP_LOCAL_GATE`) is set | Push without running `verify`; the push fails |
+| `SKIP_LOCAL_GATE=`, `HUSKY=0`, or `git -c core.hooksPath=` | The same agent hook blocks them for agents; a human bypass stays possible for the user only | Feed the hook each command; it exits 2 |
 | A push straight to `staging` or `main`, or a force-push | The same agent hook, plus the server side | Feed it `git push origin HEAD:main` |
 
 Hooks and agent settings are sensitive: the harness's permission check may refuse a worker that writes them. Get the user's explicit approval, then write them yourself or re-dispatch under that approval. Never route around a refusal.

@@ -50,7 +50,7 @@ Subagents that run any of these do so on Sonnet 5.5 through the pstack agent def
 | `recall` | On resume, alongside `RESUME.md`, and in Phase 4 to mine the user's repeated corrections. |
 | `deslop` | Second in each wave's review, before the reviewer reads the diff. |
 | `control-ui`, `control-cli` | Only when the repo has no verification skill yet; build one instead of scripting. |
-| `setup-pstack` | Not used directly; `pstack-local/models.md` holds the model roles on this machine. Its step 7 offer is Phase 2. |
+| `setup-pstack` | Not used; `pstack-local/models.md` holds the model roles. |
 | `teach`, `bro` | When the user asks to understand a wave or a decision in plain words. |
 | `automate-me`, `make-bot-ui` | Not used by this program. |
 
