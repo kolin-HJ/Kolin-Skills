@@ -1,50 +1,62 @@
 import json
 import os
-import pathlib
 import re
 import sys
 
-INHERIT_PINNED_BUILTINS = {"Explore", "claude-code-guide"}
+UNPINNED_BUILTINS = {"Explore", "claude-code-guide", "general-purpose"}
 DEFAULT_MODEL = "sonnet"
-MODEL_LINE = re.compile(r"^model:\s*\S", re.M)
+PINNED = re.compile(r"^model:[ \t]*\S", re.M)
+TOOLS = re.compile(r"^tools:(.*)$", re.M)
+WRITERS = {"Edit", "Write", "NotebookEdit", "*"}
 
 
-def agent_definition(name, cwd):
-    homes = [os.environ.get("CLAUDE_CONFIG_DIR"), "~/.claude"]
-    start = pathlib.Path(cwd).resolve()
-    folders = [folder / ".claude/agents" for folder in [start, *start.parents]]
-    folders += [pathlib.Path(home).expanduser() / "agents" for home in homes if home]
+def definition(agent, cwd):
+    folders = []
+    directory = cwd
+    while True:
+        folders.append(os.path.join(directory, ".claude", "agents"))
+        parent = os.path.dirname(directory)
+        if parent == directory:
+            break
+        directory = parent
+    for home in dict.fromkeys([os.environ.get("CLAUDE_CONFIG_DIR"), os.path.expanduser("~/.claude")]):
+        if home:
+            folders.append(os.path.join(home, "agents"))
     for folder in folders:
-        path = folder / f"{name}.md"
-        if path.is_file():
-            return path.read_text(errors="replace")
+        path = os.path.join(folder, agent + ".md")
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as handle:
+                return handle.read()
     return None
 
 
-def pins_no_model(definition):
-    parts = definition.split("---", 2)
-    return len(parts) == 3 and not MODEL_LINE.search(parts[1])
+def unpinned_builder(text):
+    frontmatter = text.split("---", 2)[1] if text.startswith("---") else ""
+    if PINNED.search(frontmatter):
+        return False
+    tools = TOOLS.search(frontmatter)
+    return tools is None or bool(WRITERS & {t.strip() for t in tools.group(1).split(",")})
+
+
+def needs_default(agent, cwd):
+    if agent in UNPINNED_BUILTINS:
+        return True
+    text = definition(agent, cwd) if agent else None
+    return text is not None and unpinned_builder(text)
 
 
 def main():
     event = json.load(sys.stdin)
     tool_input = event.get("tool_input") or {}
-    name = tool_input.get("subagent_type")
-    if not name or tool_input.get("model"):
+    agent = tool_input.get("subagent_type")
+    if tool_input.get("model") or not needs_default(agent, event.get("cwd") or os.getcwd()):
         return 0
-    if name in INHERIT_PINNED_BUILTINS:
-        reason = f"{name} pins model inherit"
-    else:
-        definition = agent_definition(name, event.get("cwd") or os.getcwd())
-        if definition is None or not pins_no_model(definition):
-            return 0
-        reason = f"{name} pins no model"
     json.dump(
         {
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "allow",
-                "permissionDecisionReason": f"{reason}; defaulted to {DEFAULT_MODEL}",
+                "permissionDecisionReason": f"{agent} pins no model; defaulted to {DEFAULT_MODEL}",
                 "updatedInput": {**tool_input, "model": DEFAULT_MODEL},
             }
         },

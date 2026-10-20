@@ -22,23 +22,11 @@ PATCH_FILE = re.compile(r"^\*\*\* (?:Add|Update) File: (.+?)\s*$", re.M)
 PATH_KEYS = ("file_path", "path", "target_file", "filePath", "relative_workspace_path")
 PATCH_KEYS = ("command", "input", "patch")
 SHELL_WRITE = re.compile(
-    r"\bsed\b[^|;&\n]*\s(?:-\w*i|--in-place)|\bperl\s+-\w*i|open\([^\n]*?,\s*['\"][wa]|\.write_text\("
-    r"|(?:>>?|\btee\s+(?:-a\s+)?)\s*['\"]?[^\s'\"&]+\.(?:tsx?|jsx?|mjs|cjs)\b")
+    r"\bsed\b[^|;&\n]*\s(?:-\w*i|--in-place)|\bperl\s+-\w*i|write_text|\.write\(|open\([^\n]*?,\s*['\"][wa]"
+    r"|<<|\btee\b|>>?\s*['\"]?[^\s'\"&]+\.(?:tsx?|jsx?|mjs|cjs)\b")
+SHELL_WRITE_WINDOW = 120
 MAX_PATHS = 4
 DEADLINE_SECONDS = 40
-SHELL_SOURCE = re.compile(r"[^\s'\"<>|;&=$`]+\.(?:tsx?|jsx?|mjs|cjs)\b")
-SHELL_CD = re.compile(r"\bcd\s+([^\s;&|]+)")
-
-
-def shell_written_paths(command, cwd):
-    if not SHELL_WRITE.search(command):
-        return []
-    text = command.replace("\\", "").replace("'", " ").replace('"', " ")
-    bases = [cwd] + [os.path.join(cwd, d) for d in SHELL_CD.findall(text)]
-    found = []
-    for token in SHELL_SOURCE.findall(text):
-        found.extend(p for p in (os.path.join(b, token) for b in bases) if os.path.isfile(p))
-    return found
 
 
 def find_up(start, rel):
@@ -68,12 +56,31 @@ def touched_paths(payload, cwd):
             value = "\n".join(map(str, value))
         if isinstance(value, str) and "*** Begin Patch" in value:
             found.extend(PATCH_FILE.findall(value))
-        elif key == "command" and isinstance(value, str):
-            found.extend(shell_written_paths(value, cwd))
+    if payload.get("tool_name") == "Bash" and isinstance(tool_input.get("command"), str):
+        found.extend(shell_written_paths(tool_input["command"], cwd))
     top = payload.get("file_path")
     if isinstance(top, str):
         found.append(top)
     return [p if os.path.isabs(p) else os.path.join(cwd, p) for p in found]
+
+
+def shell_written_paths(command, cwd):
+    if not SHELL_WRITE.search(command):
+        return []
+    top = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"],
+                         capture_output=True, text=True).stdout.strip()
+    if not top:
+        return []
+    listed = subprocess.run(
+        ["git", "-C", top, "ls-files", "-m", "-o", "--exclude-standard"],
+        capture_output=True, text=True,
+    )
+    if listed.returncode != 0:
+        return []
+    cutoff = time.time() - SHELL_WRITE_WINDOW
+    paths = [os.path.join(top, name) for name in listed.stdout.splitlines()]
+    return [p for p in paths if os.path.basename(p) in command
+            and os.path.isfile(p) and os.path.getmtime(p) >= cutoff]
 
 
 def changed_lines(path):
@@ -183,7 +190,8 @@ def report_for(path, cwd):
     errors = sum(1 for m in relevant if m["severity"] == 2)
     label = "error" if errors else "warning"
     header = "Lint: {} {}{} on lines you changed in {}".format(
-        len(relevant), label, "" if len(relevant) == 1 else "s", os.path.relpath(path, cwd))
+        len(relevant), label, "" if len(relevant) == 1 else "s",
+        os.path.relpath(os.path.realpath(path), os.path.realpath(cwd)))
     body = "\n".join(
         "  {}:{}  {}  {}  ({})".format(
             m["line"], m["column"], "error" if m["severity"] == 2 else "warn ",
@@ -226,7 +234,7 @@ def main(argv):
     footer = "Problems on lines you did not touch are not shown."
     if skipped:
         footer += " Not linted, so run the repo's lint for: {}.".format(
-            ", ".join(os.path.relpath(p, cwd) for p in skipped))
+            ", ".join(os.path.relpath(os.path.realpath(p), os.path.realpath(cwd)) for p in skipped))
     if not reports and not skipped:
         return 0
 

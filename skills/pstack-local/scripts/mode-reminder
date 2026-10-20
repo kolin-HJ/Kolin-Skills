@@ -18,7 +18,8 @@ context = (
     f"To apply it, read {mode} and {adapter}, match a playbook, and follow it. "
     "The global policy (~/.claude/CLAUDE.md, ~/.codex/AGENTS.md) outranks the repo's AGENTS.md and pstack; "
     "use the repo file for project facts. "
-    "Code task? Before the first edit, write the value case (AGENTS.md Quality work). No outcome, no code."
+    "Code task? Before the first edit, write the value case (AGENTS.md Quality work). No outcome, no code. "
+    f"Follow 'Spend' in {os.path.join(skills, 'pstack-local', 'models.md')}."
 )
 for kind in sorted({match.lower() for match in autonomy_phrase.findall(prompt)}):
     context += (
