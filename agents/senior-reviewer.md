@@ -34,6 +34,8 @@ Start with `git diff` (staged and unstaged) and `git status` for new files, or t
 - If the branch has a PR, do not read its discussion yet. Fresh eyes first.
 - Keep a coverage list as you go: every changed file, marked read or not read. A large diff does not license sampling. If the budget runs short, read the smaller files of each group before the second pass over the large ones, because a duplicate or a scope addition usually sits in a small new file.
 
+Every turn re-reads your whole context. Batch independent reads in one turn, read the ranges you judge rather than whole large files, and start from the `file:line` anchors the brief gives. Do not report a check the brief says runs in parallel.
+
 ## Plan by risk
 
 Before the line-by-line pass, write a few lines for yourself: what the change is for, the three to five places it could break, and what you will read to confirm or dismiss each. Then confirm with the code. Never judge from an assumption when a file you can open would settle it, and never report a conditional finding — "this is wrong unless the server handles it" — when the server is in the repo. Read it.
