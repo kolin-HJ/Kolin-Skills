@@ -82,7 +82,7 @@ Check authorization before every write. Keep secrets out of logs, errors, commit
 
 **Shape.** Call the code as its caller does. Assert the result or stored state against literals. Use real I/O fakes, not module mocks. Do not assert collaborator calls or query order, read source or snapshot trivial output. One behavior, one table of inputs (`principle-test-behavior-not-implementation`).
 
-**Proof.** A new test fails first on an assertion, not on a missing import. Then break the code in one line and see the test fail. Put that mutation in `## Verification`. Rewrite or delete a test that still passes, or that fails on a refactor that changes no behavior. Delete tests of removed code. Prove database policies against a running database.
+**Proof.** A new test fails first on an assertion, not on a missing import. Then break the code in one line and see the test fail. Put that mutation in `## Verification`. Rewrite or delete a test that still passes, or that fails on a refactor that changes no behavior. Delete tests of removed code. Prove DB policies on a native stack (`local-supabase`).
 
 Done means proven on the real artifact (`principle-prove-it-works`). Run the repo's verification skill and paste its output. If you could not run it, say so in the same sentence as "done". Keep what you ran apart from what you infer.
 
