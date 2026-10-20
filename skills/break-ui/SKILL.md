@@ -1,6 +1,6 @@
 ---
 name: break-ui
-description: Try to break a piece of UI by feeding it worst-case data — long names, unbreakable emails, one-letter names, missing fields, huge counts, zero items, long labels, non-Latin text, emoji, extreme numbers — then render it behind a "Demo data / Worst case" toggle and report everything that broke, with the fix for each. Use when the user asks to stress-test, break, or find edge cases in a component or screen, or to "try the worst case". For visual design critique and motion use emil-design-eng.
+description: Stress-test UI with worst-case data (long names, missing fields, zero or huge counts, emoji, non-Latin text), behind a "Worst case" toggle, then report what broke and the fix. Use when asked to stress-test, break or find edge cases in a component, table, card or screen, or before a UI ships under the UI bar in foundation. Not for polish or motion (emil-design-eng) or phone feel (mobile-native).
 ---
 
 # Breaking UI
