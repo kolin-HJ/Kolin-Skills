@@ -43,6 +43,10 @@ A medium-effort worker follows instructions well and improvises poorly. The brie
 - A scope it can finish: about 30 to 70 sites, one folder group, and a timebox. Split anything larger rather than raising the effort.
 - No sub-workers, except one read-only reviewer it waits for.
 
+## The review pass runs in a fresh read-only thread
+
+When the user's build policy names an Opus reviewer, each unit's review runs in a new Opus thread that has not seen the build, with read-only tools. It gets the unit's brief, the diff and the evidence, and returns PASS or findings. The builder never reviews its own unit. Cap it at two review rounds per unit, then rewrite the brief.
+
 ## When Sonnet is not enough
 
 Raise effort or move up a model only on evidence: the same lane failing its VERIFY twice after a brief rewrite, or a verifier finding the same class of defect in two lanes. Then rewrite the brief first (Orchestrate: two revision rounds, then rewrite), and only if that fails, ask the user before changing a pin. Record the call in the decision trail.

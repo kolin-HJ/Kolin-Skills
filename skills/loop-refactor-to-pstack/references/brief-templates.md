@@ -16,6 +16,8 @@ REPORT       reports/<brief>.md: status, files, counts before and after, sites l
 STANDING     preferences.md (local spawns may cite its path; paste it verbatim on every resume)
 ```
 
+When the user reads the brief, or when the harness takes a short prompt (a T3 or chat thread), lead with five headings that fold the nine fields: **Goal** (GOAL), **Done when** (ACCEPTANCE), **Evidence** (VERIFY and REPORT), **Constraints** (SCOPE, CONTEXT, FORBIDDEN, STANDING) and **Stop when** (TIMEBOX and the stop cases). Cite the plan sections and skills the unit must follow by path.
+
 ## Codemod first
 
 A deterministic lever beats fan-out (principle-build-the-lever). For a mechanical rule:

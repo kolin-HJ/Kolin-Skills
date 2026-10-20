@@ -14,6 +14,26 @@ One repo for Kolin's agent setup. Change a file here and every harness on the ma
 | What a compaction summary keeps | `policy/compact-instructions.md` |
 | Approval shortcuts "full stop" and "full send" | `skills/full-stop/`, `skills/full-send/` |
 
+## Skill structure
+
+`skills/foundation` is the root. Every other skill inherits its flow, Kolin's check points and the quality bars. `apply` links every skill flat into `~/.agents/skills` (Codex, Grok), `~/.claude/skills` and `~/.cursor/skills`, so the groups below are an index, not folders. `skills/pstack-local/SKILL.md` keeps the same index.
+
+```
+policy/AGENTS.md            global policy → points to foundation
+skills/
+  foundation/               CORE: first principles, think with Kolin, flow, check points, bars (references/ui-bar.md)
+  pstack-local/             CORE: pstack adapter, skill index, models.md, references/upstreams.md
+  gap-audit/                PROCESS: legacy repo → ranked gaps → small steps → re-audit to zero
+  loop-refactor-to-pstack/  PROCESS: whole-repo program on one branch
+  full-stop/, full-send/    PROCESS: approval shortcuts
+  slickjoy/                 PROJECT: SlickJoy-only rules
+  local-supabase/, explainer/, emil-design-eng/, break-ui/, mobile-native/,
+  pick-ui-library/, prototype/, apple-design/, ask-sonner/,
+  animate/ + animation-*, *-animations/        UTILITIES
+  (principles: vendored pstack principle-*)
+agents/                     senior-reviewer, poteto-agent, haiku-worker, comment-sicko
+```
+
 ## How a change reaches each harness
 
 ```mermaid
@@ -44,7 +64,7 @@ flowchart LR
 ## New machine
 
 ```sh
-git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Documents/Github/Kolin-Skills
+git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Documents/Github/Kolin-Skills   # any path works, e.g. /workspace/kolin-skills on the bot box
 python3 ~/Documents/Github/Kolin-Skills/bin/kolin-skills install
 ```
 

@@ -3,6 +3,7 @@ import argparse
 import datetime
 import fcntl
 import json
+import re
 import os
 import pathlib
 import shutil
@@ -37,10 +38,12 @@ WATCHED_HOMES = [
     ".claude/rules", ".cursor/rules", ".grok/rules", ".claude/output-styles",
     ".claude/hooks", ".codex/hooks", ".claude/mods",
 ]
+GATE_HOOK_RE = re.compile(r"^(block-forbidden-git|gate-pass|stop-require-skill-and-gate|tdd-lock-guard)\.sh(\.bak.*)?$")
 OTHER_INSTALLERS = {
     "REA": ["reverse-engineer-anything"],
     "claude.ai skill sync": ["synced"],
     "herdr": ["herdr-agent-state.sh"],
+    "bot-box gate hooks (kept, never delete)": ["README.md"],
 }
 NPX_SKILL_LOCK = HOME / ".agents/.skill-lock.json"
 LINKS = {
@@ -55,6 +58,10 @@ LINKS = {
     "mods/usage-band": [".claude/mods/usage-band"],
     "mods/savvy-progress": [".claude/mods/savvy-progress"],
     "evals": [".agents/evals"],
+    "hooks/gate/block-forbidden-git.sh": [".claude/hooks/block-forbidden-git.sh"],
+    "hooks/gate/gate-pass.sh": [".claude/hooks/gate-pass.sh"],
+    "hooks/gate/stop-require-skill-and-gate.sh": [".claude/hooks/stop-require-skill-and-gate.sh"],
+    "hooks/gate/tdd-lock-guard.sh": [".claude/hooks/tdd-lock-guard.sh"],
     "bin/kolin-skills": [".local/bin/kolin-skills"],
     "bin/context-audit": [".local/bin/context-audit"],
 }
@@ -64,7 +71,7 @@ MERGED_JSON = {
     "cursor/hooks.json": ".cursor/hooks.json",
 }
 RENDERED = {"cursor/agent-policy.mdc": ".cursor/rules/agent-policy.mdc"}
-LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in paths if path.endswith(".py")]
+LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in paths if path.endswith((".py", ".sh"))]
 LEGACY_HOOK_PATHS.append("pstack-local/scripts/mode-reminder")
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
 SPEND_CAPS = {"subagent_model": "claude-sonnet-5-5", "max_compact_window": 400_000}
@@ -222,7 +229,11 @@ def apply(plan, roots):
             continue
         plan.link(skill, HOME / ".agents/skills" / name)
         for home in VENDOR_SKILL_HOMES[1:]:
-            plan.link(pathlib.Path(f"../../.agents/skills/{name}"), HOME / home / name)
+            existing = HOME / home / name
+            if existing.exists() and not existing.is_symlink():
+                plan.owned.add(existing)  # bot box: a real skill folder already there wins; never replace it
+                continue
+            plan.link(pathlib.Path(f"../../.agents/skills/{name}"), existing)
 
     agents = sorted((REPO / "agents").glob("*.md"))
     for agent in agents:
@@ -269,7 +280,7 @@ def ownership_problems(owned):
     for home in WATCHED_HOMES:
         directory = HOME / home
         for path in sorted(directory.iterdir()) if directory.is_dir() else []:
-            if not path.name.startswith(".") and path not in owned and path.name not in known:
+            if not path.name.startswith(".") and path not in owned and path.name not in known and not GATE_HOOK_RE.match(path.name):
                 shown = f"~/{path.relative_to(HOME)}"
                 fix = "delete the link" if path.is_symlink() else f"run kolin-skills import {shown}, or delete it"
                 problems.append(f"not from the repo: {shown}; {fix}")
