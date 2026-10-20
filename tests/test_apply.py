@@ -1,3 +1,4 @@
+import fcntl
 import json
 import os
 import pathlib
@@ -5,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -21,8 +23,10 @@ class ApplyTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.home)
 
-    def run_cli(self, *args):
+    def run_cli(self, *args, path_prefix=None):
         env = {**os.environ, "HOME": str(self.home)}
+        if path_prefix:
+            env["PATH"] = f"{path_prefix}{os.pathsep}{env['PATH']}"
         return subprocess.run(
             [sys.executable, str(self.repo / "bin/kolin-skills"), *args],
             env=env, text=True, capture_output=True, timeout=60,
@@ -145,6 +149,52 @@ class ApplyTests(unittest.TestCase):
         self.assertIn("1 commits behind origin/main", result.stdout)
         self.assertTrue((self.home / ".claude/skills/local-only").is_symlink())
         self.assertFalse((self.home / ".claude/skills/pushed-skill").exists())
+
+    def fake_git(self, subcommand, body):
+        bin_dir = self.home / "fake-bin"
+        bin_dir.mkdir()
+        script = bin_dir / "git"
+        script.write_text(
+            "#!/bin/sh\n"
+            'for arg in "$@"; do\n'
+            f'  if [ "$arg" = {subcommand} ]; then {body}; fi\n'
+            "done\n"
+            f'exec {shutil.which("git")} "$@"\n'
+        )
+        script.chmod(0o755)
+        return str(bin_dir)
+
+    def test_pull_says_why_when_the_fast_forward_merge_fails(self):
+        self.with_remote_one_commit_ahead()
+        fake = self.fake_git("merge", "echo 'fatal: cannot fast-forward' >&2; exit 1")
+        result = self.run_cli("pull", "--quiet", path_prefix=fake)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("git merge --ff-only failed: fatal: cannot fast-forward", result.stdout)
+
+    def test_pull_waits_for_the_state_lock_before_touching_the_repo(self):
+        self.with_remote_one_commit_ahead()
+        head = self.git(self.repo, "rev-parse", "HEAD").stdout
+        state = self.home / ".kolin-skills"
+        state.mkdir()
+        with open(state / "lock", "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            env = {**os.environ, "HOME": str(self.home)}
+            pulling = subprocess.Popen([sys.executable, str(self.repo / "bin/kolin-skills"), "pull", "--quiet"],
+                                       env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.addCleanup(pulling.kill)
+            time.sleep(1.5)
+            self.assertIsNone(pulling.poll())
+            self.assertEqual(self.git(self.repo, "rev-parse", "HEAD").stdout, head)
+        pulling.communicate(timeout=60)
+        self.assertEqual(pulling.returncode, 0)
+        self.assertTrue((self.home / ".claude/skills/pushed-skill").is_symlink())
+
+    def test_pull_survives_a_git_call_that_hangs_and_says_which(self):
+        self.with_remote_one_commit_ahead()
+        fake = self.fake_git("status", "exec sleep 30")
+        result = self.run_cli("pull", "--quiet", path_prefix=fake)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("status --porcelain timed out after 5s; main was not updated", result.stdout)
 
     def test_pull_returns_to_main_only_from_a_branch_whose_remote_was_deleted(self):
         self.with_remote_one_commit_ahead()
