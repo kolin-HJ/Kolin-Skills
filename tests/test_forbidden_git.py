@@ -107,10 +107,10 @@ GATE_SKIP_ALLOWED = [
 ]
 
 
-def run_hook(command, cwd):
+def run_hook(command, cwd, env=None):
     payload = {"tool_input": {"command": command}, "cwd": cwd}
     return subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
-                          capture_output=True, cwd=cwd, timeout=20)
+                          capture_output=True, cwd=cwd, env=env, timeout=20)
 
 
 class ForbiddenGitHookTests(unittest.TestCase):
@@ -145,6 +145,15 @@ class ForbiddenGitHookTests(unittest.TestCase):
                 subprocess.run(["git", "-C", directory, "-c", "user.email=t@t", "-c", "user.name=t",
                                 "commit", "-q", "--allow-empty", "-m", "x"], check=True)
                 self.assertEqual(run_hook(GIT + " push", directory).returncode, expected)
+
+    def test_merging_a_pr_into_a_protected_branch_is_blocked(self):
+        for base, expected in [("main", 2), ("master", 2), ("staging", 2), ("sandbox", 2), ("feature", 0)]:
+            with self.subTest(base=base), tempfile.TemporaryDirectory() as directory:
+                fake = pathlib.Path(directory, GH)
+                fake.write_text("#!/bin/sh\necho " + base + "\n")
+                fake.chmod(0o755)
+                env = {**os.environ, "PATH": directory + os.pathsep + os.environ["PATH"]}
+                self.assertEqual(run_hook(GH + " pr merge 5", directory, env).returncode, expected)
 
     def test_the_codex_and_cursor_payload_shape_is_guarded_too(self):
         with tempfile.TemporaryDirectory() as directory:
