@@ -46,7 +46,7 @@ Put the full brief in each subagent's prompt, because a subagent has none of you
 
 The global policy (`policy/AGENTS.md`) lists the rules that override pstack (Approvals, Overrides of pstack). It also outranks the repo's `AGENTS.md`, which adds project facts. Both win every conflict with pstack. This adapter adds only how those rules land on pstack's own steps:
 
-- **Autonomy and Opening a PR** act without asking in pstack. Here work-branch commits, pushes and PRs go ahead; merges and deploys wait (policy). Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask. `autopilot-full` is not used.
+- **Autonomy and Opening a PR** act without asking in pstack. Here a commit, push or PR on a work branch needs no ask; a merge or deploy does (policy, Approvals). Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask. `autopilot-full` is not used.
 - **External writes** (chat, tickets) wait for a yes unless the repo's `AGENTS.md` allows them.
 - **PR title and body** use the repo's template. pstack's Why, Scope, Tradeoffs, Blast Radius and Verification sections fill in only where the repo has none.
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Tests and proof. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
@@ -65,7 +65,7 @@ The global policy (`policy/AGENTS.md`) lists the rules that override pstack (App
 | Principles | pstack `principle-*` |
 | Utilities | `local-supabase`, `explainer`, UI craft (`emil-design-eng`, `break-ui`, `mobile-native`), cursor-team-kit (`deslop`, `control-ui`, `control-cli`, `thermo-nuclear-code-quality-review`), `find-skills` |
 
-`full-stop` and `full-send` are the in-session approval when Kolin invokes them: full stop covers commit, push and a ready PR; full send adds the merge of that one PR. `scripts/mode-reminder` flags either phrase.
+`full-stop` and `full-send` are the in-session approval when Kolin invokes them: full stop covers a ready PR; full send adds the merge of that one PR. `scripts/mode-reminder` flags either phrase.
 
 Read `thermo-nuclear-code-quality-review` for the diff pass in the policy's Quality work, or when the user asks for a harsh structure review.
 

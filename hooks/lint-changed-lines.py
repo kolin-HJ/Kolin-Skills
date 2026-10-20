@@ -21,8 +21,12 @@ HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 PATCH_FILE = re.compile(r"^\*\*\* (?:Add|Update) File: (.+?)\s*$", re.M)
 PATH_KEYS = ("file_path", "path", "target_file", "filePath", "relative_workspace_path")
 PATCH_KEYS = ("command", "input", "patch")
-SHELL_WRITE = re.compile(r"\bsed\s+-i|\bperl\s+-\w*i|write_text|\.write\(|<<|\btee\b")
+SHELL_WRITE = re.compile(
+    r"\bsed\b[^|;&\n]*\s(?:-\w*i|--in-place)|\bperl\s+-\w*i|write_text|\.write\(|open\([^\n]*?,\s*['\"][wa]"
+    r"|<<|\btee\b|>>?\s*['\"]?[^\s'\"&]+\.(?:tsx?|jsx?|mjs|cjs)\b")
 SHELL_WRITE_WINDOW = 120
+MAX_PATHS = 4
+DEADLINE_SECONDS = 40
 
 
 def find_up(start, rel):
@@ -218,12 +222,23 @@ def main(argv):
     if not paths:
         return 0
 
-    reports = [r for r in (report_for(p, cwd) for p in paths) if r]
-    if not reports:
+    started = time.monotonic()
+    reports, skipped = [], paths[MAX_PATHS:]
+    for i, path in enumerate(paths[:MAX_PATHS]):
+        if time.monotonic() - started > DEADLINE_SECONDS:
+            skipped = paths[i:]
+            break
+        report = report_for(path, cwd)
+        if report:
+            reports.append(report)
+    footer = "Problems on lines you did not touch are not shown."
+    if skipped:
+        footer += " Not linted, so run the repo's lint for: {}.".format(
+            ", ".join(os.path.relpath(os.path.realpath(p), os.path.realpath(cwd)) for p in skipped))
+    if not reports and not skipped:
         return 0
 
-    text = "\n\n".join(r["text"] for r in reports)
-    footer = "Problems on lines you did not touch are not shown."
+    text = "\n\n".join(r["text"] for r in reports) or "Lint: no problems in the files checked."
     has_errors = any(r["errors"] for r in reports)
 
     if emit == "cursor":
