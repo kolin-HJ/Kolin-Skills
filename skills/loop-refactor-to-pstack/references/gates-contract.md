@@ -3,7 +3,7 @@
 Every stack needs these behaviors. The JS/TS reference implementations are in `assets/node-gates/`. Port the contract, not necessarily the code.
 
 ## The gate command
-- One command runs every gate in order and exits non-zero on the first failure. CI runs exactly this command as one step.
+- One command runs every gate in order and exits non-zero on the first failure. The pre-push hook and the deploy run exactly this command, and so does CI where the repo already has free CI.
 - Each gate prints one success line with its counts, for example `no new comments: 0 baselined`, so a log shows state at a glance.
 
 ## Each gate that allows a baseline
@@ -33,7 +33,7 @@ Every stack needs these behaviors. The JS/TS reference implementations are in `a
 - `gates:files <paths>` runs every gate's `--json` and prints, per path and per gate, "N now, baseline M". It also prints rises in the given paths, rises elsewhere, and stale entries. Workers use it on their own files.
 - `gates:lower` measures every gate first. If any count rose, it refuses and writes nothing. Otherwise it runs each gate's `--update`, restores a file if an update would have raised anything, and prints before and after totals. Gates whose results depend on config files others rewrite run last.
 - `gates:status` prints every registered baseline with "baseline N in F files, now N, target 0" and its unit. It ends with the count of baselines left, and the program is done when that count is zero.
-- **The ratchet:** in CI and in the pre-push hook, it compares every baseline file and every gate setting against the base branch, and fails if anything loosened. It allows growth only with an explicit PR label and a written reason. Its contract is below.
+- **The ratchet:** in the pre-push hook (and CI where it exists), it compares every baseline file and every gate setting against the base branch, and fails if anything loosened. It allows growth only with an explicit PR label and a written reason. Its contract is below.
 
 ## Retiring a baseline
 When `gates:lower` empties a baseline, delete the file and its registry entry. Rewrite the doc that described it to say there is no baseline and that any finding fails. Remove any per-file override the linter config carried for it.
@@ -73,7 +73,7 @@ Base keys follow renames, so a moved file keeps its allowance.
 | Root `package.json` | None | Each step of the check command, each step script's command, and the exact version of each pinned package (`effect`, `@effect/*`) |
 | Workspace `package.json` | None | The `lint`, `typecheck` and `test` commands, and the exact version of each pinned package |
 | Formatter config | Ignore patterns | None |
-| CI and deploy workflows | Bypass lines: `if:`, `continue-on-error`, `\|\| true`, `exit 0`, `--no-verify` | Every non-comment line |
+| Existing CI and deploy workflows | Bypass lines: `if:`, `continue-on-error`, `\|\| true`, `exit 0`, `--no-verify` | Every non-comment line |
 | Git hooks and agent settings | Bypass lines, which are free in a file the base lacks | Every non-comment line |
 | Test runner configs | Lines choosing tests: `include`, `exclude`, `passWithNoTests`, `testNamePattern`, `bail` | Every non-comment line |
 | Gate policy | Owner and guard lists, and `maxFileLines` as a count | Scopes, banned names, and that `maxFileLines` exists |

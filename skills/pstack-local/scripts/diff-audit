@@ -14,6 +14,7 @@ DOC = re.compile(r"\.(md|mdx|txt|rst)$")
 SKIP = re.compile(r"\b(it|test|describe)\.(skip|only|todo)\b|\b[xf](it|describe|test)\(|@pytest\.mark\.(skip|xfail)"
                   r"|\bpytest\.skip\(|\bt\.Skip\(|@Disabled|@Ignore")
 TEST_DEF = re.compile(r"^\s*(it|test|describe)(\.\w+)?\(|^\s*(async\s+)?def test_|^\s*func Test")
+DOC_READ = re.compile(r"""(read_text|readFile\w*|open)\(?[^\n]*['"][\w./-]+\.mdx?['"]|['"][\w./-]+\.mdx?['"]\)?\.(read_text|read)\(""")
 ASSERTION = re.compile(r"\bexpect\(|\bassert")
 WEAK = re.compile(r"\.(toBeTruthy|toBeDefined|toBeFalsy)\(\)|\.not\.toThrow\(\)|\.toHaveBeenCalled\(\)"
                   r"|\.toBeInstanceOf\(|^\s*assert\s+[\w.]+\s*$|assertTrue\(|assert_called\(\)")
@@ -106,6 +107,10 @@ def audit(files, base):
                 blocks.append(("skip", where))
             if is_test and WEAK.search(line):
                 blocks.append(("weak-assert", where))
+            if is_test and DOC_READ.search(line):
+                blocks.append(("doc-read", where))
+            if is_test and TEST_DEF.search(line):
+                info.append(f"new test: {where}  (which behavior a caller relies on fails without it?)")
             if is_code:
                 directive = DIRECTIVE.search(line)
                 if HATCH.search(line) or (directive and " -- " not in line):

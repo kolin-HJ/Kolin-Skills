@@ -81,7 +81,7 @@ Number the orders so a brief can cite one ("order 12"). Paste them verbatim into
 13. **The user's bar,** quoted, for example "everything still functional as it is in the base branch, no bugs, nothing broken". Every wave ends with lockstep parity and the check command.
 14. **Zero, not shrink.** Every baseline is burned to zero and deleted. A new rule lands at zero, or with its baseline and the unit that burns it down.
 15. **Scratch checkouts are shared.** Never install, init or delete inside one. Fixture repos go in new `fx-<lane>` folders.
-16. **Subagents** run on Sonnet 5.5 (`claude-sonnet-5-5`) at medium effort through `poteto-agent`, `senior-reviewer` and `comment-sicko` (or the repo's named implementer), launched without a `model` argument so the definition's pin applies. Never `general-purpose` or `Plan` for program work (`references/subagents.md`).
+16. **Subagents** run through `poteto-agent` (or the repo's named implementer), `senior-reviewer` and `comment-sicko`, launched without a `model` argument so each definition's model applies. Never `general-purpose` or `Plan` for program work (`references/subagents.md`).
 17. **Live data.** When a check needs real values, query the source of truth read-only, and never copy the values into code, briefs or reports.
 18. **Decisions toward the goal.** If the user grants it, reversible decisions that serve the goal proceed and are recorded in the commit message and the trail. Push, merge, deploy and external writes still need a fresh yes.
 19. **Gate changes.** Every edit to gate code, gate policy, CI, hooks or agent settings is its own unit, with tests that plant the loosening it guards against. Workers edit them only when their brief names the file.

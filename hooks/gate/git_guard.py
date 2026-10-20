@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""Find real git / GitHub CLI invocations in a shell command, ignoring text that only mentions them.
-
-Usage: git_guard.py skip-hooks|api-merge|d4   (command text on stdin)
-Exit 0 = found a forbidden invocation, 1 = clean, 3 = could not parse (caller falls back, fail closed).
-"""
 import re
 import shlex
 import sys
@@ -26,7 +21,6 @@ class ParseError(Exception):
 
 
 def split_heredocs(text):
-    """Return the command text without heredoc bodies, plus [(header_line, body)]."""
     lines = text.split("\n")
     kept, bodies, i = [], [], 0
     while i < len(lines):
@@ -47,8 +41,7 @@ def split_heredocs(text):
 
 
 def segments(text):
-    """Split into simple commands (lists of words), respecting quotes."""
-    text = text.replace("\n", " ; ")  # newlines end commands; inside quotes this only changes the text of one word
+    text = text.replace("\n", " ; ")
     lexer = shlex.shlex(text, posix=True, punctuation_chars=";&|()<>")
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
@@ -74,7 +67,6 @@ def program(word):
 
 
 def strip_prefix(words):
-    """Drop VAR=value assignments and wrappers such as env or sudo."""
     i = 0
     while i < len(words):
         word = words[i]
@@ -151,7 +143,6 @@ def api_merges(words, raw):
 
 
 def d4_violation(words, raw):
-    """D4: setting SKIP_LOCAL_GATE, or writing to hook paths."""
     if any(w.startswith("SKIP_LOCAL_GATE=") for w in words):
         return True
     if words and words[0] == "export" and any(w.startswith("SKIP_LOCAL_GATE") for w in words[1:]):

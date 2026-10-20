@@ -2,7 +2,7 @@
 
 The program applies all of pstack. This table says where each piece fires, so none is skipped by accident. Read a principle's leaf `SKILL.md` before citing it, and name in the commit or report only the ones that changed a choice.
 
-Subagents that run any of these do so on Sonnet 5.5 through the pstack agent definitions (`references/subagents.md`). Paths are relative to `~/.agents/skills/` (`deslop`, `control-ui` and `control-cli` come from cursor-team-kit, linked there too). Every pstack skill sets `disable-model-invocation`, so read its `SKILL.md` and follow it (`pstack-local/SKILL.md`, Loading a pstack skill).
+Subagents that run any of these use the pinned agent definitions (`references/subagents.md`). Paths are relative to `~/.agents/skills/` (`deslop`, `control-ui` and `control-cli` come from cursor-team-kit, linked there too). Every pstack skill sets `disable-model-invocation`, so read its `SKILL.md` and follow it (`pstack-local/SKILL.md`, Loading a pstack skill).
 
 ## Playbooks (`poteto-mode/playbooks/`)
 
@@ -35,7 +35,7 @@ Subagents that run any of these do so on Sonnet 5.5 through the pstack agent def
 | `architect` (runs `arena`) | Phase 3's module map, screened against its `design-red-flags.md`. One-way doors: the Effect service graph, the edge adapters, the error model, the rule engine's shape. |
 | `arena` | A contested decomposition of the program, or two codemod designs. |
 | `swarm` | Read-only census and audit fan-outs, one worker per area, one aggregated report. |
-| `interrogate` | The architecture map, and every unit in the top proof tier: numbers, schema, access rules, external writes, the runtime and the Effect foundation. One reviewer per model family (`pstack-local/models.md`). |
+| `interrogate` | The architecture map, and every unit in the top proof tier: numbers, schema, access rules, external writes, the runtime and the Effect foundation. Each seat upstream gives another model family is a fresh Claude subagent on a different model or lens (`references/subagents.md`, Panels). |
 | `blast-radius` | A small-looking change to a shared helper, a gate or the runtime. |
 | `tdd` | A fix with a cheap local test path. Every new test is seen failing first. |
 | `no-comments` (Comment Sicko) | First in each wave's review; the comments gate holds the line after. |
@@ -80,4 +80,4 @@ Subagents that run any of these do so on Sonnet 5.5 through the pstack agent def
 | fix-root-causes | A parity difference is traced to its commit before it is accepted or rejected. |
 | attack-the-premise | Two failed fixes on one gate: census who holds the imbalance, then question the premise. |
 | exhaust-the-design-space | The Effect edge adapter and service graph get two or three prototypes before the pilot. |
-| experience-first | No planner-visible regression is traded for a cleaner diff. |
+| experience-first | No user-visible regression is traded for a cleaner diff. |

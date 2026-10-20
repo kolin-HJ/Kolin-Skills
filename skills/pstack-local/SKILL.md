@@ -1,6 +1,6 @@
 ---
 name: pstack-local
-description: Use whenever poteto-mode or any other pstack skill (how, why, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, the principle-* skills) or ponytail runs in Claude Code, Codex, Grok or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
+description: Use whenever poteto-mode or any other pstack skill (how, why, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, the principle-* skills) runs in Claude Code, Codex, Grok or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
 ---
 
 # pstack on this machine
@@ -16,8 +16,8 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 | pstack says | Do this |
 |---|---|
 | `Task` with `subagent_type: generalPurpose` | Claude Code: the Agent tool with `general-purpose`. Codex: a spawned agent. |
-| `subagent_type: "poteto-agent"` | `poteto-agent`. For a code-writing delegate in a repo whose AGENTS.md names its own implementer (hj-plm: `plm-implementer`), use that one. Read-only helpers stay on `poteto-agent`. |
-| `subagent_type: "comment-sicko"` (was `Comment Sicko`) | `comment-sicko` |
+| `subagent_type: "poteto-agent"` | A code-writing delegate: `poteto-agent`, the builder seat. A read-only helper: `Explore`. A repo's own named implementer is a project fact; use it only for that repo's code. |
+| `subagent_type: "comment-sicko"` (was `Comment Sicko`) | `comment-sicko`, pstack's own agent, linked by `apply` |
 | `readonly: true` | `Explore`, or a reviewer agent without Edit and Write. |
 | `environment: "cloud"`, `cloud_base_branch` | A local worktree (`isolation: "worktree"`) created from that branch. |
 | `model: <slug>` | The role line in `models.md` next to this file. |
@@ -44,31 +44,30 @@ Put the full brief in each subagent's prompt, because a subagent has none of you
 
 ## Where Kolin's rules win
 
-`~/.codex/AGENTS.md` lists the rules that override pstack (Approvals, Overrides of pstack) and the repo's `AGENTS.md` adds its own. They win every conflict. This adapter adds only how those rules land on pstack's own steps:
+The global policy (`policy/AGENTS.md`) lists the rules that override pstack (Approvals, Overrides of pstack). It also outranks the repo's `AGENTS.md`, which adds project facts. Both win every conflict with pstack. This adapter adds only how those rules land on pstack's own steps:
 
 - **Autonomy and Opening a PR** act without asking in pstack. Here a commit, push, PR, merge or deploy waits for approval in the session. Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask. `autopilot-full` is not used.
 - **External writes** (chat, tickets) wait for a yes unless the repo's `AGENTS.md` allows them.
 - **PR title and body** use the repo's template. pstack's Why, Scope, Tradeoffs, Blast Radius and Verification sections fill in only where the repo has none.
-- **`tdd`** follows AGENTS.md Tests and proof.
+- **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Tests and proof. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
 - **Feature, Bug fix and Refactoring** start with the AGENTS.md value case. **Opening a PR** runs `scripts/diff-audit <base>` first.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a gate directive with `-- <reason>`.
 - **Reply style.** Keep pstack's Writing the reply rules. State the principles that changed a decision in one line, not a section.
 
 ## Skill index
 
-`foundation` is the root; every skill below inherits its flow, check points and bars. `apply` links all of them flat into each harness, so the groups live here, not in folders.
+`foundation` is the root; every skill below inherits its flow, check points and bars. `apply` links all of them flat into each harness, so the groups live here and in the README, not in folders. `kolin-skills check` fails when a skill is missing from either.
 
 | Group | Skills |
 |---|---|
-| Core | `foundation` (with `references/ui-bar.md`), this adapter and `models.md` |
+| Core | `foundation` (with `references/ui-bar.md`), this adapter `pstack-local` and `models.md` |
 | Process playbooks | pstack (`poteto-mode` and its playbooks, `architect`, `correct`, `interrogate`, `sharpen`), `gap-audit`, `loop-refactor-to-pstack`, `full-stop`, `full-send` |
 | Principles | pstack `principle-*` |
-| Project | `slickjoy` (repo rules live only in project skills) |
-| Utilities | `local-supabase`, `explainer`, the UI craft skills (`emil-design-eng`, `break-ui`, `mobile-native`, `pick-ui-library`, `prototype`, `apple-design`, `ask-sonner`, animation skills), and the upstreams in `references/upstreams.md` (cursor-team-kit, ponytail) |
+| Utilities | `local-supabase`, `explainer`, UI craft (`emil-design-eng`, `break-ui`, `mobile-native`), cursor-team-kit (`deslop`, `control-ui`, `control-cli`, `thermo-nuclear-code-quality-review`), `find-skills` |
 
 `full-stop` and `full-send` are the in-session approval when Kolin invokes them: full stop covers commit, push and a ready PR; full send adds the merge of that one PR. `scripts/mode-reminder` flags either phrase.
 
-Use `ponytail` mode for all coding and read `thermo-nuclear-code-quality-review` for the diff pass; their overrides are in `references/upstreams.md`.
+Read `thermo-nuclear-code-quality-review` for the diff pass in the policy's Quality work, or when the user asks for a harsh structure review.
 
 ## Verify the setup
 

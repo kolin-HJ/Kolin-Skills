@@ -1,7 +1,3 @@
-"""Block/allow cases for hooks/gate/block-forbidden-git.sh.
-
-Forbidden strings are built by concatenation so this file never trips the hook when it is written or grepped.
-"""
 import json
 import os
 import pathlib
@@ -53,6 +49,32 @@ API_ALLOWED = [
     GIT + " log --merges --oneline | rg api",
     "cat > n.md <<'EOF'\n" + GH + " api -X PUT repos/o/r/pulls/1/merge\nEOF",
 ]
+PUSH_AND_MERGE_BLOCKED = [
+    GIT + " push origin main",
+    GIT + " push --force origin feature",
+    GIT + " push -f",
+    GIT + " push origin +feature",
+    GIT + " push origin --delete feature",
+    GH + " pr merge 5",
+    GH + " pr edit 5 --auto",
+]
+PUSH_ALLOWED = [
+    GIT + " push origin feature",
+    GIT + " push -u origin feature",
+]
+GATE_SKIP_BLOCKED = [
+    "SKIP_LOCAL_GATE=1 " + GIT + " commit -m x",
+    "export SKIP_LOCAL_GATE=1",
+    "cp x ~/.claude/hooks/block-forbidden-git.sh",
+    "echo x > .git/hooks/pre-commit",
+    "rm -f .husky/pre-push",
+]
+GATE_SKIP_ALLOWED = [
+    "cat ~/.claude/hooks/README.md",
+    "rg SKIP_LOCAL_GATE docs/",
+    "ls .git/hooks",
+    "cat > plan.md <<'EOF'\nSKIP_LOCAL_GATE=1 must be blocked\nEOF",
+]
 
 
 def run_hook(command, cwd):
@@ -79,6 +101,32 @@ class ForbiddenGitHookTests(unittest.TestCase):
 
     def test_reads_that_mention_merges_are_allowed(self):
         self.check(API_ALLOWED, 0)
+
+    def test_pushes_to_main_force_pushes_and_merges_into_main_are_blocked(self):
+        self.check(PUSH_AND_MERGE_BLOCKED, 2)
+
+    def test_pushes_of_a_feature_branch_are_allowed(self):
+        self.check(PUSH_ALLOWED, 0)
+
+    def test_any_push_while_on_main_is_blocked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run(["git", "init", "-q", "-b", "main", directory], check=True)
+            subprocess.run(["git", "-C", directory, "-c", "user.email=t@t", "-c", "user.name=t",
+                            "commit", "-q", "--allow-empty", "-m", "x"], check=True)
+            self.assertEqual(run_hook(GIT + " push origin feature", directory).returncode, 2)
+
+    def test_the_codex_and_cursor_payload_shape_is_guarded_too(self):
+        with tempfile.TemporaryDirectory() as directory:
+            payload = {"toolInput": {"command": GIT + " push origin main"}, "cwd": directory}
+            result = subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
+                                    capture_output=True, cwd=directory, timeout=20)
+            self.assertEqual(result.returncode, 2)
+
+    def test_skipping_the_local_gate_or_editing_hook_files_is_blocked(self):
+        self.check(GATE_SKIP_BLOCKED, 2)
+
+    def test_reads_and_mentions_of_the_local_gate_are_allowed(self):
+        self.check(GATE_SKIP_ALLOWED, 0)
 
 
 if __name__ == "__main__":

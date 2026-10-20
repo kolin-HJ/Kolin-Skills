@@ -1,6 +1,6 @@
 ---
 name: haiku-worker
-description: Bounded mechanical worker on Haiku 5.5 for the advisor pattern. Sonnet or Opus (the advisor) writes the brief and reviews every hunk; this worker does the rename or renumber from a census, the gate-driven codemod, the codemod with stop conditions, the fixture or the read-only search the brief spells out. Never judges design, security, data integrity or a planner-facing number, and never spawns sub-workers.
+description: Bounded mechanical worker on Haiku 5.5 for the advisor pattern. Sonnet or Opus (the advisor) writes the brief and reviews every hunk; this worker does the rename or renumber from a census, the gate-driven codemod, the codemod with stop conditions, the fixture or the read-only search the brief spells out. Never judges design, security, data integrity or a user-facing number, and never spawns sub-workers.
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: claude-haiku-5-5
 effort: medium

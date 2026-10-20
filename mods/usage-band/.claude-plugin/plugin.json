@@ -1,1 +1,0 @@
-{ "name": "usage-band", "version": "0.3.0", "description": "Branch diff by area, then context, session and weekly usage meters, above the prompt", "types": "./types/index.d.ts" }

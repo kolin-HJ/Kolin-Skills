@@ -106,7 +106,7 @@ Leave and report: any site whose error message, status code, write order or retr
 
 ## Verifier brief (the riskiest lane)
 
-Run it as a native read-only reviewer (`senior-reviewer`), because Claude is the only provider, and say that the review was same-family. Hand it the user's words, the files in scope, the decisions it must not re-raise, and the load-bearing invariants quoted from `AGENTS.md`. Then an ordered checklist, for example:
+Run it on `senior-reviewer` in a fresh thread that did not build the lane. Hand it the user's words, the files in scope, the decisions it must not re-raise, and the load-bearing invariants quoted from `AGENTS.md`. Then an ordered checklist, for example:
 
 1. Hook and effect order compared with HEAD.
 2. Each moved body compared with the original at the token level.

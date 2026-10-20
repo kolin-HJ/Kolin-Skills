@@ -15,7 +15,7 @@ Kolin's rule: never merge without a yes in the session. Kolin explicitly invokin
 ## Merge gate
 Check every item at the current head commit. Record the command and the result for each one.
 1. **Proof.** The evidence covers every changed file and behavior. Check it against `gh pr diff <N> --name-only`.
-2. **Checks.** All required checks are green: `gh pr checks <N> --required`. A skipped required check counts as a failure. If it reports no required checks (hj-supply-chain requires none), every check in `gh pr checks <N>` that ran is green and none is pending.
+2. **Checks.** All required checks are green: `gh pr checks <N> --required`. A skipped required check counts as a failure. If it reports no required checks, every check in `gh pr checks <N>` that ran is green and none is pending.
 3. **Review bots.** Every bot review has finished. Every finding is fixed, or has a reply that gives a reason.
 4. **Humans.** No review has changes requested: `gh pr view <N> --json reviewDecision,reviews`.
 5. **Up to date.** The branch has the latest base, and `gh pr view <N> --json mergeable,mergeStateStatus` shows `MERGEABLE` and `CLEAN`.
