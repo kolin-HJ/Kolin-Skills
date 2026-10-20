@@ -401,6 +401,23 @@ def vendor_pin_problems():
     return problems
 
 
+MIN_NODE = (22, 20)
+
+
+def node_problem():
+    node = shutil.which("node")
+    if node is None:
+        return f"Node is missing from PATH; third-party skills need Node >= {MIN_NODE[0]}.{MIN_NODE[1]}"
+    try:
+        raw = subprocess.run([node, "--version"], text=True, capture_output=True, timeout=10).stdout.strip()
+        version = tuple(int(part) for part in raw.lstrip("v").split(".")[:2])
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return f"could not read the Node version; third-party skills need Node >= {MIN_NODE[0]}.{MIN_NODE[1]}"
+    if version < MIN_NODE:
+        return f"Node {raw} is too old; third-party skills need Node >= {MIN_NODE[0]}.{MIN_NODE[1]}. Upgrade Node, then run kolin-skills upstream"
+    return None
+
+
 def upstream(bump=False):
     manifest_file = REPO / "upstream/vendor.json"
     manifest = json.loads(manifest_file.read_text())
@@ -408,12 +425,17 @@ def upstream(bump=False):
         source["rev"] = sync_vendor(name, source, bump)
     manifest_file.write_text(json.dumps(manifest, indent=2) + "\n")
     installed = {path.name for path in (HOME / ".agents/skills").iterdir()} if (HOME / ".agents/skills").is_dir() else set()
-    for package, skills in json.loads((REPO / "upstream/skills.json").read_text()).items():
+    problem = node_problem()
+    if problem:
+        print(f"kolin-skills: skipped third-party skills: {problem}", file=sys.stderr)
+    for package, skills in ({} if problem else json.loads((REPO / "upstream/skills.json").read_text())).items():
         missing = [skill for skill in skills if skill not in installed]
         if missing:
-            subprocess.run(["npx", "--yes", "skills", "add", package, "--global", "--yes",
-                            "--agent", "claude-code", "--agent", "codex", "--agent", "cursor",
-                            *[flag for skill in missing for flag in ("--skill", skill)]], check=True)
+            result = subprocess.run(["npx", "--yes", "skills", "add", package, "--global", "--yes",
+                                     "--agent", "claude-code", "--agent", "codex", "--agent", "cursor",
+                                     *[flag for skill in missing for flag in ("--skill", skill)]])
+            if result.returncode:
+                print(f"kolin-skills: npx skills add {package} failed (exit {result.returncode}); continuing", file=sys.stderr)
     return run_apply(check=False, quiet=False)
 
 
@@ -486,7 +508,8 @@ def main():
         return upstream(args.bump)
     if args.command == "check":
         return check()
-    return upstream() or check()
+    upstream()
+    return check()
 
 
 if __name__ == "__main__":

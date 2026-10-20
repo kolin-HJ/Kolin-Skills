@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Gate wrapper. Run from a repo worktree: ~/.claude/hooks/gate-pass.sh [gate command...]
-# Default gate: npm run verify:local-gate, under flock "${GATE_LOCK:-/workspace/runs/gate.lock}".
+# Default gate: npm run verify:local-gate, under flock "${GATE_LOCK:-${XDG_RUNTIME_DIR:-/tmp}/kolin-skills/gate.lock}" (set GATE_LOCK to override).
 # On exit 0 it writes the marker <git-dir>/gate-pass/<HEAD sha> that the Stop hook requires.
 # The marker is per worktree and per commit: any new commit needs a fresh gate pass.
 # A dirty tree is gated as-is but the marker records "dirty" and the Stop hook rejects it.
@@ -9,7 +9,7 @@
 # ("superseded"). A waiter whose worktree HEAD moved past the commit it was started for also exits 3.
 # Once a run holds the lock it is never superseded. The gate command is capped at GATE_TIMEOUT (45m).
 set -o pipefail
-lock="${GATE_LOCK:-/workspace/runs/gate.lock}"; q="${GATE_QUEUE:-$(dirname "$lock")/gate-queue}"
+lock="${GATE_LOCK:-${XDG_RUNTIME_DIR:-/tmp}/kolin-skills/gate.lock}"; mkdir -p "$(dirname "$lock")"; q="${GATE_QUEUE:-$(dirname "$lock")/gate-queue}"
 head=$(git rev-parse HEAD 2>/dev/null) || { echo "gate-pass: no commit yet" >&2; exit 2; }
 top=$(git rev-parse --show-toplevel) || { echo "gate-pass: not in a git worktree" >&2; exit 2; }
 cd "$top"; gd=$(git rev-parse --absolute-git-dir); head=$(git rev-parse HEAD)
