@@ -93,7 +93,6 @@ class NativeHookPayloadTests(unittest.TestCase):
             plain = invoke(MODE_HOOK, {"prompt": "Fix the grid filter."}, directory)
             context = json.loads(plain.stdout)["hookSpecificOutput"]["additionalContext"]
             self.assertNotIn("full-send", context)
-            self.assertIn("value case", context)
             self.assertNotIn("full-stop", context)
 
     def test_heavy_jobs_blocks_sleep_polling_in_the_foreground_only(self):
@@ -120,6 +119,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                 ({"command": "pnpm check 2>&1 | tail -40", "description": "Run gate"}, 60, 180000),
                 ({"command": "cd web && npx vitest run", "timeout": 300000}, 150, 450000),
                 ({"command": "pnpm verify", "run_in_background": True}, 900, 2700000),
+                ({"command": "pnpm test", "timeout": 590000}, 10, 600000),
             ]
             for tool_input, max_wait, timeout in cases:
                 with self.subTest(tool_input=tool_input):

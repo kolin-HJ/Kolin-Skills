@@ -61,7 +61,7 @@ class ContextAuditTests(unittest.TestCase):
         self.session_with_listing("i" * 700)
         self.run_cli("--refresh")
         self.assertIn("2 unused items", json.loads(self.run_cli("--notice").stdout)["systemMessage"])
-        self.session_with_listing("i" * 10)
+        self.session_with_listing("i" * 400)
         (self.projects / "p1/s1.jsonl").write_text((self.projects / "p1/s1.jsonl").read_text().replace('"Workflow"', '"Bash"'))
         self.run_cli("--refresh")
         self.assertEqual(self.run_cli("--notice").stdout, "")

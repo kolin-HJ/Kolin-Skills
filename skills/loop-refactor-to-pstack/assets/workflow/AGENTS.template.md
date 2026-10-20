@@ -33,7 +33,7 @@ The `verifier` agent proves a change in a fresh context and returns the PR's Ver
 
 ## Gates
 
-`<check command>` runs every gate CI runs. A suppression carries `-- <reason>` and never replaces a fix. A baseline is temporary debt, burned to zero and deleted. A new rule enters at zero.
+`<check command>` runs every gate. The pre-commit and pre-push hooks run it. A suppression carries `-- <reason>` and never replaces a fix. A baseline is temporary debt, burned to zero and deleted. A new rule enters at zero.
 
 | Gate | Command | What it stops |
 |---|---|---|

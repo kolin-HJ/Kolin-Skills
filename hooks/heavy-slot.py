@@ -8,7 +8,6 @@ import time
 
 SLOTS = int(os.environ.get("HEAVY_SLOTS") or 3)
 SLOT_DIR = os.environ.get("HEAVY_SLOT_DIR") or f"/tmp/heavy-slots-{os.getuid()}"
-# HEAVY_SLOT_LOCK: one shared lock file (e.g. /workspace/runs/heavy.lock); implies a single slot.
 SLOT_LOCK = os.environ.get("HEAVY_SLOT_LOCK")
 
 

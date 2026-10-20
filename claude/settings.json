@@ -1,8 +1,5 @@
 {
   "env": {
-    "CLAUDE_CODE_PLUGIN_DIRS": "{{HOME}}/.claude/mods/savvy-progress:{{HOME}}/.claude/mods/usage-band",
-    "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1",
-    "CLAUDE_CODE_PLUGIN_DIR_WATCH": "1",
     "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5"
   },
   "model": "opus[1m]",
@@ -109,15 +106,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "'{{REPO}}/hooks/gate/tdd-lock-guard.sh'"
-          }
-        ]
       }
     ],
     "PostToolUse": [
@@ -153,16 +141,6 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "'{{REPO}}/hooks/gate/stop-require-skill-and-gate.sh'"
-          }
-        ]
-      }
     ]
   },
   "skillOverrides": {
@@ -175,14 +153,7 @@
     "anthropic-skills:morning": "user-invocable-only",
     "anthropic-skills:import-memory": "user-invocable-only",
     "anthropic-skills:deep-research": "user-invocable-only",
-    "firecrawl": "user-invocable-only",
-    "firecrawl-crawl": "user-invocable-only",
-    "firecrawl-map": "user-invocable-only",
-    "firecrawl-scrape": "user-invocable-only",
-    "firecrawl-search": "user-invocable-only",
     "find-skills": "user-invocable-only",
-    "improve": "user-invocable-only",
-    "ponytail-audit": "user-invocable-only",
     "loop-refactor-to-pstack": "user-invocable-only",
     "full-send": "user-invocable-only",
     "full-stop": "user-invocable-only",

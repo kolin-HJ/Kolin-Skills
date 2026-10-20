@@ -15,7 +15,7 @@ def on_disk_case(path):
     resolved = pathlib.Path("/")
     for part in path.parts[1:]:
         names = {entry.name.casefold(): entry.name for entry in resolved.iterdir()}
-        resolved = resolved / names.get(part.casefold(), part)
+        resolved = resolved / (part if part in names.values() else names.get(part.casefold(), part))
     return resolved
 
 
@@ -28,23 +28,22 @@ VENDOR_SKILL_HOMES = [".agents/skills", ".claude/skills"]
 VENDOR_SKILL_DIRS = {
     "cursor-plugins/pstack/skills": None,
     "cursor-plugins/cursor-team-kit/skills": None,
-    "ponytail/skills": {"ponytail", "ponytail-audit"},
 }
 VENDOR_SKIP = {"setup-pstack"}
+VENDOR_AGENTS = ["cursor-plugins/pstack/agents/comment-sicko.md"]
 WATCHED_HOMES = [
     ".agents/skills", ".claude/skills", ".cursor/skills", ".codex/skills", ".grok/skills",
     ".claude/agents", ".codex/agents", ".cursor/agents", ".grok/agents",
     ".claude/commands", ".cursor/commands", ".grok/commands", ".codex/prompts",
     ".claude/rules", ".cursor/rules", ".grok/rules", ".claude/output-styles",
-    ".claude/hooks", ".codex/hooks", ".claude/mods",
+    ".claude/hooks", ".codex/hooks",
 ]
-GATE_HOOK_RE = re.compile(r"^(block-forbidden-git|gate-pass|stop-require-skill-and-gate|tdd-lock-guard)\.sh(\.bak.*)?$")
 OTHER_INSTALLERS = {
     "REA": ["reverse-engineer-anything"],
     "claude.ai skill sync": ["synced"],
     "herdr": ["herdr-agent-state.sh"],
-    "bot-box gate hooks (kept, never delete)": ["README.md"],
 }
+DROPPED_SKILLS = {"firecrawl", "firecrawl-crawl", "firecrawl-map", "firecrawl-scrape", "firecrawl-search", "improve", "ponytail", "ponytail-audit"}
 NPX_SKILL_LOCK = HOME / ".agents/.skill-lock.json"
 LINKS = {
     "policy/AGENTS.md": [".codex/AGENTS.md", ".claude/CLAUDE.md", ".grok/AGENTS.md"],
@@ -55,13 +54,7 @@ LINKS = {
     "hooks/compact-context.py": [".codex/hooks/compact-context.py"],
     "hooks/block-env-reads.py": [".claude/hooks/block-env-reads.py"],
     "hooks/agent-default-model.py": [".claude/hooks/agent-default-model.py"],
-    "mods/usage-band": [".claude/mods/usage-band"],
-    "mods/savvy-progress": [".claude/mods/savvy-progress"],
-    "evals": [".agents/evals"],
     "hooks/gate/block-forbidden-git.sh": [".claude/hooks/block-forbidden-git.sh"],
-    "hooks/gate/gate-pass.sh": [".claude/hooks/gate-pass.sh"],
-    "hooks/gate/stop-require-skill-and-gate.sh": [".claude/hooks/stop-require-skill-and-gate.sh"],
-    "hooks/gate/tdd-lock-guard.sh": [".claude/hooks/tdd-lock-guard.sh"],
     "bin/kolin-skills": [".local/bin/kolin-skills"],
     "bin/context-audit": [".local/bin/context-audit"],
 }
@@ -75,6 +68,12 @@ LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in pa
 LEGACY_HOOK_PATHS.append("pstack-local/scripts/mode-reminder")
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
 SPEND_CAPS = {"subagent_model": "claude-sonnet-5-5", "max_compact_window": 400_000}
+TRUNK = "main"
+REQUIRED_TOOLS = {
+    "jq": "hooks/gate/block-forbidden-git.sh reads the tool call with it, and without it blocks every shell command",
+    "node": "the loop-refactor-to-pstack gate templates are tested with it, and npx skills needs it",
+}
+SKILL_INDEXES = ["README.md", "skills/pstack-local/SKILL.md"]
 SIZE_BUDGETS = {"policy/AGENTS.md": 12_000, "skills/pstack-local/SKILL.md": 8_000}
 
 
@@ -183,6 +182,16 @@ class Plan:
             return
         self.write(path, json.dumps(data, indent=2) + "\n")
 
+    def retire(self, path):
+        self.owned.add(path)
+        self.note(f"retire ~/{path.relative_to(HOME)}")
+        if self.check:
+            return
+        if path.is_symlink():
+            path.unlink()
+        else:
+            self.backup(path)
+
     def remove(self, path):
         self.owned.add(path)
         self.note(f"remove ~/{path.relative_to(HOME)}")
@@ -204,11 +213,13 @@ def points_into_managed_tree(path, roots):
     return text.startswith((*(f"{root}/" for root in roots), str(VENDOR), "../../.agents/skills/"))
 
 
-def prune_dangling(plan, directory, roots):
+def prune_stale_links(plan, directory, roots):
     if not directory.is_dir():
         return
     for path in sorted(directory.iterdir()):
-        if path.is_symlink() and not path.exists() and points_into_managed_tree(path, roots):
+        if not path.is_symlink() or path in plan.owned or not points_into_managed_tree(path, roots):
+            continue
+        if not path.exists() or os.readlink(path).startswith(str(VENDOR)):
             plan.remove(path)
 
 
@@ -231,16 +242,24 @@ def apply(plan, roots):
         for home in VENDOR_SKILL_HOMES[1:]:
             existing = HOME / home / name
             if existing.exists() and not existing.is_symlink():
-                plan.owned.add(existing)  # bot box: a real skill folder already there wins; never replace it
+                plan.owned.add(existing)
                 continue
             plan.link(pathlib.Path(f"../../.agents/skills/{name}"), existing)
 
-    agents = sorted((REPO / "agents").glob("*.md"))
+    for name in sorted(DROPPED_SKILLS - declared_upstream_skills()):
+        for home in WATCHED_HOMES:
+            path = HOME / home / name
+            if path.is_symlink() or path.exists():
+                plan.retire(path)
+
+    own_agents = sorted((REPO / "agents").glob("*.md"))
+    vendored_agents = [VENDOR / path for path in VENDOR_AGENTS if (VENDOR / path).is_file()]
+    agents = own_agents + [agent for agent in vendored_agents if agent.name not in {own.name for own in own_agents}]
     for agent in agents:
         plan.link(agent, HOME / ".claude/agents" / agent.name)
         plan.write(HOME / ".codex/agents" / f"{agent.stem}.toml", codex_agent_toml(agent.read_text()))
     for home in WATCHED_HOMES:
-        prune_dangling(plan, HOME / home, roots)
+        prune_stale_links(plan, HOME / home, roots)
     state_file = STATE_DIR / "state.json"
     generated = {str(HOME / ".codex/agents" / f"{agent.stem}.toml") for agent in agents}
     previous = set(json.loads(state_file.read_text())["generated"]) if state_file.is_file() else set()
@@ -280,7 +299,7 @@ def ownership_problems(owned):
     for home in WATCHED_HOMES:
         directory = HOME / home
         for path in sorted(directory.iterdir()) if directory.is_dir() else []:
-            if not path.name.startswith(".") and path not in owned and path.name not in known and not GATE_HOOK_RE.match(path.name):
+            if not path.name.startswith(".") and path not in owned and path.name not in known:
                 shown = f"~/{path.relative_to(HOME)}"
                 fix = "delete the link" if path.is_symlink() else f"run kolin-skills import {shown}, or delete it"
                 problems.append(f"not from the repo: {shown}; {fix}")
@@ -347,20 +366,36 @@ def git(*args, timeout=5):
                           env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
 
 
+def fast_forward_to_trunk():
+    try:
+        fetched = git("fetch", "--quiet", "--prune", "origin", timeout=10)
+    except subprocess.TimeoutExpired:
+        return f"git fetch timed out after 10s; {TRUNK} was not checked"
+    if fetched.returncode or git("rev-parse", "--verify", "--quiet", f"origin/{TRUNK}").returncode:
+        return None
+    dirty = bool(git("status", "--porcelain").stdout.strip())
+    branch = git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    merged = git("for-each-ref", "--format=%(upstream:track)", f"refs/heads/{branch}").stdout.strip() == "[gone]"
+    if not dirty and branch != TRUNK and merged and git("switch", "--quiet", TRUNK).returncode == 0:
+        print(f"kolin-skills: {branch} is merged; switched to {TRUNK}")
+        branch = TRUNK
+    before = git("rev-parse", "HEAD").stdout.strip()
+    if not dirty and branch == TRUNK:
+        git("merge", "--ff-only", "--quiet", f"origin/{TRUNK}")
+    if git("rev-parse", "HEAD").stdout.strip() != before:
+        print(f"kolin-skills pulled {git('log', '--oneline', f'{before}..HEAD').stdout.strip()}")
+    behind = int(git("rev-list", "--count", f"HEAD..origin/{TRUNK}").stdout.strip())
+    if not behind:
+        return None
+    blocker = "it has local edits" if dirty else f"it is on {branch}, not {TRUNK}" if branch != TRUNK else "it has commits origin lacks"
+    return (f"stale setup: {REPO} is {behind} commits behind origin/{TRUNK} and was not updated, because {blocker}. "
+            f"Commit or discard the edits and switch to {TRUNK}, then run kolin-skills pull")
+
+
 def pull(quiet):
-    if git("status", "--porcelain").stdout.strip():
-        if not quiet:
-            print("local edits in the repo; skipped pull, applying the working tree")
-    elif git("rev-parse", "--abbrev-ref", "@{upstream}").returncode == 0:
-        before = git("rev-parse", "HEAD").stdout.strip()
-        try:
-            result = git("pull", "--ff-only", "--quiet", timeout=10)
-        except subprocess.TimeoutExpired:
-            result = subprocess.CompletedProcess([], 1, "", "timed out after 10s")
-        if result.returncode:
-            print(f"kolin-skills: git pull failed: {result.stderr.strip()}", file=sys.stderr)
-        elif git("rev-parse", "HEAD").stdout.strip() != before:
-            print(f"kolin-skills pulled {git('log', '--oneline', f'{before}..HEAD').stdout.strip()}")
+    problem = fast_forward_to_trunk()
+    if problem:
+        print(f"kolin-skills: {problem}")
     return run_apply(check=False, quiet=quiet)
 
 
@@ -394,8 +429,8 @@ def vendor_pin_problems():
     problems = []
     for name, source in json.loads((REPO / "upstream/vendor.json").read_text()).items():
         path = VENDOR / name
-        if not source.get("rev"):
-            problems.append(f"no pinned rev for {name} in upstream/vendor.json; run kolin-skills upstream --bump")
+        if not re.fullmatch(r"[0-9a-f]{40}", source.get("rev", "")):
+            problems.append(f"no full pinned rev for {name} in upstream/vendor.json; run kolin-skills upstream --bump")
         elif (path / ".git").is_dir() and vendor_git(path, "rev-parse", "HEAD") != source["rev"]:
             problems.append(f"{name} is not at its pinned rev {source['rev'][:12]}; run kolin-skills upstream")
     return problems
@@ -421,8 +456,13 @@ def node_problem():
 def upstream(bump=False):
     manifest_file = REPO / "upstream/vendor.json"
     manifest = json.loads(manifest_file.read_text())
+    failed = []
     for name, source in manifest.items():
-        source["rev"] = sync_vendor(name, source, bump)
+        try:
+            source["rev"] = sync_vendor(name, source, bump)
+        except subprocess.CalledProcessError as error:
+            failed.append(name)
+            print(f"kolin-skills: could not fetch {name} ({error.stderr or 'git clone failed'}); continuing", file=sys.stderr)
     manifest_file.write_text(json.dumps(manifest, indent=2) + "\n")
     installed = {path.name for path in (HOME / ".agents/skills").iterdir()} if (HOME / ".agents/skills").is_dir() else set()
     problem = node_problem()
@@ -436,11 +476,11 @@ def upstream(bump=False):
                                      *[flag for skill in missing for flag in ("--skill", skill)]])
             if result.returncode:
                 print(f"kolin-skills: npx skills add {package} failed (exit {result.returncode}); continuing", file=sys.stderr)
-    return run_apply(check=False, quiet=False)
+    return run_apply(check=False, quiet=False) or (1 if failed else 0)
 
 
 def spend_failures():
-    settings = json.loads((HOME / ".claude/settings.json").read_text())
+    settings = json.loads((REPO / "claude/settings.json").read_text())
     failures = []
     if settings.get("env", {}).get("CLAUDE_CODE_SUBAGENT_MODEL") != SPEND_CAPS["subagent_model"]:
         failures.append(f"claude settings env.CLAUDE_CODE_SUBAGENT_MODEL must be {SPEND_CAPS['subagent_model']} so subagents without a model skip Opus")
@@ -454,7 +494,10 @@ def spend_failures():
 
 def check():
     failures = []
-    if run_apply(check=True, quiet=True):
+    owner = wired_repo()
+    if owner not in (None, str(REPO)):
+        print(f"Home is wired to {owner}, so home drift was not checked; this run checks the repo only.")
+    elif run_apply(check=True, quiet=True):
         failures.append("home differs from the repo; fix each line above")
     if not vendor_skills():
         failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
@@ -463,20 +506,31 @@ def check():
         size = (REPO / relative).stat().st_size
         if size > budget:
             failures.append(f"{relative} is {size} bytes, over its {budget}-byte budget")
-    bun = shutil.which("bun")
-    if bun is None:
-        failures.append("Bun is missing from PATH; install it with brew install oven-sh/bun/bun")
+    skills = sorted(path.parent.name for path in (REPO / "skills").glob("*/SKILL.md"))
+    for index in SKILL_INDEXES:
+        text = (REPO / index).read_text()
+        missing = [name for name in skills if f"`{name}`" not in text and f"{name}/" not in text]
+        if missing:
+            failures.append(f"{index} does not list {', '.join(missing)}; add each to its skill index")
+    for tool, purpose in REQUIRED_TOOLS.items():
+        if shutil.which(tool) is None:
+            failures.append(f"{tool} is missing from PATH; {purpose}")
     tests = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", str(REPO / "tests")],
                            cwd=REPO, text=True, capture_output=True, timeout=300)
     print(tests.stderr.strip().splitlines()[-1])
     if tests.returncode:
         print(tests.stderr, file=sys.stderr)
         failures.append("tests failed")
+    template_tests = subprocess.CompletedProcess([], 0) if shutil.which("node") is None else subprocess.run(["node", "--test", "skills/loop-refactor-to-pstack/assets/**/*.test.mjs"],
+                                    cwd=REPO, text=True, capture_output=True, timeout=300)
+    if template_tests.returncode:
+        print(template_tests.stdout, file=sys.stderr)
+        failures.append("loop-refactor-to-pstack gate template tests failed")
     for failure in failures:
         print(f"FAIL: {failure}", file=sys.stderr)
     if failures:
         return 1
-    print("Home matches the repo and holds no strays. Spend caps, size budgets, Bun, vendored and third-party skills and tests passed.")
+    print("Passed: home drift and strays (unless skipped above), spend caps, size budgets, skill indexes, required tools, vendored and third-party skills, Python and Node tests.")
     print("Live agent routing and model-seat readiness are not checked.")
     return 0
 
@@ -493,7 +547,7 @@ def main():
     pull_parser.add_argument("--quiet", action="store_true", help="print only changes")
     import_parser = commands.add_parser("import", help="move a skill or agent made in home into the repo, or list an npx skill in upstream/skills.json, then apply")
     import_parser.add_argument("path")
-    upstream_parser = commands.add_parser("upstream", help="check out vendored pstack and ponytail at their pins, add missing third-party skills, then apply")
+    upstream_parser = commands.add_parser("upstream", help="check out vendored pstack and cursor-team-kit at their pins, add missing third-party skills, then apply")
     upstream_parser.add_argument("--bump", action="store_true", help="move each vendor pin to its newest upstream commit and print what changed")
     commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets and tests")
     commands.add_parser("install", help="first run on a machine: upstream, apply, check")
@@ -508,8 +562,8 @@ def main():
         return upstream(args.bump)
     if args.command == "check":
         return check()
-    upstream()
-    return check()
+    fetched = upstream()
+    return check() or fetched
 
 
 if __name__ == "__main__":

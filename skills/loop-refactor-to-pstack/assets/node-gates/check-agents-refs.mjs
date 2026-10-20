@@ -12,7 +12,7 @@ const SYMBOL_SCOPES = [
   "apps",
   "packages",
   "scripts",
-  ".agents/skills/verify-supply-chain",
+  ".agents/skills/verify-app",
   ":(glob)*.json",
 ];
 const ENV_EXAMPLE_FILES = [".env.local.example"];
@@ -38,14 +38,13 @@ const ENV_ASSIGNMENT = /^([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)=\S*$/;
 const WORKSPACE_ALIAS = "@/";
 const WORKSPACE_ALIAS_TARGET = "apps/web/src/";
 const SCOPE_LABEL =
-  "the code under apps/, packages/, scripts/, .agents/skills/verify-supply-chain/ or the root *.json configs";
+  "the code under apps/, packages/, scripts/, .agents/skills/verify-app/ or the root *.json configs";
 const FIX_HINT =
   "rename the reference to the code that owns it now, strike it through as ~~`name`~~ if the sentence says it is gone, or delete the sentence";
 const REVIVED_HINT =
   "a struck-through name says the thing is gone, so either remove the thing again or drop the strike";
 export const EXTERNAL_NAMES = new Map([
   ["AskQuestion", "a Cursor tool name"],
-  ["CustomDesign", "a NetSuite item type the item mirror excludes"],
   ["old_main", "a git branch on the remote"],
   ["outputFileTracingIncludes", "a Next.js config key"],
   [".pstack/lessons.md", "the lessons file pstack creates on its first lesson"],
