@@ -33,8 +33,8 @@
   "bannedFileNames": ["errors-badge.tsx"],
   "maxFileLines": 1000,
   "scopes": {
-    "comments": ["apps", "packages", "scripts", ".agents/skills/verify-supply-chain/scripts"],
-    "file-length": ["apps", "packages", "scripts", ".agents/skills/verify-supply-chain/scripts"],
+    "comments": ["apps", "packages", "scripts", ".agents/skills/verify-app/scripts"],
+    "file-length": ["apps", "packages", "scripts", ".agents/skills/verify-app/scripts"],
     "guards": ["apps/web/src", "packages"],
     "rules": ["apps/web/src", "packages"]
   }

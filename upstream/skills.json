@@ -1,15 +1,5 @@
 {
   "vercel-labs/skills": [
     "find-skills"
-  ],
-  "firecrawl/skills": [
-    "firecrawl",
-    "firecrawl-search",
-    "firecrawl-scrape",
-    "firecrawl-crawl",
-    "firecrawl-map"
-  ],
-  "shadcn/improve": [
-    "improve"
   ]
 }

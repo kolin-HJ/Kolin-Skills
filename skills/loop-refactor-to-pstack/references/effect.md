@@ -78,7 +78,7 @@ Behavior must match what the legacy form did. The right column is where parity h
 - **Framework control flow.** A `redirect` or `notFound` thrown inside an Effect becomes a defect. The edge adapter runs with an `Exit`, finds the framework error in the cause and rethrows it. A test and a driven redirect prove it.
 - **The server action boundary serializes.** Tagged error instances do not survive it. The adapter maps them to the plain result type the client already reads.
 - **Interruption.** A cancelled request now interrupts its program. A write that used to finish after the client left must stay inside a transaction or be marked uninterruptible.
-- **Error messages.** Wrapping changes what reaches the user. Parity needs at least one recipe per error path a planner can reach.
+- **Error messages.** Wrapping changes what reaches the user. Parity needs at least one recipe per error path a user can reach.
 - **Dev reloads.** A module-level runtime is rebuilt on reload. Use the shared memo map, and prove on the dev server that each layer builds once.
 - **Bundles.** Every service module imports `server-only`. Compare the client bundle before and after the foundation unit.
 - **Overhead.** Time the pilot page before and after with the perf harness (median of N). A cost past noise stops the fan-out.
@@ -99,16 +99,16 @@ Behavior must match what the legacy form did. The right column is where parity h
 | Banned names | Each deleted legacy helper, so it cannot come back |
 | Ratchet | The exact `effect` and `@effect/*` versions, the tsconfig `plugins` entry and its diagnostic severities, and the owner lists above |
 
-## Lessons from the first program (hj-supply-chain, 2026-10-04)
+## Lessons from the first program (2026-10-04)
 
-- `effect` 4.0.0 is the release; `@effect/vitest` 4.0.1 declares `effect ^4.0.1`, which does not exist, so pin `@effect/vitest@4.0.0`. It needs vitest 5, which needs Node 22.12 or newer. Bump vitest first, as its own unit, and match CI to the host's Node.
+- `effect` 4.0.0 is the release; `@effect/vitest` 4.0.1 declares `effect ^4.0.1`, which does not exist, so pin `@effect/vitest@4.0.0`. It needs vitest 5, which needs Node 22.12 or newer. Bump vitest first, as its own unit, and match every hook and the deploy to the host's Node.
 - Vite 8 (vitest 5) honours tsconfig `"jsx": "preserve"`; set `oxc: { jsx: { runtime: "automatic" } }` in the vitest config.
 - Request context leaks between requests inside fibers. Measured: after a shared `Effect.cached` or `Deferred` wakes a fiber, `AsyncLocalStorage` reads return the request that completed it, and a legacy access check ran as the other user. A per-request scheduler does not fix it. Capture `AsyncLocalStorage.snapshot()` at the edge and run every call into unconverted code through it (`legacy(f)`). Prove it with a two-request test that fails without the snapshot.
 - Gate the Next request APIs by reference, not by import or by "inside a generator": `Effect.sync(() => cookies())` and an aliased `revalidateTag` both escape a generator-only rule. Allow a reference only inside a function passed to `legacy(...)`, and move plain helpers that use those APIs out of Effect modules.
 - The dead-code gate fails a foundation with no callers. Land each foundation export with its first caller; add an adapter in the wave that first uses it.
-- `effect-language-service diagnostics --project` exits 1 on error severity; run it per workspace through turbo so unchanged inputs are cached (about 100 s cold on 1,000 files). `deterministicKeys` dictates service ids such as `@hj/db/database`. `strictEffectProvide` rejects `Effect.provide` in tests: use `@effect/vitest`'s `layer(...)` in a file that does not also import `it`.
+- `effect-language-service diagnostics --project` exits 1 on error severity; run it per workspace through turbo so unchanged inputs are cached (about 100 s cold on 1,000 files). `deterministicKeys` dictates service ids such as `@app/db/database`. `strictEffectProvide` rejects `Effect.provide` in tests: use `@effect/vitest`'s `layer(...)` in a file that does not also import `it`.
 - `Schema.Defect` is a function in 4.x (`Schema.Defect()`). `DateTime.formatIso` equals `toISOString()`.
 - A logger that binds `console.log` at module load cannot be observed by a test spy; resolve the console method per call.
 - Oxlint's vitest rules need `additionalTestBlockFunctions: ["it.effect", "it.live", "it.scoped"]` on `expect-expect` and `no-standalone-expect`.
-- Export the database service from a subpath (`@hj/db/database`), not the package barrel, or every route that imports the barrel loads `effect`.
+- Export the database service from a subpath (`@app/db/database`), not the package barrel, or every route that imports the barrel loads `effect`.
 - A typed-failure-free input record (`Record<string, Effect<unknown>>`) keeps a race helper honest without casts; let library failures be defects there and unwrap them at the edge.

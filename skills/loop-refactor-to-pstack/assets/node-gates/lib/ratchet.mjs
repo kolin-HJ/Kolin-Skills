@@ -352,7 +352,7 @@ export const CONFIGS = [
       /^scripts\/lib\/[^/]+\.mjs$/.test(file) ||
       file === "scripts/sync-agent-skills.sh" ||
       file === "apps/web/scripts/check-navigation.mjs" ||
-      file === ".agents/skills/verify-supply-chain/scripts/check-feature-map.mjs",
+      file === ".agents/skills/verify-app/scripts/check-feature-map.mjs",
     unit: "gate code lines (a changed or removed line needs review)",
     parse: codeLines,
     enforced: numbered,

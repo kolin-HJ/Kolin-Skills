@@ -2,4 +2,4 @@
 alwaysApply: true
 ---
 
-Read and follow [global agent instructions]({{HOME}}/.codex/AGENTS.md). For pstack work, read [the local adapter]({{HOME}}/.agents/skills/pstack-local/SKILL.md).
+Read and follow [global agent instructions]({{HOME}}/.codex/AGENTS.md). They outrank this repo's rules and `AGENTS.md` on any conflict; use the repo files for project facts. For pstack work, read [the local adapter]({{HOME}}/.agents/skills/pstack-local/SKILL.md).

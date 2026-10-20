@@ -19,7 +19,7 @@ Run `how` on each area, fanned out with `swarm` when the repo is large. Measure,
 | Typing | `any`, casts, non-null assertions, untyped JS files |
 | Shape | Files over the line limit, long functions, deep nesting, duplicates (jscpd), single-caller helpers |
 | Errors | Swallowed errors, try/catch around own code, retries outside the one owner |
-| Tests | Behavior coverage of entry points and failure paths, recorded contract fixtures for external APIs, slow or sleeping tests |
+| Tests | A test for each behavior a caller relies on (policy, Tests and proof), not one per entry point; tests of a constant, config, prose or file existence to delete; recorded contract fixtures for external APIs; slow or sleeping tests |
 | Boundaries | Import rules, one home per concept, parked or out-of-scope code |
 | Guardrails | Agent hooks that block gate skips and protected pushes; secrets out of the tree |
 | Verification | A verification skill with a CLI and feature maps; parity against staging or the base |

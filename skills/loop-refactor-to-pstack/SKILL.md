@@ -1,6 +1,6 @@
 ---
 name: loop-refactor-to-pstack
-description: "Run a long, multi-session program that refactors a whole repository to pstack standards and architecture on one branch, with Lauren Tan's (poteto's) method, and sets up the pstack workflow so later agents stay trustworthy: one instruction file routed through poteto-mode, one check command CI and the deploy run, strict gates at zero allowance, repeated mistakes made impossible with `correct`, a target module architecture enforced by gates, a verification skill with lockstep parity against the base branch, a verifier agent and PR proof check, a tamper-evident ratchet and agent guards. Errors and effects use plain strict TypeScript (foundation skill); Effect (Effect-TS) only when the user asks for it. It works in waves of codemods and delegated lanes, one verified commit per unit on a single program branch that lands as one PR, without changing what users see. Use it whenever the user wants to adopt pstack in a repo, refactor a codebase to pstack or poteto's practices or architecture, drive lint baselines to zero, make agents trustworthy in a codebase, set up the pstack workflow, adopt Effect when the user asks for it, or resume such a program after a compaction, even if they don't name the skill. Not for one bug fix or one feature; those use poteto-mode's playbooks."
+description: "Run a long, multi-session program that refactors a whole repository to pstack standards and architecture on one branch, with Lauren Tan's (poteto's) method, and sets up the pstack workflow so later agents stay trustworthy: one instruction file routed through poteto-mode, one check command the git hooks and the deploy run, strict gates at zero allowance, repeated mistakes made impossible with `correct`, a target module architecture enforced by gates, a verification skill with lockstep parity against the base branch, a verifier agent and PR proof check, a tamper-evident ratchet and agent guards. Errors and effects use plain strict TypeScript (foundation skill); Effect (Effect-TS) only when the user asks for it. It works in waves of codemods and delegated lanes, one verified commit per unit on a single program branch that lands as one PR, without changing what users see. Use it whenever the user wants to adopt pstack in a repo, refactor a codebase to pstack or poteto's practices or architecture, drive lint baselines to zero, make agents trustworthy in a codebase, set up the pstack workflow, adopt Effect when the user asks for it, or resume such a program after a compaction, even if they don't name the skill. Not for one bug fix or one feature; those use poteto-mode's playbooks."
 ---
 
 # Loop: refactor a repo to pstack on one branch
@@ -38,7 +38,7 @@ Read these before the first iteration:
 - `~/.agents/skills/pstack-local/SKILL.md` and its `models.md`.
 - The repo's `AGENTS.md` (or `CLAUDE.md`) and the user's global instruction file.
 
-The user's global file and the repo's file win over pstack, and the stricter of the two wins. Name the one you followed. The user's request for this program settles one conflict: the program lands as one branch and one PR. Say so once in the framing and once in the PR body. Every unit stays a small commit, so reviewability moves from PR size to commit size. The one branch replaces these pstack steps:
+The user's global policy wins over the repo's file, and both win over pstack. Name the rule you followed. The user's request for this program settles one conflict: the program lands as one branch and one PR. Say so once in the framing and once in the PR body. Every unit stays a small commit, so reviewability moves from PR size to commit size. The one branch replaces these pstack steps:
 
 - `opening-a-pr.md` "prefer five narrow PRs": one program PR instead.
 - `refactoring.md` step 8 "rebase into small ordered commits": one commit per unit, made in order and never rewritten.
@@ -57,12 +57,12 @@ Check every row at the end of each wave. Keep looping until all hold. Never rela
 7. The workflow is installed. Every row of `references/workflow-setup.md` holds, and the last `maintain-verification-skill` pass ended `clean`.
 8. The trust audit (`references/trust-audit.md`) has no open row, or the user chose to leave a row open.
 9. Every question in `gates.md` is answered or recorded as the user's decision.
-10. The one PR is open into the base, CI is green at the branch tip (or, when the user chose local-only gates, the `verify` evidence file exists for the tip SHA) without the ratchet's bypass label, the base was merged in during the last wave, and the PR body carries the wave table. Merging it is the user's call.
+10. The one PR is open into the base, the `verify` evidence file exists for the tip SHA, the ratchet passes without its bypass label, any free CI the repo already had is green, the base was merged in during the last wave, and the PR body carries the wave table. Merging it is the user's call.
 
 ## Phase 0: frame (once)
 
 1. **Resume or start.** If a store or `RESUME.md` exists, run `session-pickup.md` with `recall` and continue from its resume point. Do not redo landed units.
-2. **Observe before asking.** Read the CI and deploy workflows, the hosting setup, branch protection (`gh api repos/<o>/<r>/rulesets`, `gh api orgs/<o> -q .plan.name`), open PRs on the base branch, and the package manifests. A doc's claim about protection or plan can be stale.
+2. **Observe before asking.** Read the git hooks, any CI the repo already has, the deploy workflow, the hosting setup, branch protection (`gh api repos/<o>/<r>/rulesets`, `gh api orgs/<o> -q .plan.name`), open PRs on the base branch, and the package manifests. A doc's claim about protection or plan can be stale.
 3. **Census.** Run `how` over each area through `swarm`, read-only, one worker per area. Count what each gate would find, files over the line limit, pages with no feature map, the design red flags per module and, for Effect, every effectful module (`references/effect.md`, step 1). The census is the program's first measurement and goes in the store's `research/`.
 4. **Frame** with `figure-it-out` Phase A: the predicate above as numbers the gates print, the scope in units and waves, and the rigor level. Then apply Orchestrate's Frame step. If one agent could finish inside the session's budget, collapse to Autonomous run and drop the store.
 5. **Ask once.** Send one batched question with the recommended option first (`references/user-decisions.md`, Setup, Landing and Effect). Park the rest with `orch gate park`, so they do not arrive mid-wave. Record each answer as a numbered standing order. An approval covers only the action it names. "I approve all decisions toward the goal" covers reversible work, never a push, merge, deploy or external write.
@@ -76,12 +76,12 @@ Check every row at the end of each wave. Keep looping until all hold. Never rela
 Build the environment before cleaning anything. Each item is its own verified commit on the branch.
 
 1. **The workflow** per `references/workflow-setup.md`: one `AGENTS.md` that routes every task through poteto-mode, vendored pstack with its source pin and link check, the `.pstack/` folder, the PR template with its proof check, and the agent guard. The templates are in `assets/workflow/`.
-2. **One check command** runs every gate. CI (or, with local-only gates, pre-push and `verify`) runs exactly that command, and so does the production deploy.
+2. **One check command** runs every gate. A pre-commit hook, a pre-push hook and a `prepare` script that installs them run it locally, and so does the production deploy. Gates run locally by default (`references/user-decisions.md`, Where gates run). Get the user's explicit yes before you write hooks or agent settings. Never route around a refusal.
 3. **Every gate the language supports, at strict settings.** Propose each new tool before you add it. The list is a formatter, a type-aware linter at error, strict types, and tests with test-shape rules. It also holds no comments, dead code with import boundaries, a file-length limit, an authorization guard gate with a reviewed public list, and a doc-reference gate.
 4. **Gate policy as data.** Every threshold, scope and owner or exemption list lives in one JSON file, so the ratchet sees it.
-5. **A baseline registry and its tools:** `baselines.json` with target 0 and an owner unit per baseline, plus `gates:files`, `gates:lower`, `gates:status` and the ratchet in CI. The contract is in `references/gates-contract.md`. JS and TS implementations with tests are in `assets/node-gates/`.
+5. **A baseline registry and its tools:** `baselines.json` with target 0 and an owner unit per baseline, plus `gates:files`, `gates:lower`, `gates:status` and the ratchet in the pre-push hook. The contract is in `references/gates-contract.md`. JS and TS implementations with tests are in `assets/node-gates/`.
 6. **Seed each gate at today's count, with an owner unit.** Nothing is baselined to avoid a fix.
-7. **Push.** From here, CI runs every gate on every push of the branch. The ratchet counts each seeded baseline as growth, because the base has no such file. So the program PR carries the `allow-baseline-growth` label, with the reason in its body, until the last baseline is deleted. Then remove the label, and the ratchet must pass without it.
+7. **Push.** From here, the pre-push hook runs every gate on every push of the branch. The ratchet counts each seeded baseline as growth, because the base has no such file. So the program PR carries the `allow-baseline-growth` label, with the reason in its body, until the last baseline is deleted. Then remove the label, and the ratchet must pass without it.
 
 ## Phase 2: the verification skill (once)
 
@@ -131,7 +131,7 @@ The steps of each wave:
 4. **Launch** a rolling window of lanes on `poteto-agent` or the repo's implementer, without a `model` argument, so the agent definition's pin applies (`references/subagents.md`). Refill as each lane finishes. Never launch blocking batches. Wait on a background command's completion, never a wakeup or sleep loop. Workers never commit, push or run the app.
 5. **Drain** each completion as a queue event (`orch inbox push`). Accept a lane only against `references/review-checklist.md`. A report is a lead.
 6. **Integrate.** Fix findings, delete re-export shims, re-key moved hits, and run `gates:lower`. Then run the check command, then the framework's compile through an app launch.
-7. **Review the wave diff once,** in this order: `no-comments`, `deslop`, the repo's reviewer (`senior-reviewer`). Add `interrogate` and `blast-radius` by the proof tier below. Send the riskiest lane to a verifier on another model family when one is available, and record its verdict with `orch ledger record`.
+7. **Review the wave diff once,** in this order: `no-comments`, `deslop`, the repo's reviewer (`senior-reviewer`). Add `interrogate` and `blast-radius` by the proof tier below. Send the riskiest lane to a verifier that is a fresh Claude subagent on a different model or lens, and record its verdict with `orch ledger record`.
 8. **Prove** at the tier the change needs. A parity difference is code until two passes and each side's agreement with itself show otherwise. Fix each failure at the strongest layer (`principle-fix-root-causes`).
 9. **Commit** one unit per lane plus an integration commit, with `assets/commit-unit.sh`. Each message says what changed for the user and the engineer, every behavior change, and what ran.
 10. **Retire** each baseline that reached zero, with its registry entry and every doc that names it. Delete each legacy helper whose last caller moved, and ban its name.
@@ -159,7 +159,7 @@ Record every site a lane leaves unchanged, with its reason and the wave that unb
 - **Merge the base at every wave boundary.** Fetch the base and merge it into the program branch, through the host's sync tool when it has one. Resolve conflicts in the merge commit. Then move the parity base checkout to the new base SHA (`references/parity.md`, Base drift), and rerun the check command and scoped parity. A base merge does not void unit verdicts. The boundary parity run after the merge is the verdict for the tip.
 - **Push at every wave boundary** under the standing push approval. Without a standing approval, a push waits for a fresh yes.
 - **Watch the base.** List open PRs on the base that touch files the program moved or will move. Whichever lands second reconciles, so name each overlap to the user before it bites.
-- **Keep the PR landable.** At each boundary, CI is green, parity is clean and the PR body is current. Regenerate the wave table with `node ~/.agents/skills/loop-refactor-to-pstack/assets/wave-table.mjs --store <store> --base origin/<base>` and paste it into the body.
+- **Keep the PR landable.** At each boundary, `verify` passes at the tip, parity is clean and the PR body is current. Regenerate the wave table with `node ~/.agents/skills/loop-refactor-to-pstack/assets/wave-table.mjs --store <store> --base origin/<base>` and paste it into the body.
 - **Ledger keys.** The PR is the one program PR number. The SHA is the unit's commit.
 - **Landing.** The user merges, with a merge commit so the per-unit commits stay bisectable (`references/user-decisions.md`, Landing). If the user merges at a mid-program boundary, merge the new base into the branch and continue on it.
 
@@ -167,18 +167,18 @@ Record every site a lane leaves unchanged, with its reason and the wave that unb
 
 Zero baselines prove the code is clean today. Trust needs the gates to stay honest when an agent is under pressure to go green. Walk `references/trust-audit.md` row by row. Prove each block by planting the loosening and watching it fail.
 
-1. **Tamper evidence.** The ratchet covers every gate setting, with one test per watched file kind and one where the PR edits the ratchet itself. CI runs it twice, with the PR's copy and with the base branch's copy.
-2. **Local enforcement.** Add a pre-commit hook, a pre-push hook, a `prepare` script that installs them, and the agent guard. Get the user's explicit yes before you write hooks or agent settings. Never route around a refusal.
+1. **Tamper evidence.** The ratchet covers every gate setting, with one test per watched file kind and one where the PR edits the ratchet itself. The pre-push hook runs it twice, with the branch's copy and with the base branch's copy.
+2. **Local enforcement.** Add the agent guard, and prove every Local enforcement row of the trust audit.
 3. **Deploy gate.** The production deploy runs the full check command.
-4. **Server side.** Prepare a ruleset per long-lived branch (PR required, CI required, code-owner review on gate machinery, no force-push or deletion) and the command that applies it. Applying it is the user's call. Without required review, the ratchet's bypass label is a speed bump. Say so plainly.
+4. **Server side.** Prepare a ruleset per long-lived branch (PR required, code-owner review on gate machinery, no force-push or deletion, and a required status check only where the repo already has free CI) and the command that applies it. Applying it is the user's call. Without required review, the ratchet's bypass label is a speed bump. Say so plainly.
 5. **Measure.** `trust` runs from the check tooling (`assets/node-gates/trust-curve.mjs`). Report the follow-up rate at close and after the PR merges.
 
 ## Phase 6: land and close
 
 1. Merge the base a last time. Run the check command and full parity at the tip. Run the verifier agent over the whole branch range.
 2. Write the PR body with `technical-writing` and `unslop`, in the repo's template. It holds the wave table, the behavior changes the user approved, the note on PR size, and one `Ran:` or `Not run:` line per check.
-3. Get CI green at the branch tip. Fixes are new commits. Merging is the user's call. Until the PR merges, every update reminds the user that agents on the base branch have none of this work.
-4. **Close.** Confirm every predicate row on the real artifact. Reconcile every unit to a terminal row. Audit the trail against the transcript with `show-me-your-work`, including its cross-model review. Run `reflect`, and fold every lesson that recurred into `references/review-checklist.md` or a gate asset of this skill. Then validate the skill: its frontmatter, its links, and `node --test` over every `*.test.mjs` under `assets/`.
+3. Run `verify` at the branch tip, and get any existing CI green. Fixes are new commits. Merging is the user's call. Until the PR merges, every update reminds the user that agents on the base branch have none of this work.
+4. **Close.** Confirm every predicate row on the real artifact. Reconcile every unit to a terminal row. Audit the trail against the transcript with `show-me-your-work`, including its independent review. Run `reflect`, and fold every lesson that recurred into `references/review-checklist.md` or a gate asset of this skill. Then validate the skill: its frontmatter, its links, and `node --test` over every `*.test.mjs` under `assets/`.
 
 ## Asking and reporting
 

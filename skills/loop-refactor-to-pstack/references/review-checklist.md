@@ -76,7 +76,7 @@ Every item on this list cost a failed parity run, a broken page or a hidden regr
 - **A version bump of `effect` or any `@effect/*` package is its own unit,** with parity, because several modules are marked unstable.
 
 ## Landing
-- **Push every wave.** One program reached its goal with 225 unpushed commits and 1,450 files, and no CI had run on any of them. On one branch, merge the base and push at every wave boundary, and open the program PR after Phase 1 so CI runs on each push.
+- **Push every wave.** One program reached its goal with 225 unpushed commits and 1,450 files, and no gate had run on a push of any of them. On one branch, merge the base and push at every wave boundary, so the pre-push gate runs on each push, and open the program PR after Phase 1.
 - **Never rewrite the program branch.** A rebase or squash voids every ledger verdict and the per-unit bisect story. Fix a pushed commit with a new commit, and take the base in with a merge.
 - **A trailer must sit in the last paragraph.** The commit helper once wrote `Unit:` in its own paragraph above the attribution line, so `git log --format=%(trailers)` saw no unit and the wave table put every commit under "no Unit trailer". Keep `Unit:` and the attribution in one block.
 - **Check open PRs on the base that touch files the program moved.** Whichever lands second reconciles; name the overlap to the user before it bites.
@@ -86,8 +86,8 @@ Every item on this list cost a failed parity run, a broken page or a hidden regr
 ## Trust and enforcement
 - **An exemption list kept in gate code is invisible to the ratchet.** Move every owner list, guard list, scope and threshold into `gate-policy.json`, then ratchet it.
 - **Ratcheting "lines may not disappear" misses loosening by addition.** An added `if: false`, `continue-on-error`, `|| true` or early `exit 0` keeps every old line. Count those as shrink-only entries.
-- **A deploy workflow that runs a subset of the check command is a hole,** and it is the one server-side gate a free plan allows. Make it run the same command as CI.
-- **Read branch protection through the API.** A doc said protection needed a paid plan; the org already had one, and its ruleset covered only the default branch and did not require CI.
+- **A deploy workflow that runs a subset of the check command is a hole,** and it is the one server-side gate a free plan allows. Make it run the same check command as the hooks.
+- **Read branch protection through the API.** A doc said protection needed a paid plan; the org already had one, and its ruleset covered only the default branch and required no status check.
 - **Workers that write git hooks or agent settings can be refused by the permission check.** Ask the user before the wave, and never have another agent do the refused write.
 - **A lane's count of its own tests can be wrong.** Count them yourself (`grep -c '^test('`) before quoting a number.
 - **A committed agent setting can be silently ignored.** `.gitignore` had `.claude/*` with only `skills/` un-ignored, so the new `.claude/settings.json` would never have been committed. Run `git check-ignore -v` on every new config file.
