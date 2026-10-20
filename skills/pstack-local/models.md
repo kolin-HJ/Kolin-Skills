@@ -25,13 +25,16 @@ why investigators: default
 why synthesizer: opus
 reflect tooling: default
 reflect judgment, divergent, synthesizer: opus
-arena runners: opus, opus, sonnet
+arena runners: sonnet, sonnet, sonnet
 arena cross-judge pool: opus, sonnet
 swarm workers: default
 mechanical lane worker (recipe given): haiku-worker
 architect runners: opus, opus, sonnet
 interrogate reviewers: opus, opus, sonnet
+fork: not used; the hook denies it (it inherits Opus and the parent's whole context)
 ```
+
+Edit-capable agents run Sonnet. `hooks/agent-default-model.py` rewrites an Opus request on one. Env `KOLIN_OPUS_BUILDERS=1` lets Kolin allow it. An Opus judgment seat runs as a read-only agent: `Plan`, `Explore` or `senior-reviewer`. The judgment seats are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
 
 Interrogate gives each reviewer one lens:
 
@@ -43,7 +46,7 @@ Plan, build and review are separate seats:
 
 | Seat | Runs as | Model | Does |
 |---|---|---|---|
-| Orchestrator | the main session | Opus | Value case, plan, Kolin's asks, six-part briefs, `.pstack/status.md`, reads every delegated hunk |
+| Orchestrator | the main session | Opus | Value case, plan, Kolin's asks, six-part briefs, `.pstack/status.md`, reads every delegated hunk. `hooks/edit-guard.py` blocks its first edit until `.pstack/status.md` has a `Value:` line, and its 3rd edited file unless status.md has `orchestrator-builds: <reason>` |
 | Builder | `poteto-agent`, or the repo's implementer | Sonnet 5.5, medium (hook default when the agent pins no model and can edit) | One unit per brief, runs the gate, reports once |
 | Sweeper | `haiku-worker` | Haiku 5.5, medium | Recipe work: renames, codemods, fixtures, searches the brief spells out |
 | Searcher | `Explore` | Sonnet (hook default) | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
@@ -56,12 +59,12 @@ Every turn re-reads the whole context, so a tool call costs about the context's 
 
 - **Size tier.** For one owner and about 10 files or fewer, skip `how`, `architect` and the throughput checkpoint, and say so in one line. The value case, the builder, the fresh review and the verification skill stay; `.pstack/status.md` stays when the work has more than one unit.
 - **New task, new session.** A long session re-reads all of its old context on each turn.
-- **Read once.** Read skill files with parallel `Read` calls. One `cat` of several files overflows the Bash output limit and is read twice. The orchestrator reads ranges (`rg -n`, `sed -n a,b`), not whole files, and passes the `file:line` anchors, the neighbor it chose and the plan sections and skills by path in the brief, so the builder and the reviewer do not explore again.
+- **Read once.** The orchestrator reads ranges (`rg -n`, `sed -n a,b`), not whole files, and passes the `file:line` anchors, the neighbor it chose and the plan sections and skills by path in the brief, so the builder and the reviewer do not explore again.
 - **Batch.** Put independent reads and searches in one turn. Use `rg -g '*.ts'`, not an unquoted zsh glob.
-- **Edit with Edit.** A `sed -i` or heredoc edit gets only the late Bash lint pass, and the diff is harder to read.
-- **Gate once.** The builder runs targeted tests and the repo's known-trap check (for example `fallow:audit`) while it builds, and the full gate once at the end. The orchestrator runs the repo gate once, after the review fixes.
+- **Edit with Edit.** A `sed -i` or heredoc edit gets only the late Bash lint pass, and the diff is harder to read. `hooks/heavy-jobs.py` denies `sed -i`, `perl -i`, inline-script writes and `cat >` outside /tmp and .pstack/.
+- **Gate once.** The builder runs targeted tests and the repo's known-trap check (for example `fallow:audit`) while it builds, and the full gate once at the end. Run the repo's known-trap check only through its script (for example `npm run fallow:audit`), never as raw `npx` with hand-typed flags. The builder owns the pre-review gate. The orchestrator runs the repo gate once, after the review fixes.
 - **Background and parallel.** Spawn the builder in the background, and start the app stack (database, dev server) while it builds. Run the reviewer and the verification skill in parallel, and tell the reviewer the verification is running.
-- **Watchers.** Stop a `Monitor` when its target changes. Run the last gate in the foreground, so the turn ends with the report and not with "waiting".
-- **Sleep before load.** When a gate stalls or tests time out, read `pmset -g log | grep -E ' (Sleep|Wake|DarkWake) '` and the transcript's "computer was asleep" errors before blaming load; `heavy-slot.py` holds `caffeinate -i` for each heavy job. Then check `uptime`, and stop your own dev server and browser.
+- **Watchers.** Stop a `Monitor` when its target changes. Cancel a fallback `ScheduleWakeup` once the agent it guards has reported. Run the last gate in the foreground, so the turn ends with the report and not with "waiting".
+- **Sleep before load.** When a gate stalls or tests time out, read `pmset -g log | grep -E ' (Sleep|Wake|DarkWake) '` and the transcript's "computer was asleep" errors before blaming load; `heavy-slot.py` holds `caffeinate -i` for each heavy job, and `hooks/keep-awake.py` holds `caffeinate -i -t 3600` from each prompt or Agent spawn, so a long reviewer turn no longer lets the Mac idle-sleep. Then check `uptime`, and stop your own dev server and browser.
 - **Review fixes go to the builder.** Send the reviewer's findings back to the builder with `SendMessage`, then rerun the repo's known-trap check. An orchestrator that fixes findings itself skips the builder's gate.
-- **The push hook is the gate.** When the pre-push hook runs the full gate (for example `verify:pr`), do not run it again just before the push.
+- **The push hook is the gate.** When the pre-push hook runs the full gate (for example `verify:pr`), do not run it again just before the push. Do not pipe a push or gate into `grep` or `tail`; `heavy-jobs.py` denies it.
