@@ -40,7 +40,7 @@ Stop here and send the report unless the user already asked you to close the gap
 ## 3. Close (one gap per step)
 
 - Gates first: add the missing gate, seed it at today's count, prove it flags one case and passes one.
-- Then drive counts down, a codemod first (`principle-build-the-lever`), then small lanes. Each step is one verified commit-sized change on a branch; commits and pushes wait for the user's yes.
+- Then drive counts down, a codemod first (`principle-build-the-lever`), then small lanes. Each step is one verified commit-sized change on a branch; commit and push it under the policy's Approvals rule.
 - Each repeated mistake found becomes a rule through `correct`.
 - After each step, rerun the audit rows the step touched and update the report: counts before and after, the next step.
 

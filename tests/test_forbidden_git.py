@@ -55,12 +55,42 @@ PUSH_AND_MERGE_BLOCKED = [
     GIT + " push -f",
     GIT + " push origin +feature",
     GIT + " push origin --delete feature",
+    GIT + " push -uf origin feature",
+    GIT + " push --force-with-lease origin feature",
+    GIT + " push origin :feature",
+    GIT + " push -4f origin feature",
+    GIT + " push --del origin feature",
+    GIT + " -c a=b push --mirror",
+    "env -u FOO " + GIT + " push -f origin feature",
+    "timeout 60 " + GIT + " push -f origin feature",
+    "{ " + GIT + " push -f origin feature; }",
+    'echo "$(' + GIT + ' push -f origin feature)"',
+    "echo `" + GIT + " push -f origin feature`",
+    GIT + " push \\\n  -f origin feature",
+    "GIT push -f origin feature",
+    "echo x && " + GIT + " push origin HEAD:main",
+    GIT + " push origin staging",
+    GIT + " push origin HEAD:refs/heads/sandbox",
+    GIT + " push -u origin master",
+    GIT + ' push origin "$(' + GIT + ' branch --show-current)" --force',
+    GIT + " push origin 'HEAD:main'",
+    GIT + " push origin '+feature:feature'",
+    GIT + " push --m origin",
+    "(" + GIT + " push origin main)",
+    "(cd x && " + GIT + " push origin feature:main)",
+    GIT + " push --prune origin 'refs/heads/*:refs/heads/*'",
     GH + " pr merge 5",
     GH + " pr edit 5 --auto",
 ]
 PUSH_ALLOWED = [
     GIT + " push origin feature",
     GIT + " push -u origin feature",
+    "printf msg | " + GIT + " commit -q -F - && " + GIT + " push origin HEAD:feature",
+    GIT + " push origin feature && " + GH + " pr edit 5 --body-file /tmp/b -d x",
+    GIT + " commit -m 'Merge main into feature' && " + GIT + " push origin feature",
+    GIT + " push --dry-run -o ci.skip origin my-feature-d",
+    GIT + " push origin feature/staging-copy",
+    GIT + " push origin fix/main",
 ]
 GATE_SKIP_BLOCKED = [
     "SKIP_LOCAL_GATE=1 " + GIT + " commit -m x",
@@ -108,12 +138,13 @@ class ForbiddenGitHookTests(unittest.TestCase):
     def test_pushes_of_a_feature_branch_are_allowed(self):
         self.check(PUSH_ALLOWED, 0)
 
-    def test_any_push_while_on_main_is_blocked(self):
-        with tempfile.TemporaryDirectory() as directory:
-            subprocess.run(["git", "init", "-q", "-b", "main", directory], check=True)
-            subprocess.run(["git", "-C", directory, "-c", "user.email=t@t", "-c", "user.name=t",
-                            "commit", "-q", "--allow-empty", "-m", "x"], check=True)
-            self.assertEqual(run_hook(GIT + " push origin feature", directory).returncode, 2)
+    def test_any_push_while_on_a_protected_branch_is_blocked(self):
+        for branch, expected in [("main", 2), ("master", 2), ("staging", 2), ("sandbox", 2), ("feature", 0)]:
+            with self.subTest(branch=branch), tempfile.TemporaryDirectory() as directory:
+                subprocess.run(["git", "init", "-q", "-b", branch, directory], check=True)
+                subprocess.run(["git", "-C", directory, "-c", "user.email=t@t", "-c", "user.name=t",
+                                "commit", "-q", "--allow-empty", "-m", "x"], check=True)
+                self.assertEqual(run_hook(GIT + " push", directory).returncode, expected)
 
     def test_the_codex_and_cursor_payload_shape_is_guarded_too(self):
         with tempfile.TemporaryDirectory() as directory:
