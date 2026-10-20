@@ -2,16 +2,6 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 '{{REPO}}/bin/kolin-skills' pull --quiet",
-            "timeout": 20
-          }
-        ]
-      },
-      {
         "matcher": "compact",
         "hooks": [
           {

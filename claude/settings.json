@@ -40,16 +40,6 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 '{{REPO}}/bin/kolin-skills' pull --quiet",
-            "timeout": 20
-          }
-        ]
-      },
-      {
         "matcher": "compact",
         "hooks": [
           {
@@ -71,6 +61,15 @@
       }
     ],
     "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'{{REPO}}/hooks/gate/block-forbidden-git.sh'"
+          }
+        ]
+      },
       {
         "matcher": "Bash|Read|Grep|Glob",
         "hooks": [
@@ -98,6 +97,15 @@
             "type": "command",
             "command": "python3 '{{REPO}}/hooks/heavy-jobs.py'",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'{{REPO}}/hooks/gate/tdd-lock-guard.sh'"
           }
         ]
       }
@@ -132,6 +140,16 @@
             "type": "command",
             "command": "python3 '{{REPO}}/hooks/compact-context.py' before",
             "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'{{REPO}}/hooks/gate/stop-require-skill-and-gate.sh'"
           }
         ]
       }
