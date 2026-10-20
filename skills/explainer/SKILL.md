@@ -1,6 +1,6 @@
 ---
 name: explainer
-description: Build a one-page HTML explainer of a change, a PR, a subsystem or a decision, with a diagram of the real mechanism, its evidence and what is not verified. Use when the user asks for an explainer, an explainer page, or a visual walkthrough, or says yes to an offer of one; never build one unasked.
+description: Build a one-page HTML explainer of a change, PR, subsystem or decision, with a diagram of the real mechanism, its evidence and what is not verified. Use only when the user asks for an explainer, an explainer page, a visual walkthrough or "explain this visually", or says yes to your one-line offer. Never build one unasked. Not for UI craft (emil-design-eng) or UI testing (break-ui).
 ---
 
 # Explainer
