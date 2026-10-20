@@ -184,6 +184,25 @@ class NativeHookPayloadTests(unittest.TestCase):
             blocked = invoke(HEAVY_HOOK, {"tool_input": cases[0][0]}, directory)
             self.assertIn("run_in_background: true", blocked.stderr)
 
+    def test_heavy_jobs_blocks_a_database_run_in_docker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cases = [
+                ("docker exec supabase_db_hj-plm psql -U postgres -c 'select 1'", 2),
+                ("docker ps --format '{{.Names}}' | grep supabase_db", 2),
+                ("docker compose up -d postgres", 2),
+                ("docker run -d -p 5432:5432 postgres:17", 2),
+                ("supabase start --runtime native --output-format json", 0),
+                ("psql \"$DB_URL\" -c 'select 1'", 0),
+                ("docker build -t app .", 0),
+                ("echo 'never docker exec supabase_db'", 0),
+            ]
+            for command, code in cases:
+                with self.subTest(command=command):
+                    result = invoke(HEAVY_HOOK, {"tool_input": {"command": command}}, directory)
+                    self.assertEqual(result.returncode, code, result.stderr)
+            blocked = invoke(HEAVY_HOOK, {"tool_input": {"command": cases[0][0]}}, directory)
+            self.assertIn("local-supabase", blocked.stderr)
+
     def test_heavy_jobs_queues_gate_commands_behind_a_slot(self):
         with tempfile.TemporaryDirectory() as directory:
             cases = [
