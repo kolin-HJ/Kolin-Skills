@@ -371,7 +371,7 @@ class ApplyTests(unittest.TestCase):
         self.assertIn("pinned-vendor", result.stdout)
 
     def test_installs_owned_by_other_tools_stay_and_dangling_links_go(self):
-        self.write_skill(self.home / ".claude/skills/synced")
+        self.write_skill(self.home / ".claude/skills/reverse-engineer-anything")
         (self.home / ".claude/skills/.trash").mkdir()
         herdr = self.home / ".codex/hooks/herdr-agent-state.sh"
         herdr.parent.mkdir(parents=True)
