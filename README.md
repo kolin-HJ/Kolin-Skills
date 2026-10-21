@@ -27,6 +27,7 @@ skills/
   loop-refactor-to-pstack/   PROCESS: whole-repo program on one branch
   full-stop/, full-send/     PROCESS: approval shortcuts
   explainer/, local-supabase/                       UTILITIES
+  reverse-engineer-anything/  UTILITIES: REA, copied from morluto/rea, manual /reverse-engineer-anything only
   emil-design-eng/, break-ui/, mobile-native/       UI CRAFT
 agents/                      senior-reviewer (Opus), poteto-agent (Sonnet), haiku-worker (Haiku)
 upstream/                    pstack and cursor-team-kit (vendor.json), find-skills (skills.json)
@@ -107,5 +108,5 @@ python3 <path>/bin/kolin-skills install
 
 - Codex `config.toml`, Cursor `mcp.json` and every credential file. They hold machine paths and secrets.
 - `permissions` and `autoMode` in `~/.claude/settings.json`. They are per machine and per project.
-- herdr's hooks, REA's `reverse-engineer-anything` skill and claude.ai synced skills. Their installers own them, and `OTHER_INSTALLERS` in `bin/kolin-skills` lists them so `check` allows them.
+- herdr's hooks and claude.ai synced skills. Their installers own them, and `OTHER_INSTALLERS` in `bin/kolin-skills` lists them so `check` allows them.
 - Dot-entries in watched folders, such as Claude Code's `.trash` and Codex's `.system`.

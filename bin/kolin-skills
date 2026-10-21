@@ -40,7 +40,6 @@ WATCHED_HOMES = [
     ".claude/hooks", ".codex/hooks",
 ]
 OTHER_INSTALLERS = {
-    "REA": ["reverse-engineer-anything"],
     "claude.ai skill sync": ["synced"],
     "herdr": ["herdr-agent-state.sh"],
 }
