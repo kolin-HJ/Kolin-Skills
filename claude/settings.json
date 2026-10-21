@@ -190,7 +190,7 @@
     "workflow-authoring": "user-invocable-only",
     "dataviz": "name-only",
     "anthropic-skills:computer-use": "name-only",
-    "reverse-engineer-anything": "name-only",
+    "reverse-engineer-anything": "user-invocable-only",
     "code-review": "name-only"
   }
 }
