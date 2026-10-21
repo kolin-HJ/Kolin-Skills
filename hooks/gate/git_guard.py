@@ -19,7 +19,8 @@ HOOK_PATH = re.compile("(" + "|".join((r"kolin-skills/hooks",) + HOOK_DIRS) + ")
 FILE_HOOK_PATH = re.compile("(" + "|".join(HOOK_DIRS) + ")", re.I)
 HOOKS_PATH_CONFIG = re.compile(r"^(--config-env=)?core\.hookspath(=|$)", re.I)
 SUBSTITUTION = re.compile(r"\$\((.*)\)|`([^`]*)`", re.S)
-HUSKY_OFF = re.compile(r"^HUSKY=0$")
+HOOK_ENV_OFF = re.compile(r"^(HUSKY=0|LEFTHOOK=(0|false)|LEFTHOOK_EXCLUDE=.+|SKIP=.+)$")
+SIGN_SKIP_FLAG = "--no-gpg-sign"
 GIT_CONFIG_HOOKS_ENV = re.compile(r"^GIT_CONFIG_KEY_\d+=core\.hookspath$", re.I)
 READ_ONLY_GIT = {"status", "log", "diff", "show", "rev-parse", "ls-files", "blame", "grep", "fetch", "rev-list",
                  "merge-base", "for-each-ref", "ls-remote", "describe", "cat-file"}
@@ -209,25 +210,25 @@ def install_guard(cwd):
 
 
 def skips_hooks(words, raw):
-    if words[0] == "export" and any(HUSKY_OFF.match(w) for w in words[1:]):
+    if words[0] == "export" and any(HOOK_ENV_OFF.match(w) for w in words[1:]):
         return True
     stripped = strip_prefix(words)
     if not stripped or program(stripped[0]) != "git":
         return False
     sub, args, configs = git_subcommand(stripped)
-    if sub == "config" and any(HOOKS_PATH_CONFIG.match(a) for a in args):
+    if sub == "config" and args[:1] and args[0] not in CONFIG_READS and any(HOOKS_PATH_CONFIG.match(a) for a in args):
         return True
     if sub not in HOOK_SUBCOMMANDS:
         return False
     if any(HOOKS_PATH_CONFIG.match(c) for c in configs):
         return True
     prefix = words[:len(words) - len(stripped)]
-    if any(HUSKY_OFF.match(w) or GIT_CONFIG_HOOKS_ENV.match(w) for w in prefix):
+    if any(HOOK_ENV_OFF.match(w) or GIT_CONFIG_HOOKS_ENV.match(w) for w in prefix):
         return True
     for arg in args:
         if arg == "--":
             break
-        if arg == SKIP_FLAG or arg.startswith(SKIP_FLAG + "="):
+        if arg in (SKIP_FLAG, SIGN_SKIP_FLAG) or arg.startswith(SKIP_FLAG + "="):
             return True
         if sub == "commit" and re.match(r"^-[A-Za-z]*n[A-Za-z]*$", arg):
             return True
