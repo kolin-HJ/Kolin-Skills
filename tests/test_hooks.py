@@ -58,6 +58,23 @@ class NativeHookPayloadTests(unittest.TestCase):
                     self.assertIn("Lint: 1 error on lines you changed in edited.ts", result.stderr)
                     self.assertIn("1:7  error  Unused value.  (fixture/no-unused-value)", result.stderr)
 
+    def test_lint_fails_loudly_when_a_linter_prints_non_json_or_the_payload_is_not_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "package.json").write_text("{}")
+            (root / "edited.ts").write_text("const value = 1;\n")
+            executable = root / "node_modules/.bin/eslint"
+            executable.parent.mkdir(parents=True)
+            executable.write_text(f"#!{sys.executable}\nprint('not json')\n")
+            executable.chmod(0o755)
+            garbled = invoke(LINT_HOOK, {"cwd": directory, "tool_input": {"file_path": "edited.ts"}}, directory)
+            self.assertEqual(garbled.returncode, 0, garbled.stderr)
+            self.assertIn("eslint exited 0 and checked nothing: not json", garbled.stdout)
+            bad_payload = subprocess.run([sys.executable, str(LINT_HOOK)], input="{", text=True,
+                                         capture_output=True, cwd=directory, timeout=10)
+            self.assertNotEqual(bad_payload.returncode, 0)
+            self.assertIn("JSONDecodeError", bad_payload.stderr)
+
     def test_lint_covers_files_a_shell_command_wrote(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
