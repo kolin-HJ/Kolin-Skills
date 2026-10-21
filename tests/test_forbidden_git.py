@@ -42,6 +42,8 @@ SKIP_BLOCKED = [
     "SKIP=eslint sh -c '" + GIT + " commit -m x'",
     "HUSKY=0 bash -c '" + GIT + " commit -m x'",
     "LEFTHOOK=0 eval '" + GIT + " commit -m x'",
+    "export GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/x'\"; " + GIT + " commit -m x",
+    "export GIT_CONFIG_KEY_0=core.hooksPath",
     "LEFTHOOK=0; export LEFTHOOK; " + GIT + " commit -m x",
     "declare -x LEFTHOOK=0; " + GIT + " commit -m x",
     "LEFTHOOK_BIN=true " + GIT + " commit -m x",
