@@ -85,6 +85,44 @@ python3 <path>/bin/kolin-skills install
 
 With an older Node, `install` prints a clear message, skips the third-party skills, and still runs `apply` and `check`. Offline, it skips each vendor it cannot fetch, links the rest, and exits 1.
 
+## How to use it
+
+After `install`, there is nothing to start. Open Claude Code, Codex, Cursor or Grok in any repo and ask for the work in plain words.
+
+### Ask for the outcome
+
+In Claude Code and Codex, each prompt runs `skills/pstack-local/scripts/mode-reminder`. It tells the agent to read `poteto-mode`, `pstack-local` and `foundation`, and to write a value case before its first edit. The agent then picks the pstack playbook that fits the task: feature, bug fix, refactor and others.
+
+The work follows [How a task flows](#how-a-task-flows). For multi-phase work, the agent waits for your yes on the plan before it builds.
+
+An agent loads a skill when your request matches the skill's description. You can also call a skill by name, such as `/gap-audit`.
+
+| Say | Skill |
+|---|---|
+| "Fix the redirect bug on login" | `poteto-mode` bug-fix playbook: reproduce it first, then the smallest fix |
+| "Audit this repo" or "bring it up to standard" | `gap-audit` |
+| "Stress-test this table" | `break-ui` |
+| "Make this drawer feel polished" | `emil-design-eng` |
+| "It feels wrong on my phone" | `mobile-native` |
+| "Start a local database" | `local-supabase` |
+| "Write release notes for PR 42" | `user-notes` |
+| "Explain this PR visually" | `explainer` |
+
+### Hand off a whole PR
+
+Two phrases give the agent a PR from start to end. Say the phrase in your prompt, or type the slash command. In Claude Code, an agent cannot start either one by itself (`skillOverrides` in `claude/settings.json`).
+
+| Say | The agent | It stops at |
+|---|---|---|
+| "full stop" or `/full-stop` | Branches, proves the failure, makes the fix, opens a draft PR, then fixes failed checks and answers review comments | A PR that is ready to merge. You merge. |
+| "full send" or `/full-send` | Does all of full stop, then runs a 7-item merge gate | The merge of that one PR. Into a protected branch, the git guard blocks the merge and the agent gives you the command to run. It never deploys, and the yes does not carry to another PR. |
+
+For a whole-repo refactor over many sessions, type `/loop-refactor-to-pstack`.
+
+### Change the setup
+
+To change a rule, edit it here on a work branch and open a PR. Each machine takes the change at the next session start after the merge. To add a skill, an agent or a hook, follow the "Add something" table in `AGENTS.md`.
+
 ## Where the rules live
 
 | Question | Source of truth |
