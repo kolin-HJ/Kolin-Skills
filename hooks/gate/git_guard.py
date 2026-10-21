@@ -213,7 +213,7 @@ def install_guard(cwd):
 
 
 def skips_hooks(words, raw):
-    if words[0] in ENV_DECLARERS and any(HOOK_ENV_OFF.match(w) for w in words[1:]):
+    if words[0] in ENV_DECLARERS and any(HOOK_ENV_OFF.match(w) or GIT_CONFIG_HOOKS_ENV.match(w) for w in words[1:]):
         return True
     stripped = strip_prefix(words)
     prefix = words[:len(words) - len(stripped)]
