@@ -4,8 +4,14 @@ import re
 import sys
 
 UNPINNED_BUILTINS = {"Explore", "claude-code-guide", "general-purpose"}
+EDITING_BUILTINS = {"general-purpose", "claude"}
+FORK_REASON = (
+    "fork inherits Opus and the parent's whole context. Spawn poteto-agent (or the repo's implementer) "
+    "to build, or Explore, Plan or senior-reviewer to read, with a six-part brief."
+)
+OPUS_REASON = "builders run on Sonnet (pstack-local/models.md); set KOLIN_OPUS_BUILDERS=1 to allow Opus"
 DEFAULT_MODEL = "sonnet"
-PINNED = re.compile(r"^model:[ \t]*\S", re.M)
+PINNED = re.compile(r"^model:[ \t]*(\S+)", re.M)
 TOOLS = re.compile(r"^tools:(.*)$", re.M)
 WRITERS = {"Edit", "Write", "NotebookEdit", "*"}
 
@@ -30,38 +36,52 @@ def definition(agent, cwd):
     return None
 
 
-def unpinned_builder(text):
-    frontmatter = text.split("---", 2)[1] if text.startswith("---") else ""
-    if PINNED.search(frontmatter):
+def frontmatter(text):
+    return text.split("---", 2)[1] if text.startswith("---") else ""
+
+
+def pinned_model(text):
+    match = PINNED.search(frontmatter(text))
+    return match.group(1) if match else None
+
+
+def edit_capable(agent, text):
+    if agent in EDITING_BUILTINS:
+        return True
+    if text is None:
         return False
-    tools = TOOLS.search(frontmatter)
+    tools = TOOLS.search(frontmatter(text))
     return tools is None or bool(WRITERS & {t.strip() for t in tools.group(1).split(",")})
 
 
-def needs_default(agent, cwd):
-    if agent in UNPINNED_BUILTINS:
-        return True
-    text = definition(agent, cwd) if agent else None
-    return text is not None and unpinned_builder(text)
+def effective_model(tool_input, text):
+    return tool_input.get("model") or (pinned_model(text) if text else None)
+
+
+def decide(agent, tool_input, text):
+    if agent == "fork":
+        return "deny", FORK_REASON, None
+    passed = tool_input.get("model")
+    if not effective_model(tool_input, text) and (agent in UNPINNED_BUILTINS or edit_capable(agent, text)):
+        return "allow", f"{agent} pins no model; defaulted to {DEFAULT_MODEL}", DEFAULT_MODEL
+    if passed and "opus" in passed.lower() and edit_capable(agent, text) and os.environ.get("KOLIN_OPUS_BUILDERS") != "1":
+        return "allow", OPUS_REASON, DEFAULT_MODEL
+    return None
 
 
 def main():
     event = json.load(sys.stdin)
     tool_input = event.get("tool_input") or {}
-    agent = tool_input.get("subagent_type")
-    if tool_input.get("model") or not needs_default(agent, event.get("cwd") or os.getcwd()):
+    agent = tool_input.get("subagent_type") or "general-purpose"
+    text = definition(agent, event.get("cwd") or os.getcwd())
+    verdict = decide(agent, tool_input, text)
+    if verdict is None:
         return 0
-    json.dump(
-        {
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "allow",
-                "permissionDecisionReason": f"{agent} pins no model; defaulted to {DEFAULT_MODEL}",
-                "updatedInput": {**tool_input, "model": DEFAULT_MODEL},
-            }
-        },
-        sys.stdout,
-    )
+    decision, reason, model = verdict
+    output = {"hookEventName": "PreToolUse", "permissionDecision": decision, "permissionDecisionReason": reason}
+    if model:
+        output["updatedInput"] = {**tool_input, "model": model}
+    json.dump({"hookSpecificOutput": output}, sys.stdout)
     return 0
 
 
