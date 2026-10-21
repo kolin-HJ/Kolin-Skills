@@ -10,9 +10,12 @@ if [[ -n $file ]]; then
   python3 "$here/git_guard.py" file-hooks <<<"$file"; rc=$?
   (( rc == 0 )) && deny "D4: editing hook files is forbidden for agents"
   (( rc != 1 )) && deny "D4: the file path could not be checked"
+  out=$(python3 "$here/git_guard.py" file-install "$cwd" <<<"$file"); rc=$?
+  (( rc == 0 )) && deny "$out"
+  (( rc != 3 )) && deny "D4: the install check could not run"
   exit 0
 fi
-guard() { python3 "$here/git_guard.py" "$1" <<<"$cmd"; }
+guard() { python3 "$here/git_guard.py" "$1" "$cwd" <<<"$cmd"; }
 shopt -s nocasematch
 nv="--no-""verify"
 protected='(main|master|staging|sandbox)'
@@ -45,4 +48,6 @@ fi
 guard d4; rc=$?
 (( rc == 0 )) && deny "D4: skipping the local gate or editing hook files is forbidden for agents"
 (( rc != 1 )) && [[ $cmd =~ SKIP_LOCAL_GATE= ]] && deny "D4: skipping the local gate is forbidden (unparsed command)"
+out=$(guard install); rc=$?
+(( rc == 0 )) && deny "$out"
 exit 0
