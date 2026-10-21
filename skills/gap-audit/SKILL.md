@@ -22,6 +22,8 @@ Run `how` on each area, fanned out with `swarm` when the repo is large. Measure,
 | Tests | A test for each behavior a caller relies on (policy, Tests and proof), not one per entry point; tests of a constant, config, prose or file existence to delete; recorded contract fixtures for external APIs; slow or sleeping tests |
 | Boundaries | Import rules, one home per concept, parked or out-of-scope code |
 | Guardrails | Agent hooks that block gate skips and protected pushes; secrets out of the tree |
+| Approval text | Repo instruction text (`AGENTS.md`, repo skills) that requires an ask before a reversible step on a work branch (commit, push, opening a PR) conflicts with the global policy's Approvals. Flag it with `file:line` and rewrite it to match. It cost waits of 9 to 67 minutes in two repos |
+| Agent seats | A repo agent that shares a global seat's name (`senior-reviewer`, `poteto-agent`) and pins a lower model than the seat in `skills/pstack-local/models.md`. Flag it |
 | Verification | A verification skill with a CLI and feature maps; parity against staging or the base |
 | UI (if any) | Raw tables, raw hex colors, screens without 390 and 1440 px checks, tap targets |
 | Runtime | One pinned version everywhere |

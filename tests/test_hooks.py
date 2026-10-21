@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -58,6 +59,23 @@ class NativeHookPayloadTests(unittest.TestCase):
                     self.assertIn("Lint: 1 error on lines you changed in edited.ts", result.stderr)
                     self.assertIn("1:7  error  Unused value.  (fixture/no-unused-value)", result.stderr)
 
+    def test_lint_fails_loudly_when_a_linter_prints_non_json_or_the_payload_is_not_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "package.json").write_text("{}")
+            (root / "edited.ts").write_text("const value = 1;\n")
+            executable = root / "node_modules/.bin/eslint"
+            executable.parent.mkdir(parents=True)
+            executable.write_text(f"#!{sys.executable}\nprint('not json')\n")
+            executable.chmod(0o755)
+            garbled = invoke(LINT_HOOK, {"cwd": directory, "tool_input": {"file_path": "edited.ts"}}, directory)
+            self.assertEqual(garbled.returncode, 0, garbled.stderr)
+            self.assertIn("eslint exited 0 and checked nothing: not json", garbled.stdout)
+            bad_payload = subprocess.run([sys.executable, str(LINT_HOOK)], input="{", text=True,
+                                         capture_output=True, cwd=directory, timeout=10)
+            self.assertNotEqual(bad_payload.returncode, 0)
+            self.assertIn("JSONDecodeError", bad_payload.stderr)
+
     def test_lint_covers_files_a_shell_command_wrote(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
@@ -99,32 +117,49 @@ class NativeHookPayloadTests(unittest.TestCase):
             self.assertEqual(many.stderr.count("Lint: 1 error on lines you changed in"), 4, many.stderr)
             self.assertIn("Not linted, so run the repo's lint for: e.ts.", many.stderr)
 
-    def test_agent_model_defaults_only_unpinned_agents(self):
+    def test_agent_model_runs_builders_on_sonnet_and_denies_fork(self):
         with tempfile.TemporaryDirectory() as directory:
             agents = pathlib.Path(directory) / ".claude/agents"
             agents.mkdir(parents=True)
             (agents / "repo-builder.md").write_text("---\nname: repo-builder\n---\nBody with model: words.\n")
             (agents / "repo-reviewer.md").write_text("---\nname: repo-reviewer\nmodel: claude-opus-5-5\n---\n")
             (agents / "read-only.md").write_text("---\nname: read-only\ntools: Read, Grep, Bash\n---\n")
+            (agents / "read-only-opus.md").write_text("---\nname: read-only-opus\ntools: Read, Grep\n---\n")
             (agents / "inherits.md").write_text("---\nname: inherits\nmodel: inherit\n---\n")
+            (agents / "seat.md").write_text("---\nname: seat\nmodel: claude-sonnet-5-5\n---\n")
+            sonnet = ("allow", "sonnet")
             cases = [
-                ({"subagent_type": "repo-builder"}, "sonnet"),
-                ({"subagent_type": "general-purpose"}, "sonnet"),
-                ({"subagent_type": "repo-reviewer"}, None),
-                ({"subagent_type": "repo-builder", "model": "opus"}, None),
-                ({"subagent_type": "Plan"}, None),
-                ({"subagent_type": "read-only"}, None),
-                ({"subagent_type": "inherits"}, None),
-                ({"subagent_type": "no-such-agent"}, None),
+                ({"subagent_type": "repo-builder"}, {}, sonnet),
+                ({"subagent_type": "general-purpose"}, {}, sonnet),
+                ({"subagent_type": "repo-reviewer"}, {}, None),
+                ({"subagent_type": "repo-builder", "model": "opus"}, {}, sonnet),
+                ({"subagent_type": "seat", "model": "opus"}, {}, sonnet),
+                ({"subagent_type": "general-purpose", "model": "opus"}, {}, sonnet),
+                ({"subagent_type": "general-purpose", "model": "opus"}, {"KOLIN_OPUS_BUILDERS": "1"}, None),
+                ({"model": "opus"}, {}, sonnet),
+                ({}, {}, sonnet),
+                ({"subagent_type": "fork"}, {}, ("deny", None)),
+                ({"subagent_type": "Explore", "model": "opus"}, {}, None),
+                ({"subagent_type": "Explore"}, {}, sonnet),
+                ({"subagent_type": "read-only-opus", "model": "opus"}, {}, None),
+                ({"subagent_type": "general-purpose", "model": "haiku"}, {}, None),
+                ({"subagent_type": "Plan"}, {}, None),
+                ({"subagent_type": "read-only"}, {}, None),
+                ({"subagent_type": "inherits"}, {}, None),
+                ({"subagent_type": "no-such-agent"}, {}, None),
             ]
             nested = pathlib.Path(directory, "app/src")
             nested.mkdir(parents=True)
-            for tool_input, expected in cases:
-                with self.subTest(tool_input=tool_input):
-                    result = invoke(MODEL_HOOK, {"cwd": str(nested), "tool_input": tool_input}, directory)
+            for tool_input, env, expected in cases:
+                with self.subTest(tool_input=tool_input, env=env):
+                    with mock.patch.dict(os.environ, env):
+                        if not env:
+                            os.environ.pop("KOLIN_OPUS_BUILDERS", None)
+                        result = invoke(MODEL_HOOK, {"cwd": str(nested), "tool_input": tool_input}, directory)
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    model = json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"]["model"] if result.stdout else None
-                    self.assertEqual(model, expected)
+                    output = json.loads(result.stdout)["hookSpecificOutput"] if result.stdout else None
+                    got = None if output is None else (output["permissionDecision"], output.get("updatedInput", {}).get("model"))
+                    self.assertEqual(got, expected)
 
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -173,7 +208,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                 ({"command": "for i in $(seq 1 59); do [ -f s.json ] && break; sleep 10; done"}, 2),
                 ({"command": "until [ -f out.json ]; do sleep 15; done", "run_in_background": True}, 0),
                 ({"command": "until curl -sf localhost:3000; do sleep 1; done"}, 0),
-                ({"command": "cat > poll.sh <<'EOF'\nwhile true; do sleep 30; done\nEOF\nchmod +x poll.sh"}, 0),
+                ({"command": "cat > /tmp/poll.sh <<'EOF'\nwhile true; do sleep 30; done\nEOF\nchmod +x /tmp/poll.sh"}, 0),
                 ({"command": "for f in a b; do echo $f; done\nsleep 5"}, 0),
                 ({"command": "echo \"wait for it to do\"; sleep 5"}, 0),
             ]
@@ -206,7 +241,7 @@ class NativeHookPayloadTests(unittest.TestCase):
     def test_heavy_jobs_queues_gate_commands_behind_a_slot(self):
         with tempfile.TemporaryDirectory() as directory:
             cases = [
-                ({"command": "pnpm check 2>&1 | tail -40", "description": "Run gate"}, 60, 180000),
+                ({"command": "pnpm check 2>&1", "description": "Run gate"}, 60, 180000),
                 ({"command": "cd web && npx vitest run", "timeout": 300000}, 150, 450000),
                 ({"command": "pnpm verify", "run_in_background": True}, 900, 2700000),
                 ({"command": "pnpm test", "timeout": 590000}, 10, 600000),
@@ -215,7 +250,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                 with self.subTest(tool_input=tool_input):
                     result = invoke(HEAVY_HOOK, {"tool_input": tool_input}, directory)
                     updated = json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"]
-                    command = f"python3 {SLOT} $$ {max_wait}\n{tool_input['command']}"
+                    command = f"python3 {pathlib.Path.home() / '.kolin-skills/bin/heavy-slot.py'} $$ {max_wait}\n{tool_input['command']}"
                     self.assertEqual(updated, {**tool_input, "command": command, "timeout": timeout})
             for command in ["git status --short", 'git commit -m "gate: pnpm check green"',
                             "gh pr create --body 'Ran: pnpm check'", "rg tsc docs/", "cat vitest.config.ts",

@@ -26,7 +26,7 @@ skills/
   gap-audit/                 PROCESS: legacy repo → ranked gaps → small steps → re-audit to zero
   loop-refactor-to-pstack/   PROCESS: whole-repo program on one branch
   full-stop/, full-send/     PROCESS: approval shortcuts
-  explainer/, local-supabase/                       UTILITIES
+  explainer/, local-supabase/, user-notes/          UTILITIES
   reverse-engineer-anything/  UTILITIES: REA, copied from morluto/rea, manual /reverse-engineer-anything only
   emil-design-eng/, break-ui/, mobile-native/       UI CRAFT
 agents/                      senior-reviewer (Opus), poteto-agent (Sonnet), haiku-worker (Haiku)

@@ -3,16 +3,30 @@ input=$(cat)
 deny() { echo "Blocked by owner rule: $1. Do not retry or work around this." >&2; exit 2; }
 command -v jq >/dev/null || deny "jq is missing, so this guard cannot read the command; install jq"
 cmd=$(jq -r '.tool_input.command // .toolInput.command // .command // ""' <<<"$input")
+file=$(jq -r '.tool_input.file_path // .toolInput.file_path // ""' <<<"$input")
 cwd=$(jq -r '.cwd // ""' <<<"$input")
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
-guard() { python3 "$here/git_guard.py" "$1" <<<"$cmd"; }
+if [[ -n $file ]]; then
+  python3 "$here/git_guard.py" file-hooks <<<"$file"; rc=$?
+  (( rc == 0 )) && deny "D4: editing hook files is forbidden for agents"
+  (( rc != 1 )) && deny "D4: the file path could not be checked"
+  out=$(python3 "$here/git_guard.py" file-install "$cwd" <<<"$file"); rc=$?
+  (( rc == 0 )) && deny "$out"
+  (( rc != 3 )) && deny "D4: the install check could not run"
+  exit 0
+fi
+guard() { python3 "$here/git_guard.py" "$1" "$cwd" <<<"$cmd"; }
 shopt -s nocasematch
 nv="--no-""verify"
 protected='(main|master|staging|sandbox)'
 guard skip-hooks; rc=$?
 (( rc == 0 )) && deny "skipping git hooks is forbidden"
 (( rc != 1 )) && { [[ $cmd == *"$nv"* ]] || [[ $cmd =~ git[[:space:]]+commit([^;&|]*)[[:space:]]-[a-z]*n ]]; } && deny "skipping git hooks is forbidden (unparsed command)"
-if [[ $cmd =~ gh[[:space:]]+pr[[:space:]]+merge ]]; then
+guard pr-merge; rc=$?
+merging=0
+(( rc == 0 )) && merging=1
+(( rc != 0 && rc != 1 )) && [[ $cmd =~ gh[[:space:]]+pr[[:space:]]+merge ]] && merging=1
+if (( merging )); then
   [[ $cmd =~ [\;\&\|\`] ]] && deny "run gh pr merge on its own"
   pr=$(grep -oE '[[:space:]][0-9]+([[:space:]]|$)' <<<"$cmd" | head -1 | tr -d ' ')
   repo=$(grep -oE '(-R|--repo)[= ][^ ]+' <<<"$cmd" | head -1 | sed -E 's/^(-R|--repo)[= ]//')
@@ -20,7 +34,7 @@ if [[ $cmd =~ gh[[:space:]]+pr[[:space:]]+merge ]]; then
   base=$(cd "${cwd:-.}" 2>/dev/null; gh pr view "$pr" ${repo:+-R "$repo"} --json baseRefName -q .baseRefName 2>/dev/null)
   [[ -z $base || $base =~ ^$protected$ ]] && deny "merging into ${base:-an unknown base} needs Kolin; it changes only through a PR he merges"
 fi
-[[ ! $cmd =~ gh[[:space:]]+pr[[:space:]]+merge ]] && [[ $cmd =~ --auto([[:space:]]|$) && $cmd =~ gh[[:space:]] ]] && deny "auto-merge is forbidden"
+(( ! merging )) && [[ $cmd =~ --auto([[:space:]]|$) && $cmd =~ gh[[:space:]] ]] && deny "auto-merge is forbidden"
 guard api-merge; rc=$?
 (( rc == 0 )) && deny "merging via the API is forbidden"
 (( rc != 1 )) && [[ $cmd =~ (merge|automerge|auto_merge|enablePullRequestAutoMerge) && $cmd =~ gh[[:space:]]+api ]] && deny "merging via the API is forbidden"
@@ -34,4 +48,6 @@ fi
 guard d4; rc=$?
 (( rc == 0 )) && deny "D4: skipping the local gate or editing hook files is forbidden for agents"
 (( rc != 1 )) && [[ $cmd =~ SKIP_LOCAL_GATE= ]] && deny "D4: skipping the local gate is forbidden (unparsed command)"
+out=$(guard install); rc=$?
+(( rc == 0 )) && deny "$out"
 exit 0

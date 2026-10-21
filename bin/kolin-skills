@@ -53,6 +53,7 @@ LINKS = {
     "hooks/lint-changed-lines.py": [".codex/hooks/lint-changed-lines.py"],
     "hooks/compact-context.py": [".codex/hooks/compact-context.py"],
     "hooks/block-env-reads.py": [".claude/hooks/block-env-reads.py"],
+    "hooks/heavy-slot.py": [".kolin-skills/bin/heavy-slot.py"],
     "hooks/agent-default-model.py": [".claude/hooks/agent-default-model.py"],
     "hooks/gate/block-forbidden-git.sh": [".claude/hooks/block-forbidden-git.sh"],
     "bin/kolin-skills": [".local/bin/kolin-skills"],
@@ -403,14 +404,21 @@ def fast_forward_to_trunk():
 
 
 def pull(quiet):
-    try:
-        with state_lock():
-            problem = fast_forward_to_trunk()
-    except subprocess.TimeoutExpired as timed_out:
-        problem = f"{' '.join(timed_out.cmd[len(GIT):])} timed out after {timed_out.timeout}s; {TRUNK} was not updated"
-    if problem:
-        print(f"kolin-skills: {problem}")
-    return run_apply(check=False, quiet=quiet)
+    chatter = sys.stderr if quiet else sys.stdout
+    with contextlib.redirect_stdout(chatter):
+        try:
+            with state_lock():
+                problem = fast_forward_to_trunk()
+        except subprocess.TimeoutExpired as timed_out:
+            problem = f"{' '.join(timed_out.cmd[len(GIT):])} timed out after {timed_out.timeout}s; {TRUNK} was not updated"
+        message = f"kolin-skills: {problem}" if problem else None
+        if message:
+            print(message)
+        status = run_apply(check=False, quiet=quiet)
+    if message and quiet:
+        print(json.dumps({"systemMessage": message,
+                          "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": message}}))
+    return status
 
 
 def vendor_git(path, *args):

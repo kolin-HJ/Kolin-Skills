@@ -1,0 +1,171 @@
+import json
+import pathlib
+import re
+import subprocess
+import sys
+import tempfile
+import unittest
+
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
+HEAVY_HOOK = REPO / "hooks/heavy-jobs.py"
+ENV_HOOK = REPO / "hooks/block-env-reads.py"
+NESTED_POLL = "for i in $(seq 1 16); do p=$(for n in 874 857; do gh pr view $n; done); echo $p; sleep 30; done"
+
+
+def invoke(hook, tool_input):
+    with tempfile.TemporaryDirectory() as directory:
+        return subprocess.run(
+            [sys.executable, str(hook)],
+            input=json.dumps({"tool_input": tool_input}),
+            text=True,
+            capture_output=True,
+            cwd=directory,
+            timeout=10,
+        )
+
+
+def updated_input(result):
+    return json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"] if result.stdout else None
+
+
+class HeavyJobsGuardTests(unittest.TestCase):
+    def test_slot_prefix_names_no_git_path(self):
+        command = "pnpm check"
+        updated = updated_input(invoke(HEAVY_HOOK, {"command": command}))
+        prefix = updated["command"].removesuffix(command)
+        self.assertIn(".kolin-skills/bin/heavy-slot.py", prefix)
+        self.assertNotIn("git", prefix.lower())
+
+    def test_shell_file_edits_are_denied_unless_the_target_is_scratch(self):
+        blocked = [
+            "sed -i 's/a/b/' src/app.ts",
+            "sed -n -i.bak 's/a/b/;s/c/d/' src/app.ts",
+            "perl -pi -e 's/a/b/' src/app.ts",
+            "cat > notes.md",
+            "cat >> notes.md <<'EOF'\nhello\nEOF",
+            "echo hi | tee out.txt",
+            "python3 - <<'EOF'\nimport pathlib\npathlib.Path('src/a.ts').write_text('x')\nEOF",
+            "python3 - <<'EOF'\nopen(target, 'w').write('x')\nEOF",
+            "node -e \"require('fs').writeFileSync('src/a.js', 'x')\"",
+            "sed -i 's/a/b/' /tmp/../etc/hosts",
+            "cat <<EOF > notes.md\nhi\nEOF",
+            "echo hi > src/x",
+            "printf 'x' > file",
+            "python3 - <<'EOF'\nfrom pathlib import Path\nPath(target).write_text('x')\nEOF",
+            "node -e \"require('fs').writeFileSync(process.argv[1], 'x')\"",
+        ]
+        allowed = [
+            "sed -n 's/a/b/p' src/app.ts",
+            "sed -i 's/a/b/' /tmp/work.txt",
+            "perl -pi -e 's/a/b/' $TMPDIR/work.txt",
+            "cat > .pstack/status.md <<'EOF'\nok\nEOF",
+            "echo hi | tee -a /private/tmp/out.txt",
+            "python3 - <<'EOF'\nimport pathlib\npathlib.Path('/tmp/a.txt').write_text('x')\nEOF",
+            "python3 - <<'EOF'\nprint(open('src/a.ts').read())\nEOF",
+            "echo 'run sed -i on it'",
+            "cat README.md",
+            "python3 - <<'EOF'\nimport sys\nsys.stdout.write('x')\nEOF",
+            "node -e \"process.stdout.write('x')\"",
+            "python3 - <<'EOF'\nopen('/tmp/out', 'w').write(open('src/a.ts').read())\nEOF",
+            "perl -MList::Util=sum -e 'print sum(1,2)' src/a.ts",
+            "echo hi > /dev/null 2>&1",
+            "echo hi >&2",
+            "echo x > /tmp/a.txt",
+            "printf x > .pstack/a.txt",
+            "cat <<EOF > /tmp/x\nhi\nEOF",
+        ]
+        for command in blocked:
+            with self.subTest(blocked=command):
+                result = invoke(HEAVY_HOOK, {"command": command})
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("Edit or Write tool", result.stderr)
+        for command in allowed:
+            with self.subTest(allowed=command):
+                result = invoke(HEAVY_HOOK, {"command": command})
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+
+    def test_git_push_takes_a_slot_and_gate_output_is_never_filtered(self):
+        prefix_pattern = re.compile(r"^python3 \S+heavy-slot\.py \$\$ \d+\n")
+        push = updated_input(invoke(HEAVY_HOOK, {"command": "git push origin feature"}))
+        self.assertRegex(push["command"], prefix_pattern)
+        blocked = [
+            "git push origin feature 2>&1 | tail -20",
+            "pnpm run check | grep error",
+            "yarn verify | head -5",
+            "cd web && npm run check:all | awk '{print $1}'",
+        ]
+        allowed = ["pnpm vitest run | tail -20", "git push origin feature && echo done | tail -1", "git log | head -5"]
+        for command in blocked:
+            with self.subTest(blocked=command):
+                result = invoke(HEAVY_HOOK, {"command": command})
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("do not filter gate output", result.stderr)
+        for command in allowed:
+            with self.subTest(allowed=command):
+                self.assertEqual(invoke(HEAVY_HOOK, {"command": command}).returncode, 0)
+
+    def test_poll_loop_nested_in_a_command_substitution_is_blocked(self):
+        blocked = invoke(HEAVY_HOOK, {"command": NESTED_POLL})
+        self.assertEqual(blocked.returncode, 2)
+        self.assertIn("run_in_background: true", blocked.stderr)
+        self.assertEqual(invoke(HEAVY_HOOK, {"command": NESTED_POLL, "run_in_background": True}).returncode, 0)
+        self.assertEqual(invoke(HEAVY_HOOK, {"command": "p=$(for n in 1 2; do gh pr view $n; done); echo $p"}).returncode, 0)
+
+    def test_long_foreground_curl_retry_is_blocked(self):
+        cases = [
+            ({"command": "curl --retry 60 --retry-connrefused localhost:3000"}, 2),
+            ({"command": "curl --retry=30 localhost:3000"}, 2),
+            ({"command": "curl --retry 60 localhost:3000", "run_in_background": True}, 0),
+            ({"command": "curl --retry 3 localhost:3000"}, 0),
+            ({"command": "curl --retry-delay 30 localhost:3000"}, 0),
+        ]
+        for tool_input, code in cases:
+            with self.subTest(tool_input=tool_input):
+                result = invoke(HEAVY_HOOK, tool_input)
+                self.assertEqual(result.returncode, code, result.stderr)
+        self.assertIn("Monitor", invoke(HEAVY_HOOK, cases[0][0]).stderr)
+
+    def test_unquoted_include_globs_are_quoted_for_zsh(self):
+        cases = [
+            ("grep -rn foo --include=*.ts src", "grep -rn foo --include='*.ts' src"),
+            ("grep -r foo --exclude-dir=node_* --exclude=*.map .", "grep -r foo --exclude-dir='node_*' --exclude='*.map' ."),
+            ("echo x\ngrep -r foo --include=*.ts .", "echo x\ngrep -r foo --include='*.ts' ."),
+        ]
+        for command, expected in cases:
+            with self.subTest(command=command):
+                self.assertEqual(updated_input(invoke(HEAVY_HOOK, {"command": command}))["command"], expected)
+        for command in ["grep -rn foo --include='*.ts' src", "grep -rn foo --include=ts src",
+                        "cat > /tmp/x <<'EOF'\ngrep --include=*.ts\nEOF"]:
+            with self.subTest(command=command):
+                self.assertEqual(invoke(HEAVY_HOOK, {"command": command}).stdout, "")
+
+    def test_glob_quoting_and_slot_prefix_arrive_in_one_updated_input(self):
+        command = "pnpm test && grep -rn foo --include=*.ts src"
+        updated = updated_input(invoke(HEAVY_HOOK, {"command": command}))
+        self.assertRegex(updated["command"], r"^python3 \S+heavy-slot\.py \$\$ \d+\npnpm test && grep -rn foo --include='\*\.ts' src$")
+        self.assertEqual(updated["timeout"], 180000)
+
+    def test_docker_database_message_tells_the_agent_to_carry_on(self):
+        blocked = invoke(HEAVY_HOOK, {"command": "docker compose up -d postgres"})
+        self.assertEqual(blocked.returncode, 2)
+        self.assertIn("do not ask Kolin to exempt this hook", blocked.stderr)
+
+
+class EnvGuardExistenceCheckTests(unittest.TestCase):
+    def test_env_file_may_be_named_only_by_existence_checks(self):
+        blocked = ["ls .env.local && cat .env.local", "cat .env.local", "ls .env; cat .env", "ls .env.local | xargs cat", "test -f .env && source .env"]
+        allowed = ["ls -la .env.local", "test -f .env.local && echo yes", "[ -f .env ] || echo none",
+                   "stat .env.production", "ls .env.local | wc -l"]
+        for command in blocked:
+            with self.subTest(blocked=command):
+                result = invoke(ENV_HOOK, {"command": command})
+                self.assertEqual(result.returncode, 2, command)
+        for command in allowed:
+            with self.subTest(allowed=command):
+                result = invoke(ENV_HOOK, {"command": command})
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+
+
+if __name__ == "__main__":
+    unittest.main()
