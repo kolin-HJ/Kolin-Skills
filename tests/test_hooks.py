@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -116,32 +117,49 @@ class NativeHookPayloadTests(unittest.TestCase):
             self.assertEqual(many.stderr.count("Lint: 1 error on lines you changed in"), 4, many.stderr)
             self.assertIn("Not linted, so run the repo's lint for: e.ts.", many.stderr)
 
-    def test_agent_model_defaults_only_unpinned_agents(self):
+    def test_agent_model_runs_builders_on_sonnet_and_denies_fork(self):
         with tempfile.TemporaryDirectory() as directory:
             agents = pathlib.Path(directory) / ".claude/agents"
             agents.mkdir(parents=True)
             (agents / "repo-builder.md").write_text("---\nname: repo-builder\n---\nBody with model: words.\n")
             (agents / "repo-reviewer.md").write_text("---\nname: repo-reviewer\nmodel: claude-opus-5-5\n---\n")
             (agents / "read-only.md").write_text("---\nname: read-only\ntools: Read, Grep, Bash\n---\n")
+            (agents / "read-only-opus.md").write_text("---\nname: read-only-opus\ntools: Read, Grep\n---\n")
             (agents / "inherits.md").write_text("---\nname: inherits\nmodel: inherit\n---\n")
+            (agents / "seat.md").write_text("---\nname: seat\nmodel: claude-sonnet-5-5\n---\n")
+            sonnet = ("allow", "sonnet")
             cases = [
-                ({"subagent_type": "repo-builder"}, "sonnet"),
-                ({"subagent_type": "general-purpose"}, "sonnet"),
-                ({"subagent_type": "repo-reviewer"}, None),
-                ({"subagent_type": "repo-builder", "model": "opus"}, None),
-                ({"subagent_type": "Plan"}, None),
-                ({"subagent_type": "read-only"}, None),
-                ({"subagent_type": "inherits"}, None),
-                ({"subagent_type": "no-such-agent"}, None),
+                ({"subagent_type": "repo-builder"}, {}, sonnet),
+                ({"subagent_type": "general-purpose"}, {}, sonnet),
+                ({"subagent_type": "repo-reviewer"}, {}, None),
+                ({"subagent_type": "repo-builder", "model": "opus"}, {}, sonnet),
+                ({"subagent_type": "seat", "model": "opus"}, {}, sonnet),
+                ({"subagent_type": "general-purpose", "model": "opus"}, {}, sonnet),
+                ({"subagent_type": "general-purpose", "model": "opus"}, {"KOLIN_OPUS_BUILDERS": "1"}, None),
+                ({"model": "opus"}, {}, sonnet),
+                ({}, {}, sonnet),
+                ({"subagent_type": "fork"}, {}, ("deny", None)),
+                ({"subagent_type": "Explore", "model": "opus"}, {}, None),
+                ({"subagent_type": "Explore"}, {}, sonnet),
+                ({"subagent_type": "read-only-opus", "model": "opus"}, {}, None),
+                ({"subagent_type": "general-purpose", "model": "haiku"}, {}, None),
+                ({"subagent_type": "Plan"}, {}, None),
+                ({"subagent_type": "read-only"}, {}, None),
+                ({"subagent_type": "inherits"}, {}, None),
+                ({"subagent_type": "no-such-agent"}, {}, None),
             ]
             nested = pathlib.Path(directory, "app/src")
             nested.mkdir(parents=True)
-            for tool_input, expected in cases:
-                with self.subTest(tool_input=tool_input):
-                    result = invoke(MODEL_HOOK, {"cwd": str(nested), "tool_input": tool_input}, directory)
+            for tool_input, env, expected in cases:
+                with self.subTest(tool_input=tool_input, env=env):
+                    with mock.patch.dict(os.environ, env):
+                        if not env:
+                            os.environ.pop("KOLIN_OPUS_BUILDERS", None)
+                        result = invoke(MODEL_HOOK, {"cwd": str(nested), "tool_input": tool_input}, directory)
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    model = json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"]["model"] if result.stdout else None
-                    self.assertEqual(model, expected)
+                    output = json.loads(result.stdout)["hookSpecificOutput"] if result.stdout else None
+                    got = None if output is None else (output["permissionDecision"], output.get("updatedInput", {}).get("model"))
+                    self.assertEqual(got, expected)
 
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
         with tempfile.TemporaryDirectory() as directory:
