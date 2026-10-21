@@ -190,7 +190,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                 ({"command": "for i in $(seq 1 59); do [ -f s.json ] && break; sleep 10; done"}, 2),
                 ({"command": "until [ -f out.json ]; do sleep 15; done", "run_in_background": True}, 0),
                 ({"command": "until curl -sf localhost:3000; do sleep 1; done"}, 0),
-                ({"command": "cat > poll.sh <<'EOF'\nwhile true; do sleep 30; done\nEOF\nchmod +x poll.sh"}, 0),
+                ({"command": "cat > /tmp/poll.sh <<'EOF'\nwhile true; do sleep 30; done\nEOF\nchmod +x /tmp/poll.sh"}, 0),
                 ({"command": "for f in a b; do echo $f; done\nsleep 5"}, 0),
                 ({"command": "echo \"wait for it to do\"; sleep 5"}, 0),
             ]
@@ -223,7 +223,7 @@ class NativeHookPayloadTests(unittest.TestCase):
     def test_heavy_jobs_queues_gate_commands_behind_a_slot(self):
         with tempfile.TemporaryDirectory() as directory:
             cases = [
-                ({"command": "pnpm check 2>&1 | tail -40", "description": "Run gate"}, 60, 180000),
+                ({"command": "pnpm check 2>&1", "description": "Run gate"}, 60, 180000),
                 ({"command": "cd web && npx vitest run", "timeout": 300000}, 150, 450000),
                 ({"command": "pnpm verify", "run_in_background": True}, 900, 2700000),
                 ({"command": "pnpm test", "timeout": 590000}, 10, 600000),
@@ -232,7 +232,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                 with self.subTest(tool_input=tool_input):
                     result = invoke(HEAVY_HOOK, {"tool_input": tool_input}, directory)
                     updated = json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"]
-                    command = f"python3 {SLOT} $$ {max_wait}\n{tool_input['command']}"
+                    command = f"python3 {pathlib.Path.home() / '.kolin-skills/bin/heavy-slot.py'} $$ {max_wait}\n{tool_input['command']}"
                     self.assertEqual(updated, {**tool_input, "command": command, "timeout": timeout})
             for command in ["git status --short", 'git commit -m "gate: pnpm check green"',
                             "gh pr create --body 'Ran: pnpm check'", "rg tsc docs/", "cat vitest.config.ts",
