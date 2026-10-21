@@ -2,100 +2,104 @@
 
 # Kolin-Skills
 
-**One repo runs every coding agent on the machine.**
+**One setup for every coding agent you use.**
 
-Claude Code, Codex, Cursor and Grok read one policy. The skills, subagents and guardrails come from the same files.<br>
+Claude Code, Codex, Cursor and Grok follow one set of rules, from one repo.<br>
 Edit a file here, and every tool has it in its next session.
 
-![Claude Code](https://img.shields.io/badge/Claude_Code-policy_·_skills_·_agents_·_all_hooks-d97757)
-![Codex](https://img.shields.io/badge/Codex-policy_·_skills_·_agents_·_git_and_.env_guards-10a37f)
-![Cursor](https://img.shields.io/badge/Cursor-policy_rule_·_skills_·_lint-000000)
-![Grok](https://img.shields.io/badge/Grok-policy-555555)
+![Claude Code](https://img.shields.io/badge/Claude_Code-d97757)
+![Codex](https://img.shields.io/badge/Codex-10a37f)
+![Cursor](https://img.shields.io/badge/Cursor-000000)
+![Grok](https://img.shields.io/badge/Grok-555555)
 ![Gate](https://img.shields.io/badge/gate-local_pre--push-blue)
-![Comments in code](https://img.shields.io/badge/comments_in_code-0-critical)
 
 </div>
 
----
+## What it is
 
-## Why this exists
+Each agent tool keeps its own rules file, its own skills folder and its own hooks. A rule you teach Claude Code is unknown to Codex. A rule you write in a prompt is a request, and nothing makes the agent follow it.
 
-Agents do most of the coding here. Each tool ships with its own rules file, its own skills folder and its own hooks, so a rule you teach Claude Code is unknown to Codex, and a fix in one copy goes stale in the others. Prompts ask an agent to behave. Nothing stops it.
+Kolin-Skills keeps all of it in one repo and links it into each tool:
 
-Kolin-Skills fixes both problems:
+```
+                  Kolin-Skills repo
+     policy  ·  skills  ·  subagents  ·  hooks
+                          │
+              linked into each tool's home
+       ┌────────────┬─────┴──────┬────────────┐
+  Claude Code     Codex        Cursor        Grok
+```
 
-- **One source of truth.** Home folders hold only links into this repo or files rendered from it. A change here reaches every tool at once.
-- **Rules that hold.** A rule lives in the strongest layer that can enforce it: a hook that blocks the action, then a test or gate that fails the push, and only then a line of prose. An agent with little context does the job right on the first try, because the wrong move does not run.
+Claude Code gets all of it. Codex gets the policy, the skills, the subagents, and the git, `.env`, lint and compaction hooks. Cursor gets a policy rule, the skills and the lint hook. Grok gets the policy and the skills.
 
-## What you get
+| Part | What it gives you |
+|---|---|
+| **Policy** | One rule book: when the agent asks first, the quality bar, tests, PR format and writing style. |
+| **Skills** | Playbooks the agent loads when your request matches: fix a bug, audit a repo, polish a UI, write release notes. |
+| **Subagents** | A builder, a reviewer and a sweeper. The agent that writes the code never reviews it. |
+| **Guardrails** | Hooks that block a risky action before it runs: a push to `main`, a force push, a read of `.env`. |
+| **Gate** | One command, `kolin-skills check`, that runs before every push. |
 
-| Layer | What it gives you | Where |
-|---|---|---|
-| **Policy** | One rule book for every tool: approvals, quality bar, tests, PR format, writing style | `policy/AGENTS.md` |
-| **Method** | The flow from idea to release, with quality bars, on top of [Lauren Tan's pstack](https://github.com/cursor/plugins) playbooks | `skills/foundation/`, `skills/pstack-local/` |
-| **Seats** | Three subagents with fixed models: Opus reviews, Sonnet builds, Haiku does mechanical sweeps | `agents/` |
-| **Guardrails** | Hooks that block an unsafe action before it runs | `hooks/` |
-| **Skills** | Process playbooks, UI craft, local databases, release notes, explainers | `skills/` |
-| **Gate** | `kolin-skills check`: drift, strays, vendored skills, spend caps, size budgets and every test, on each push | `bin/kolin-skills` |
+## Get started
 
-## Guardrails block, they do not ask
+You need git, `jq`, Python >= 3.9 and Node >= 22.20. Without `jq`, the git guard blocks every shell command.
 
-The guard hooks run on the tool call, before the action happens. A blocked agent gets a message that says why and what to do instead. The lint and compaction hooks run after.
+1. **Fork this repo.** The rules in it are Kolin's. Each session pulls `main` from `origin`, so a plain clone keeps taking his changes.
+2. **Clone your fork and install.**
 
-| Hook | Tools | Runs on | Does |
-|---|---|---|---|
-| `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Bash, Write, Edit | Blocks a push to `main`, `master`, `staging` or `sandbox`. A force push. `--no-verify`. Auto-merge, an API merge, or a merge into a protected branch. Agent edits to hook files. |
-| `hooks/block-env-reads.py` | Claude Code, Codex (Bash only) | Bash, Read, Grep, Glob | Blocks reads of `.env` files. `.env.example` and its siblings stay readable. |
-| `hooks/edit-guard.py` | Claude Code | Edit, Write | Blocks the first edit until a value case is in `.pstack/status.md`, and blocks an orchestrator that edits a 3rd file itself instead of delegating the build. |
-| `hooks/agent-default-model.py` | Claude Code | Agent | Blocks a `fork` subagent. Moves an Opus builder to Sonnet unless Kolin opts in. Gives Sonnet to a subagent with no model. |
-| `hooks/heavy-jobs.py` | Claude Code | Bash | Blocks sleep loops that poll, file edits through the shell, gate output piped through a filter, and Postgres in Docker. Queues heavy jobs (`test`, `build`, `tsc`, `playwright`) for one of 3 shared slots. |
-| `hooks/lint-changed-lines.py` | Claude Code, Codex, Cursor | After Write, Edit, Bash | Reports lint errors on the JS and TS lines the agent just changed. |
-| `hooks/compact-context.py` | Claude Code, Codex | Compaction | Gives the summary the compaction brief, then puts the branch and changed files back after it. |
+   ```sh
+   git clone <your-fork-url> ~/Kolin-Skills
+   python3 ~/Kolin-Skills/bin/kolin-skills install
+   ```
 
-The gate also holds spend caps: `check` fails when the default subagent model is not Sonnet or the compaction window is over 400k tokens.
+   `install` fetches the vendored skills at pinned commits, installs the `npx skills` ones, links everything into each tool's home, then runs `check`. It also puts `kolin-skills` in `~/.local/bin`.
+3. **Open any agent in any repo and ask for the work.** There is nothing to start.
+4. **Make the rules yours.** Edit `policy/AGENTS.md` and `skills/foundation/SKILL.md`, and the block messages in `hooks/gate/` and `hooks/heavy-jobs.py` that name Kolin. Make each change on a branch and merge it through a PR. Keep the hooks and the gate. They are what makes the rules hold.
 
-## How a task flows
+With Node older than 22.20, `install` skips the third-party skills and says so. Offline, it links what it has and exits 1.
+
+## How it works
+
+### One source of truth
+
+Home folders hold only links into this repo, or files rendered from it. An edit to an existing file is live at once. Each Claude Code and Codex session starts with `kolin-skills pull`, which takes the latest `main` and links anything new.
+
+### Every task follows one flow
+
+In Claude Code and Codex, each prompt reminds the agent to read the method (`poteto-mode`, `pstack-local` and `foundation`) and to write a value case before its first edit.
 
 ```mermaid
 flowchart LR
-  ask[Kolin asks] --> value[Value case<br/>.pstack/status.md]
+  ask[You ask] --> value[Value case<br/>.pstack/status.md]
   value --> plan[Plan<br/>Opus]
   plan --> build[Build<br/>poteto-agent, Sonnet]
   build --> review[Review<br/>senior-reviewer, Opus]
   review -- findings --> build
   review --> gate[kolin-skills check<br/>pre-push]
   gate --> pr[Pull request]
-  pr --> merge[Kolin merges]
+  pr --> merge[You merge]
 ```
 
-The builder never reviews its own work. Only Kolin merges to a protected branch, and the git guard makes that true for every Claude Code and Codex agent.
+For multi-phase work, the agent waits for your yes on the plan before it builds. The models shown are the Claude Code seats. Codex runs both subagents on its default model.
 
-## Quick start
+### Guardrails block, they do not ask
 
-> **Fork it first.** The setup speaks for Kolin: his approvals, his branches, his writing style. Each session start pulls `main` from `origin`, so a clone of this repo keeps taking his changes. Fork it, clone your fork, then edit `policy/AGENTS.md`, `skills/foundation/SKILL.md` and the block messages in `hooks/gate/` and `hooks/heavy-jobs.py`. Keep the hooks and the gate. They are the part that makes the rules hold.
+A blocked agent gets a message that says why and what to do instead. The hooks stop:
 
-Prerequisites: git, `jq` (the git guard hook reads tool calls with it), Python >= 3.9 (`skills/pstack-local/scripts/diff-audit` uses `str.removeprefix` and the walrus operator), and Node >= 22.20 (for `npx skills`).
+- A push to `main`, `master`, `staging` or `sandbox`, a force push, `--no-verify`, auto-merge, an API merge, and any merge into a protected branch.
+- A read of a `.env` file.
+- The first edit before a value case exists.
+- Sleep loops that poll, file edits through the shell, and gate output piped through a filter.
 
-```sh
-git clone <your-fork-url> <path>
-python3 <path>/bin/kolin-skills install
-```
+Claude Code runs every hook. Codex runs the git and `.env` guards. Cursor runs the lint hook. The Hooks block under [Reference](#reference) has the full list.
 
-`install` fetches the vendored upstreams at their pinned commits, installs the third-party skills, runs `apply`, then `check`. It links the CLI to `~/.local/bin/kolin-skills`. A second run of `apply` prints `already in sync`.
+### One gate before every push
 
-With an older Node, `install` prints a clear message, skips the third-party skills, and still runs `apply` and `check`. Offline, it skips each vendor it cannot fetch, links the rest, and exits 1.
+`.githooks/pre-push` runs `kolin-skills check` (about 45 s). There is no CI. `check` fails on drift between home and the repo, a skill made straight in home, a missing third-party skill, a spend cap that is off, a file over its size budget, a failed test, or a comment in code. The [Commands](#reference) block has the full list.
 
-## How to use it
+## Use it
 
-After `install`, there is nothing to start. Open Claude Code, Codex, Cursor or Grok in any repo and ask for the work in plain words.
-
-### Ask for the outcome
-
-In Claude Code and Codex, each prompt runs `skills/pstack-local/scripts/mode-reminder`. It tells the agent to read `poteto-mode`, `pstack-local` and `foundation`, and to write a value case before its first edit. The agent then picks the pstack playbook that fits the task: feature, bug fix, refactor and others.
-
-The work follows [How a task flows](#how-a-task-flows). For multi-phase work, the agent waits for your yes on the plan before it builds.
-
-An agent loads a skill when your request matches the skill's description. You can also call a skill by name, such as `/gap-audit`.
+Ask for the outcome in plain words. The agent loads a skill when your request matches the skill's description. You can also call a skill by name, such as `/gap-audit`.
 
 | Say | Skill |
 |---|---|
@@ -108,9 +112,7 @@ An agent loads a skill when your request matches the skill's description. You ca
 | "Write release notes for PR 42" | `user-notes` |
 | "Explain this PR visually" | `explainer` |
 
-### Hand off a whole PR
-
-Two phrases give the agent a PR from start to end. Say the phrase in your prompt, or type the slash command. In Claude Code, an agent cannot start either one by itself (`skillOverrides` in `claude/settings.json`).
+To hand off a whole PR, say one of two phrases. In Claude Code, an agent cannot start either one by itself.
 
 | Say | The agent | It stops at |
 |---|---|---|
@@ -119,23 +121,12 @@ Two phrases give the agent a PR from start to end. Say the phrase in your prompt
 
 For a whole-repo refactor over many sessions, type `/loop-refactor-to-pstack`.
 
-### Change the setup
-
 To change a rule, edit it here on a work branch and open a PR. Each machine takes the change at the next session start after the merge. To add a skill, an agent or a hook, follow the "Add something" table in `AGENTS.md`.
 
-## Where the rules live
+## Reference
 
-| Question | Source of truth |
-|---|---|
-| How every agent works for Kolin: approvals, quality bar, briefs, tests, PRs, writing | `policy/AGENTS.md` |
-| The flow from idea to release, Kolin's check points, the quality bars and the UI bar | `skills/foundation/SKILL.md` |
-| Which pstack playbook to follow, and how pstack maps to each tool | `skills/pstack-local/SKILL.md` |
-| Which model plans, builds and reviews | `skills/pstack-local/models.md` |
-| Review bar for every diff | `agents/senior-reviewer.md` |
-| Reply style in Claude Code | `claude/output-styles/ste-visual.md` |
-| What a compaction summary keeps | `policy/compact-instructions.md` |
-
-## Skills
+<details>
+<summary><b>Skills index</b></summary>
 
 `apply` links every skill flat into `~/.agents/skills`, `~/.claude/skills` and `~/.cursor/skills`, so the groups below are an index, not folders. `check` fails when this index misses a skill.
 
@@ -155,7 +146,45 @@ upstream/                    pstack and cursor-team-kit (vendor.json), find-skil
 
 Project rules live in each project's own `AGENTS.md`, never here.
 
-## How a change reaches each tool
+</details>
+
+<details>
+<summary><b>Hooks</b></summary>
+
+The guard hooks run on the tool call, before the action happens. The lint and compaction hooks run after.
+
+| Hook | Tools | Runs on | Does |
+|---|---|---|---|
+| `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Bash, Write, Edit | Blocks a push to `main`, `master`, `staging` or `sandbox`. A force push. `--no-verify`. Auto-merge, an API merge, or a merge into a protected branch. Agent edits to hook files. |
+| `hooks/block-env-reads.py` | Claude Code, Codex (Bash only) | Bash, Read, Grep, Glob | Blocks reads of `.env` files. `.env.example` and its siblings stay readable. |
+| `hooks/edit-guard.py` | Claude Code | Edit, Write | Blocks the first edit until a value case is in `.pstack/status.md`, and blocks an orchestrator that edits a 3rd file itself instead of delegating the build. |
+| `hooks/agent-default-model.py` | Claude Code | Agent | Blocks a `fork` subagent. Moves an Opus builder to Sonnet unless Kolin opts in. Gives Sonnet to a subagent with no model. |
+| `hooks/heavy-jobs.py` | Claude Code | Bash | Blocks sleep loops that poll, file edits through the shell, gate output piped through a filter, and Postgres in Docker. Queues heavy jobs (`test`, `build`, `tsc`, `playwright`) for one of 3 shared slots. |
+| `hooks/lint-changed-lines.py` | Claude Code, Codex, Cursor | After Write, Edit, Bash | Reports lint errors on the JS and TS lines the agent just changed. |
+| `hooks/compact-context.py` | Claude Code, Codex | Compaction | Gives the summary the compaction brief, then puts the branch and changed files back after it. |
+| `skills/pstack-local/scripts/mode-reminder` | Claude Code, Codex | Each prompt | Reminds the agent to read the method and write a value case. Flags "full stop" and "full send". |
+
+The gate also holds spend caps: `check` fails when the default subagent model is not Sonnet or the compaction window is over 400k tokens.
+
+</details>
+
+<details>
+<summary><b>Commands</b></summary>
+
+| Command | What it does |
+|---|---|
+| `kolin-skills apply` | Links and renders the repo into home. Offline. `--check` reports drift and changes nothing. `--adopt` moves home to this checkout when another checkout owns it. `--if-wired` does nothing unless home is wired to this checkout (the git hooks use it). |
+| `kolin-skills import <path>` | Moves a skill or agent made in home into the repo, or lists an `npx skills` install in `upstream/skills.json`, then applies. |
+| `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, says so when it cannot, then applies. Session start runs `pull --quiet`. |
+| `kolin-skills upstream` | Checks out each vendor at its pinned commit and installs missing `npx skills` packages, then applies. `--bump` moves each pin to the newest commit and prints what changed. |
+| `kolin-skills check` | The gate: home drift, strays, missing third-party skills, vendor pins, spend caps, size budgets, required tools and tests. In a second checkout or worktree it skips home drift and checks the repo only. |
+| `kolin-skills install` | First run on a machine: `upstream`, then `check`. |
+| `context-audit` | Lists skills, tools and MCP servers that cost context in every session and went unused for 30 days. Session start prints one line when they pass 500 tokens. |
+
+</details>
+
+<details>
+<summary><b>How a change reaches each tool</b></summary>
 
 ```mermaid
 flowchart LR
@@ -179,27 +208,29 @@ flowchart LR
   - at the start of each Claude Code and Codex session (`kolin-skills pull`). Cursor and Grok read the same links, so a pull from any session updates them too.
   - after `git pull`, `git checkout` and `git rebase` in this repo (`.githooks/`).
 - **The session-start pull never strands a machine.** It fetches `origin/main` even when the tree has edits. On a clean tree it fast-forwards `main`, and it switches back to `main` from a branch that is already merged. When it cannot update, it prints one `kolin-skills: stale setup` line that says why.
-- `apply` is idempotent. A real file it replaces goes to `~/.kolin-skills/backup/<time>/`. A link into a skill or vendor the repo dropped is removed.
+- `apply` is idempotent. A second run prints `already in sync`. A real file it replaces goes to `~/.kolin-skills/backup/<time>/`. A link into a skill or vendor the repo dropped is removed.
 - **Nothing made straight in home goes unseen.** `apply` lists every entry the repo does not own in a tool's skill, agent, command, rule, output-style or hook folder (`WATCHED_HOMES` in `bin/kolin-skills`), and each skill in `upstream/skills.json` that is not installed. `check` fails on them.
 - **`kolin-skills import <path>` takes a stray in.** It moves a skill folder into `skills/` or an agent file into `agents/`. For a skill that `npx skills add` installed, it lists the package in `upstream/skills.json` and copies nothing.
 
-## Commands
+</details>
 
-| Command | What it does |
+<details>
+<summary><b>Where the rules live</b></summary>
+
+| Question | Source of truth |
 |---|---|
-| `kolin-skills apply` | Links and renders the repo into home. Offline. `--check` reports drift and changes nothing. `--adopt` moves home to this checkout when another checkout owns it. `--if-wired` does nothing unless home is wired to this checkout (the git hooks use it). |
-| `kolin-skills import <path>` | Moves a skill or agent made in home into the repo, or lists an `npx skills` install in `upstream/skills.json`, then applies. |
-| `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, says so when it cannot, then applies. Session start runs `pull --quiet`. |
-| `kolin-skills upstream` | Checks out each vendor at its pinned commit and installs missing `npx skills` packages, then applies. `--bump` moves each pin to the newest commit and prints what changed. |
-| `kolin-skills check` | The gate: home drift, strays, missing third-party skills, vendor pins, spend caps, size budgets, required tools and tests. In a second checkout or worktree it skips home drift and checks the repo only. |
-| `kolin-skills install` | First run on a machine: `upstream`, then `check`. |
-| `context-audit` | Lists skills, tools and MCP servers that cost context in every session and went unused for 30 days. Session start prints one line when they pass 500 tokens. |
+| How every agent works for Kolin: approvals, quality bar, briefs, tests, PRs, writing | `policy/AGENTS.md` |
+| The flow from idea to release, Kolin's check points, the quality bars and the UI bar | `skills/foundation/SKILL.md` |
+| Which pstack playbook to follow, and how pstack maps to each tool | `skills/pstack-local/SKILL.md` |
+| Which model plans, builds and reviews | `skills/pstack-local/models.md` |
+| Review bar for every diff | `agents/senior-reviewer.md` |
+| Reply style in Claude Code | `claude/output-styles/ste-visual.md` |
+| What a compaction summary keeps | `policy/compact-instructions.md` |
 
-## Gate
+</details>
 
-`.githooks/pre-push` runs `kolin-skills check` (about 45 s). There is no CI. `check` also runs every test, including `tests/test_no_comments.py`, which fails on a comment line in any tracked code file.
-
-## Layout
+<details>
+<summary><b>Layout</b></summary>
 
 | Path | Owns | Lands at |
 |---|---|---|
@@ -213,14 +244,18 @@ flowchart LR
 | `upstream/` | Vendored (`vendor.json`) and `npx skills` (`skills.json`) sources | `~/.agents/vendor`, `~/.agents/skills` |
 | `tests/` | Installer, hook and repo-rule tests | Run by `check` |
 
-## Not managed
+</details>
+
+<details>
+<summary><b>Not managed</b></summary>
 
 - Codex `config.toml`, Cursor `mcp.json` and every credential file. They hold machine paths and secrets.
 - `permissions` and `autoMode` in `~/.claude/settings.json`. They are per machine and per project.
 - herdr's hooks, REA's `reverse-engineer-anything` skill and claude.ai synced skills. Their installers own them, and `OTHER_INSTALLERS` in `bin/kolin-skills` lists them so `check` allows them.
 - Dot-entries in watched folders, such as Claude Code's `.trash` and Codex's `.system`.
 
+</details>
+
 ## Credits
 
 The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. `emil-design-eng` follows Emil Kowalski's UI craft.
-
