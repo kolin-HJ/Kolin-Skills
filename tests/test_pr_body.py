@@ -42,16 +42,18 @@ class PrBodyTests(unittest.TestCase):
         self.write("docs/a.md", "plain\n")
         self.write("package-lock.json", "{}\n")
         body = self.body()
-        self.assertIn("| Code | 2 | +1 -1 |\n| Tests | 1 | +1 -0 |\n| Docs | 3 | +6 -0 |", body)
-        self.assertIn(
-            "<summary>Code: 2 files, +1 -1</summary>\n\n"
-            "- `package-lock.json` +1 -0, lockfile\n"
-            "- `src/price.ts` +1 -1\n\n</details>", body)
-        self.assertIn(
-            "<summary>Docs: 3 files, +6 -0</summary>\n\n"
-            "- `README.md` +4 -0\n- `docs/a.md` +1 -0\n- `docs/café.md` +1 -0\n\n</details>", body)
-        self.assertNotIn("```diff", body)
-        self.assertNotIn("export const price", body)
+        self.assertTrue(body.endswith(
+            "## Diff\n\n"
+            "| Group / file | Lines |\n|---|---|\n"
+            "| **Code** · 2 files | **+1 -1** |\n"
+            "| &emsp;`package-lock.json` | +1 -0, lockfile |\n"
+            "| &emsp;`src/price.ts` | +1 -1 |\n"
+            "| **Tests** · 1 file | **+1 -0** |\n"
+            "| &emsp;`src/price.test.ts` | +1 -0 |\n"
+            "| **Docs** · 3 files | **+6 -0** |\n"
+            "| &emsp;`README.md` | +4 -0 |\n"
+            "| &emsp;`docs/a.md` | +1 -0 |\n"
+            "| &emsp;`docs/café.md` | +1 -0 |\n"), body)
 
     def test_many_files_keep_every_group_and_stay_under_the_github_limit(self):
         for n in range(2_500):
@@ -59,9 +61,10 @@ class PrBodyTests(unittest.TestCase):
         self.write("tests/test_t.py", "assert 1\n")
         self.write("docs/d.md", "doc\n")
         body = self.body()
-        self.assertRegex(body, r"- Not shown: \d+ files, see Files changed\n\n</details>\n\n<details>\n<summary>Tests")
-        self.assertIn("<summary>Tests: 1 file, +1 -0</summary>\n\n- `tests/test_t.py` +1 -0", body)
-        self.assertIn("<summary>Docs: 1 file, +1 -0</summary>\n\n- `docs/d.md` +1 -0", body)
+        self.assertIn("| **Code** · 2500 files | **+2500 -0** |", body)
+        self.assertRegex(body, r"\| &emsp;Not shown: \d+ files, see Files changed \| \|\n\| \*\*Tests\*\*")
+        self.assertIn("| **Tests** · 1 file | **+1 -0** |\n| &emsp;`tests/test_t.py` | +1 -0 |", body)
+        self.assertIn("| **Docs** · 1 file | **+1 -0** |\n| &emsp;`docs/d.md` | +1 -0 |", body)
         self.assertLess(len(body), 65_536 - 8_000)
 
 
