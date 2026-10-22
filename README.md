@@ -158,11 +158,12 @@ The guard hooks run on the tool call, before the action happens. The lint and co
 | `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Bash, Write, Edit | Blocks a push to `main`, `master`, `staging` or `sandbox`. A force push. `--no-verify`. Auto-merge, an API merge, or a merge into a protected branch. Agent edits to hook files. |
 | `hooks/block-env-reads.py` | Claude Code, Codex (Bash only) | Bash, Read, Grep, Glob | Blocks reads of `.env` files. `.env.example` and its siblings stay readable. |
 | `hooks/edit-guard.py` | Claude Code | Edit, Write | Blocks the first edit until a value case is in `.pstack/status.md`, and blocks an orchestrator that edits a 3rd file itself instead of delegating the build. |
-| `hooks/agent-default-model.py` | Claude Code | Agent | Blocks a `fork` subagent. Moves an Opus builder to Sonnet unless Kolin opts in. Gives Sonnet to a subagent with no model. |
+| `hooks/agent-default-model.py` | Claude Code | Agent | Blocks a `fork` subagent, and an editing subagent spawned with `isolation: "worktree"`. Moves an Opus builder to Sonnet unless Kolin opts in. Gives Sonnet to a subagent with no model. |
+| `hooks/fix-rounds.py` | Claude Code | SendMessage | Blocks a third `SendMessage` to one agent in a session, so a third fix round goes to a fresh builder with a rewritten brief. A `fix-rounds: <to> <reason>` line in `.pstack/status.md` lifts the cap for that agent. |
 | `hooks/heavy-jobs.py` | Claude Code | Bash | Blocks sleep loops that poll, file edits through the shell, gate output piped through a filter, and Postgres in Docker. Queues heavy jobs (`test`, `build`, `tsc`, `playwright`) for one of 3 shared slots. |
 | `hooks/lint-changed-lines.py` | Claude Code, Codex, Cursor | After Write, Edit, Bash | Reports lint errors on the JS and TS lines the agent just changed. |
 | `hooks/compact-context.py` | Claude Code, Codex | Compaction | Gives the summary the compaction brief, then puts the branch and changed files back after it. |
-| `skills/pstack-local/scripts/mode-reminder` | Claude Code, Codex | Each prompt | Reminds the agent to read the method and write a value case. Flags "full stop" and "full send". |
+| `skills/pstack-local/scripts/mode-reminder` | Claude Code, Codex | Each prompt | Reminds the agent to read the method and write a value case. Flags "full stop" and "full send", and a `.pstack/status.md` not updated in the last hour. |
 
 The gate also holds spend caps: `check` fails when the default subagent model is not Sonnet or the compaction window is over 400k tokens.
 
