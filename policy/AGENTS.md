@@ -33,7 +33,7 @@ If a skill makes you pause, ask, or leave work undone, link the exact `SKILL.md`
 
 ## Approvals
 
-Reversible work proceeds without asking: reading, edits, gates, local runs, reviews, fixes, and work-branch commits, pushes and PRs. One approval covers that action for the session.
+Reversible work proceeds without asking: reading, edits, gates, local runs, reviews, fixes, and work-branch commits, pushes and PRs. One approval covers that action for the session, and my request is the approval for its reversible steps: do not ask again.
 
 `main`, `master`, `sandbox` and `staging` change only through a PR. Never merge or deploy without my yes. Ask before an external write: a message, a ticket, a production database, a third-party system. A data structure or system flow needs my yes before the build (`foundation`, "Where Kolin steps in"). Prepare, verify and bundle the asks, so my yes is the last step.
 
@@ -92,7 +92,7 @@ Start the body from `~/.agents/skills/pstack-local/scripts/pr-body <base>`. It f
 
 - `## Review this` is the reviewer's checklist: each decision, risky hunk or manual check, with `file:line` and why.
 - `## Blast Radius` names migrations, access grants, config, deploy order, each change a user will notice, and a manual production step with its date.
-- `## Verification` has one line per check: `Ran:` or `Not run: <check>, because <why>`. A release says which pages were driven and which saves were not.
+- `## Verification` has one line per check: `Ran:` or `Not run: <check>, because <why>`. A release says which pages were driven and which saves were not. Run each check the repo's PR gate requires before `gh pr create`; if one cannot run yet, open a draft.
 - Mark docs, tests, lockfiles, agent tooling and scripts `linguist-generated=true` in `.gitattributes`, so app code shows first.
 - A hand edit in a shared account (an ERP, a live dashboard) ships with a PR that brings the repo in line.
 
@@ -108,8 +108,6 @@ A TypeScript repo needs a type-aware linter, strict `tsc`, a dead-code audit and
 
 Delegate concrete, independent subtasks. Plan, build and review are separate roles: the strongest model plans and reviews, a mid-tier model builds, a fast model does mechanical sweeps (`pstack-local/models.md`).
 
-The orchestrator reads only what the design needs; `Explore` does wide reads and returns `file:line` facts.
-
 Built-in `Explore` and `Plan` agents do not load this file, so quote the rules the task needs. Every brief has six parts. Turn each vague adjective into a check.
 
 1. **Goal:** the task in my words.
@@ -119,9 +117,9 @@ Built-in `Explore` and `Plan` agents do not load this file, so quote the rules t
 5. **Effort:** the model and effort level for the job.
 6. **Stop when:** a drifted file, a check that fails twice, or work outside its files. Stop and report.
 
-Agents message each other only when the other must act: no acknowledgements, no progress pings, one summary at the end. Work of more than one unit keeps `.pstack/status.md` (goal, done, next, blocked) current, so I can check in any time. A playbook that derives it wins.
+Agents message each other only when the other must act: no acknowledgements, no progress pings, one summary at the end. Work of more than one unit keeps `.pstack/status.md` (goal, done, next, blocked, my asks) current, so I can check in any time. A playbook that derives it wins. Define a unit label on first use.
 
-Read every hunk of a delegated diff and what each new test asserts. Reject a change outside the assigned files. After two revision rounds, rewrite the brief.
+Read every hunk of a delegated diff and what each new test asserts. Reject a change outside the assigned files. After two revision rounds, give a fresh agent a rewritten brief.
 
 ## Writing
 
@@ -137,5 +135,4 @@ Each repo has one instruction file, `AGENTS.md` at the root, with no `CLAUDE.md`
 
 ## Harness
 
-- After each edit, `hooks/lint-changed-lines.py` lints the changed lines. Fix what it reports before you continue.
 - In Claude Code, use Plan Mode for multi-file or uncertain work.
