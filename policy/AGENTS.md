@@ -88,7 +88,7 @@ Done means proven on the real artifact (`principle-prove-it-works`). Run the rep
 
 ## Before a PR ships
 
-Start the body from `~/.agents/skills/pstack-local/scripts/pr-body <base>`. It fills `## Diff`, folded by code, tests and docs; you replace each `<placeholder>` above it. Where the repo's template differs, follow the repo.
+Start the body from `~/.agents/skills/pstack-local/scripts/pr-body <base>`. It fills `## Diff` as one table: each group, then its files; you replace each `<placeholder>` above it. Where the repo's template differs, follow the repo.
 
 - `## Review this` is the reviewer's checklist: each decision, risky hunk or manual check, with `file:line` and why.
 - `## Blast Radius` names migrations, access grants, config, deploy order, each change a user will notice, and a manual production step with its date.
