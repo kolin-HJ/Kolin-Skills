@@ -49,7 +49,7 @@ flowchart TB
 
 ## How it works
 
-Every task follows one flow. In Claude Code, each prompt reminds the agent to write a value case first, and a hook blocks the first edit until it exists.
+Every task follows one flow. In Claude Code and Codex, each prompt reminds the agent to write a value case first. In Claude Code, a hook blocks the first edit until it exists.
 
 ```mermaid
 flowchart LR
