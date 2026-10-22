@@ -12,7 +12,7 @@ Claude Code, Codex, Cursor and Grok follow the same rules, skills and guardrails
 ![Grok](https://img.shields.io/badge/Grok-555555)
 ![Gate](https://img.shields.io/badge/gate-local_pre--push-blue)
 
-[What](#what-it-is) · [Why](#why-use-it) · [How it works](#how-it-works) · [Install](#install) · [Quality](#what-quality-means) · [Daily use](#working-with-it)
+[What](#what-it-is) · [Why](#why-use-it) · [How it works](#how-it-works) · [Install](#install) · [Quality](#what-quality-means) · [Daily use](#working-with-it) · [Skills](#skills)
 
 </div>
 
@@ -78,17 +78,18 @@ Claude Code runs every guard. Codex runs the git and `.env` guards. Cursor runs 
 
 ## Install
 
-You need **git**, **`jq`**, **Python ≥ 3.9** and **Node ≥ 22.20**. Without `jq`, the git guard blocks every shell command.
+You need **git**, **`jq`**, **Python ≥ 3.9** and **Node ≥ 22.20**. Without `jq`, the git guard blocks every shell command. The repo is private, so you also need read access and git credentials that work with no prompt.
 
 ```sh
-git clone <your-fork-url> ~/Kolin-Skills
+gh auth login && gh auth setup-git
+git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Kolin-Skills
 python3 ~/Kolin-Skills/bin/kolin-skills install
 ```
 
-1. **Fork first.** Each Claude Code and Codex session pulls `main` from `origin`, so a plain clone keeps taking Kolin's changes.
-2. **Run `install`.** It fetches the pinned third-party skills, links everything into each tool, runs `check` and puts `kolin-skills` in `~/.local/bin`.
-3. **Open any agent in any repo.** There is nothing to start.
-4. **Make it yours.** Edit `policy/AGENTS.md`, `skills/foundation/SKILL.md` and the block messages in `hooks/gate/` and `hooks/heavy-jobs.py`. Keep the hooks and the gate. They are what makes the rules hold.
+1. **Run `install` once.** It fetches the pinned third-party skills, links everything into each tool, runs `check` and puts `kolin-skills` in `~/.local/bin`.
+2. **Open any agent in any repo.** There is nothing to start.
+3. **Updates come by themselves.** Each Claude Code and Codex session pulls the latest `main`, as long as the clone has no local edits. When an update moves a third-party pin, run `kolin-skills upstream`.
+4. **Put your own rules in each project's `AGENTS.md`.** Do not edit the clone, because a local edit stops the updates.
 
 With Node older than 22.20, `install` skips the third-party skills and says so. Offline, it links what it has and exits 1.
 
@@ -119,7 +120,7 @@ The full bar: [`policy/AGENTS.md`](policy/AGENTS.md) and [`skills/foundation/SKI
 
 ## Working with it
 
-Ask for the outcome in plain words. The agent does the reversible work alone and waits for you only at the points that matter.
+Ask for the outcome in plain words, such as "fix the redirect bug on login". The agent picks the skill, does the reversible work alone and waits for you only at the points that matter.
 
 | 🤖 The agent does it alone | 🙋 It waits for your yes |
 |---|---|
@@ -128,45 +129,82 @@ Ask for the outcome in plain words. The agent does the reversible work alone and
 | | A merge, a deploy, a migration |
 | | Money, secrets, messages to people |
 
-| Say | Skill |
+You can also call any skill by name, such as `/gap-audit`.
+
+## Skills
+
+Each skill starts in one of three ways:
+
+| | How it starts |
 |---|---|
-| "Fix the redirect bug on login" | `poteto-mode` bug fix: reproduce first, then the smallest fix |
-| "Audit this repo" | `gap-audit` |
-| "Stress-test this table" | `break-ui` |
-| "Make this drawer feel polished" | `emil-design-eng` |
-| "It feels wrong on my phone" | `mobile-native` |
-| "Start a local database" | `local-supabase` |
-| "Write release notes for PR 42" | `user-notes` |
-| "Explain this PR visually" | `explainer` |
+| 🔁 **Always** | The agent reads it at the start of each engineering task |
+| 💬 **On match** | The agent loads it when your request matches its description |
+| ⌨️ **You only** | Only you can start it, by phrase or slash command. In Claude Code, the agent cannot start it by itself |
 
-**Hand off a whole PR** with one phrase. In Claude Code, an agent cannot start either one by itself.
+**Core**
 
-| Say | The agent stops at |
-|---|---|
-| "full stop" or `/full-stop` | A PR that is ready to merge. You merge |
-| "full send" or `/full-send` | The merge of that one PR, after a 7-item merge gate. It never deploys |
+| Skill | Starts | What it does |
+|---|---|---|
+| `foundation` | 🔁 | The root: the flow, your approval points, the quality bars and the UI bar |
+| `pstack-local` | 🔁 | Maps pstack onto each tool: model seats, `diff-audit`, `pr-body` |
+| `poteto-mode` (pstack) | 🔁 | The method: playbooks for feature, bug fix, refactor, review and shipping |
 
-For a whole-repo refactor over many sessions, type `/loop-refactor-to-pstack`. To change a rule, edit it here on a branch and open a PR. Each machine takes it at the next session start. To add a skill, agent or hook, see `AGENTS.md`.
+**Process**
+
+| Skill | Starts | Say | What it does |
+|---|---|---|---|
+| `gap-audit` | 💬 | "Audit this repo", "bring it up to standard" | Ranks a repo's gaps against `foundation`, then closes them in small verified steps |
+| `full-stop` | ⌨️ | "full stop" or `/full-stop` | Takes one task to a PR that is ready to merge. You merge |
+| `full-send` | ⌨️ | "full send" or `/full-send` | Does all of `full-stop`, then merges that one PR after a 7-item merge gate. It never deploys |
+| `loop-refactor-to-pstack` | ⌨️ | `/loop-refactor-to-pstack` | Refactors a whole repo to the standard over many sessions on one branch |
+
+**UI craft**
+
+| Skill | Starts | Say | What it does |
+|---|---|---|---|
+| `break-ui` | 💬 | "Stress-test this table" | Feeds worst-case data to a UI and reports what broke |
+| `emil-design-eng` | 💬 | "Make this drawer feel polished" | Motion and polish: easing, springs, transitions, gestures |
+| `mobile-native` | 💬 | "It feels wrong on my phone" | Fixes the tells that make a web app feel like a website on a phone |
+
+**Utilities**
+
+| Skill | Starts | Say | What it does |
+|---|---|---|---|
+| `local-supabase` | 💬 | "Start a local database" | Runs a local Supabase or Postgres per checkout, never in Docker |
+| `user-notes` | 💬 | "Write release notes for PR 42" | Writes short release notes for the people who use the app |
+| `explainer` | 💬 | "Explain this PR visually" | Builds a one-page HTML explainer. Only when you ask or say yes to the offer |
+
+**Subagents.** The main agent spawns these. You do not call them.
+
+| Agent | Model | Spawned when |
+|---|---|---|
+| `poteto-agent` | Sonnet | A playbook step needs code built, one unit per agent |
+| `senior-reviewer` | Opus | A non-trivial diff is ready, before a commit or PR |
+| `haiku-worker` | Haiku | A mechanical sweep: a rename, a codemod, a read-only search |
+
+<details>
+<summary><b>Third-party skills that install also adds</b></summary>
+
+| Source | Skills | Starts |
+|---|---|---|
+| [pstack](https://github.com/cursor/plugins) | `how`, `architect`, `interrogate`, `swarm`, `arena`, `tdd`, `unslop`, `technical-writing`, `no-comments`, `correct` and the `principle-*` skills | The agent reads each one when a playbook step names it. You can type `/poteto-mode`, `/how` and the rest |
+| cursor-team-kit | `deslop`, `control-ui`, `control-cli` | 💬 To clean AI slop out of code, or to drive a UI or CLI |
+| cursor-team-kit | `thermo-nuclear-code-quality-review` | The agent reads it for the diff pass before review, or when you ask for a harsh structure review |
+| `npx skills` | `find-skills` | ⌨️ |
+
+</details>
 
 ## Reference
 
 <details>
-<summary><b>Skills index and layout</b></summary>
-
-`apply` links every skill flat into `~/.agents/skills`, `~/.claude/skills` and `~/.cursor/skills`. `check` fails when this index misses a skill.
+<summary><b>Layout</b></summary>
 
 ```
 policy/AGENTS.md             global policy → ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md, ~/.grok/AGENTS.md
 policy/compact-instructions.md   what a compaction summary keeps
-skills/
-  foundation/                CORE: first principles, flow, check points, quality and UI bars
-  pstack-local/              CORE: pstack adapter, models.md (which model plans, builds, reviews), scripts/diff-audit, scripts/pr-body
-  gap-audit/                 PROCESS: legacy repo → ranked gaps → small steps → re-audit to zero
-  loop-refactor-to-pstack/   PROCESS: whole-repo program on one branch
-  full-stop/, full-send/     PROCESS: approval shortcuts
-  explainer/, local-supabase/, user-notes/          UTILITIES
-  emil-design-eng/, break-ui/, mobile-native/       UI CRAFT
-agents/                      senior-reviewer (Opus, the review bar), poteto-agent (Sonnet), haiku-worker (Haiku)
+skills/                      own skills, linked flat into ~/.agents/skills, ~/.claude/skills, ~/.cursor/skills
+  pstack-local/models.md     which model plans, builds and reviews
+agents/                      subagents; senior-reviewer.md holds the review bar
 hooks/                       guards and lint, run in place from the repo
 claude/                      managed settings keys, status line, output style (ste-visual)
 codex/, cursor/              hook config and the Cursor policy rule
