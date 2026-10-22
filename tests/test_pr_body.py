@@ -34,41 +34,34 @@ class PrBodyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout
 
-    def test_each_file_lands_in_its_group_with_its_diff(self):
+    def test_each_file_lands_in_its_group_with_its_line_counts_and_no_code(self):
         self.write("src/price.ts", "export const price = 2;\n")
         self.write("src/price.test.ts", "it('prices', () => {});\n")
         self.write("README.md", "Run it with `pr-body`.\n```sh\npr-body main\n```\n")
         self.write("docs/café.md", "Prix\n")
-        self.write("docs/[a].md", "bracket\n")
         self.write("docs/a.md", "plain\n")
         self.write("package-lock.json", "{}\n")
         body = self.body()
-        self.assertIn("| Code | 2 | +1 -1 |\n| Tests | 1 | +1 -0 |\n| Docs | 4 | +7 -0 |", body)
-        self.assertIn("<summary>Code: 2 files, +1 -1</summary>", body)
-        self.assertIn("`package-lock.json` +1 -0: lockfile", body)
-        self.assertIn("-export const price = 1;\n+export const price = 2;", body)
-        self.assertIn("````diff\n", body)
-        self.assertIn("`docs/café.md` +1 -0\n\n```diff\n", body)
-        self.assertIn("+Prix", body)
-        self.assertEqual(body.count("+plain"), 1)
-
-    def test_a_diff_past_the_github_limit_is_named_but_not_inlined(self):
-        self.write("src/small.ts", "export const small = 1;\n")
-        self.write("src/huge.ts", "".join(f"export const v{n} = {n};\n" for n in range(5_000)))
-        body = self.body()
-        self.assertIn("`src/huge.ts` +5000 -0: diff not inlined, see Files changed", body)
-        self.assertIn("+export const small = 1;", body)
-        self.assertLess(len(body), 65_536 - 8_000)
+        self.assertIn("| Code | 2 | +1 -1 |\n| Tests | 1 | +1 -0 |\n| Docs | 3 | +6 -0 |", body)
+        self.assertIn(
+            "<summary>Code: 2 files, +1 -1</summary>\n\n"
+            "- `package-lock.json` +1 -0, lockfile\n"
+            "- `src/price.ts` +1 -1\n\n</details>", body)
+        self.assertIn(
+            "<summary>Docs: 3 files, +6 -0</summary>\n\n"
+            "- `README.md` +4 -0\n- `docs/a.md` +1 -0\n- `docs/café.md` +1 -0\n\n</details>", body)
+        self.assertNotIn("```diff", body)
+        self.assertNotIn("export const price", body)
 
     def test_many_files_keep_every_group_and_stay_under_the_github_limit(self):
-        for n in range(1_200):
+        for n in range(2_500):
             self.write(f"src/f{n:04}.ts", f"export const a{n} = 1;\n")
         self.write("tests/test_t.py", "assert 1\n")
         self.write("docs/d.md", "doc\n")
         body = self.body()
-        self.assertRegex(body, r"Not shown: \d+ files, see Files changed\n\n</details>\n\n<details>\n<summary>Tests")
-        self.assertIn("<summary>Tests: 1 file, +1 -0</summary>\n\n`tests/test_t.py` +1 -0", body)
-        self.assertIn("<summary>Docs: 1 file, +1 -0</summary>\n\n`docs/d.md` +1 -0", body)
+        self.assertRegex(body, r"- Not shown: \d+ files, see Files changed\n\n</details>\n\n<details>\n<summary>Tests")
+        self.assertIn("<summary>Tests: 1 file, +1 -0</summary>\n\n- `tests/test_t.py` +1 -0", body)
+        self.assertIn("<summary>Docs: 1 file, +1 -0</summary>\n\n- `docs/d.md` +1 -0", body)
         self.assertLess(len(body), 65_536 - 8_000)
 
 
