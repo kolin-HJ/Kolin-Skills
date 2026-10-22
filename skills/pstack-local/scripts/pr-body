@@ -5,16 +5,16 @@ import importlib.util
 import os
 import pathlib
 import re
-import subprocess
 import sys
 
 GITHUB_BODY_LIMIT = 65_536
-DIFF_BUDGET = GITHUB_BODY_LIMIT - 4_000
+FILLED_TEXT_RESERVE = 8_000
+OVERFLOW_LINE_RESERVE = 100
 GROUPS = ("Code", "Tests", "Docs")
 
 SECTIONS = (
     ("Summary", "<What ships, for whom, and what changes for them, in two to four sentences. "
-                "A release lists each merged PR in one line.>"),
+                "A release lists each merged PR in one line; PRs that cancel each other share one line.>"),
     ("Review this", "- [ ] <file:line: the decision or risky hunk to double check, and why>"),
     ("Blast Radius", "<Migrations, access grants, config, deploy order, every change a user will notice, "
                      "and each manual production step with its date. Write \"None.\" when there is none.>"),
@@ -30,10 +30,6 @@ def load_audit():
     module = importlib.util.module_from_spec(importlib.util.spec_from_loader("diff_audit", loader))
     loader.exec_module(module)
     return module
-
-
-def git(*args):
-    return subprocess.run(["git", *args], text=True, capture_output=True, check=True).stdout
 
 
 def group_of(path, audit):
@@ -52,53 +48,71 @@ def fenced(text):
 
 def changes(base, audit):
     files = []
-    for line in git("diff", "--numstat", "--no-renames", base, "HEAD").splitlines():
-        added, removed, path = line.split("\t", 2)
-        files.append({"path": path, "added": added, "removed": removed, "group": group_of(path, audit),
+    for record in audit.git("diff", "--numstat", "-z", "--no-renames", base, "HEAD").split("\0"):
+        if not record:
+            continue
+        added, removed, path = record.split("\t", 2)
+        files.append({"path": path, "binary": added == "-", "added": 0 if added == "-" else int(added),
+                      "removed": 0 if removed == "-" else int(removed), "group": group_of(path, audit),
                       "lock": bool(audit.LOCK.search(path))})
     return files
 
 
 def count(files):
-    added = sum(int(f["added"]) for f in files if f["added"] != "-")
-    removed = sum(int(f["removed"]) for f in files if f["removed"] != "-")
-    return f"+{added} -{removed}"
+    counted = [f for f in files if not f["lock"]]
+    return f"+{sum(f['added'] for f in counted)} -{sum(f['removed'] for f in counted)}"
 
 
-def render(base, files):
+def file_block(base, f, audit):
+    heading = f"`{f['path']}` +{f['added']} -{f['removed']}"
+    if f["binary"]:
+        return f"`{f['path']}`: binary, diff not shown", None
+    if f["lock"]:
+        return f"{heading}: lockfile, diff not shown", None
+    diff = audit.git("diff", "--no-color", "--no-renames", base, "HEAD", "--", f["path"])
+    return f"{heading}: too large for the PR body, see Files changed", f"{heading}\n\n{fenced(diff)}"
+
+
+def render(base, files, audit):
     rows = ["| Group | Files | Lines |", "|---|---|---|"]
     for group in GROUPS:
         members = [f for f in files if f["group"] == group]
         rows.append(f"| {group} | {len(members)} | {count(members)} |")
-    sections, budget = [], DIFF_BUDGET
+    head = SKELETON + "\n" + "\n".join(rows) + "\n\n"
+    budget = GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE - OVERFLOW_LINE_RESERVE - len(head)
+    sections, hidden = [], 0
     for group in GROUPS:
         members = [f for f in files if f["group"] == group]
+        summary = f"{group}: {len(members)} file{'' if len(members) == 1 else 's'}, {count(members)}"
+        opening, closing = f"<details>\n<summary>{summary}</summary>\n\n", "\n\n</details>\n\n"
         if not members:
             continue
+        if len(opening) + len(closing) > budget:
+            hidden += len(members)
+            continue
+        budget -= len(opening) + len(closing)
         blocks = []
         for f in members:
-            heading = f"`{f['path']}` +{f['added']} -{f['removed']}"
-            if f["lock"]:
-                blocks.append(f"{heading}: lockfile, diff not shown")
+            short, full = file_block(base, f, audit)
+            shown = next((text for text in (full, short) if text is not None and len(text) + 2 <= budget), None)
+            if shown is None:
+                hidden += 1
                 continue
-            block = f"{heading}\n\n{fenced(git('diff', '--no-renames', base, 'HEAD', '--', f['path']))}"
-            if len(block) > budget:
-                blocks.append(f"{heading}: too large for the PR body, see Files changed")
-                continue
-            budget -= len(block)
-            blocks.append(block)
-        summary = f"{group}: {len(members)} file{'' if len(members) == 1 else 's'}, {count(members)}"
-        sections.append(f"<details>\n<summary>{summary}</summary>\n\n" + "\n\n".join(blocks) + "\n\n</details>")
-    return SKELETON + "\n" + "\n".join(rows) + "\n\n" + "\n\n".join(sections) + "\n"
+            budget -= len(shown) + 2
+            blocks.append(shown)
+        sections.append(opening + "\n\n".join(blocks) + closing)
+    overflow = f"{hidden} more files: see Files changed\n" if hidden else ""
+    return head + "".join(sections) + overflow
 
 
 def main():
     parser = argparse.ArgumentParser(description="Print the PR body skeleton with the diff grouped into code, tests and docs.")
     parser.add_argument("base", nargs="?", default="origin/HEAD")
     args = parser.parse_args()
-    os.chdir(git("rev-parse", "--show-toplevel").strip())
-    base = git("merge-base", args.base, "HEAD").strip()
-    sys.stdout.write(render(base, changes(base, load_audit())))
+    audit = load_audit()
+    os.chdir(audit.git("rev-parse", "--show-toplevel").strip())
+    base = audit.git("merge-base", args.base, "HEAD").strip()
+    sys.stdout.write(render(base, changes(base, audit), audit))
     return 0
 
 
