@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+import argparse
+import importlib.machinery
+import importlib.util
+import os
+import pathlib
+import re
+import subprocess
+import sys
+
+GITHUB_BODY_LIMIT = 65_536
+DIFF_BUDGET = GITHUB_BODY_LIMIT - 4_000
+GROUPS = ("Code", "Tests", "Docs")
+
+SECTIONS = (
+    ("Summary", "<What ships, for whom, and what changes for them, in two to four sentences. "
+                "A release lists each merged PR in one line.>"),
+    ("Review this", "- [ ] <file:line: the decision or risky hunk to double check, and why>"),
+    ("Blast Radius", "<Migrations, access grants, config, deploy order, every change a user will notice, "
+                     "and each manual production step with its date. Write \"None.\" when there is none.>"),
+    ("Verification", "- Ran: `<command>` <result>\n- Not run: <check>, because <why>"),
+)
+SKELETON = "Value: <kind> — <one sentence>\n\n" + "".join(
+    f"## {title}\n\n{placeholder}\n\n" for title, placeholder in SECTIONS) + "## Diff\n"
+
+
+def load_audit():
+    path = str(pathlib.Path(__file__).with_name("diff-audit"))
+    loader = importlib.machinery.SourceFileLoader("diff_audit", path)
+    module = importlib.util.module_from_spec(importlib.util.spec_from_loader("diff_audit", loader))
+    loader.exec_module(module)
+    return module
+
+
+def git(*args):
+    return subprocess.run(["git", *args], text=True, capture_output=True, check=True).stdout
+
+
+def group_of(path, audit):
+    if audit.TEST.search(path):
+        return "Tests"
+    if audit.DOC.search(path):
+        return "Docs"
+    return "Code"
+
+
+def fenced(text):
+    longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
+    fence = "`" * max(3, longest + 1)
+    return f"{fence}diff\n{text.rstrip()}\n{fence}"
+
+
+def changes(base, audit):
+    files = []
+    for line in git("diff", "--numstat", "--no-renames", base, "HEAD").splitlines():
+        added, removed, path = line.split("\t", 2)
+        files.append({"path": path, "added": added, "removed": removed, "group": group_of(path, audit),
+                      "lock": bool(audit.LOCK.search(path))})
+    return files
+
+
+def count(files):
+    added = sum(int(f["added"]) for f in files if f["added"] != "-")
+    removed = sum(int(f["removed"]) for f in files if f["removed"] != "-")
+    return f"+{added} -{removed}"
+
+
+def render(base, files):
+    rows = ["| Group | Files | Lines |", "|---|---|---|"]
+    for group in GROUPS:
+        members = [f for f in files if f["group"] == group]
+        rows.append(f"| {group} | {len(members)} | {count(members)} |")
+    sections, budget = [], DIFF_BUDGET
+    for group in GROUPS:
+        members = [f for f in files if f["group"] == group]
+        if not members:
+            continue
+        blocks = []
+        for f in members:
+            heading = f"`{f['path']}` +{f['added']} -{f['removed']}"
+            if f["lock"]:
+                blocks.append(f"{heading}: lockfile, diff not shown")
+                continue
+            block = f"{heading}\n\n{fenced(git('diff', '--no-renames', base, 'HEAD', '--', f['path']))}"
+            if len(block) > budget:
+                blocks.append(f"{heading}: too large for the PR body, see Files changed")
+                continue
+            budget -= len(block)
+            blocks.append(block)
+        summary = f"{group}: {len(members)} file{'' if len(members) == 1 else 's'}, {count(members)}"
+        sections.append(f"<details>\n<summary>{summary}</summary>\n\n" + "\n\n".join(blocks) + "\n\n</details>")
+    return SKELETON + "\n" + "\n".join(rows) + "\n\n" + "\n\n".join(sections) + "\n"
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Print the PR body skeleton with the diff grouped into code, tests and docs.")
+    parser.add_argument("base", nargs="?", default="origin/HEAD")
+    args = parser.parse_args()
+    os.chdir(git("rev-parse", "--show-toplevel").strip())
+    base = git("merge-base", args.base, "HEAD").strip()
+    sys.stdout.write(render(base, changes(base, load_audit())))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
