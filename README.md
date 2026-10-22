@@ -242,11 +242,12 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks protected-branch pushes and merges, force push, `--no-verify`, auto-merge, edits to hook files |
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
 | `hooks/edit-guard.py` | Claude Code | Blocks the first edit until `.pstack/status.md` has a value case, and an orchestrator that builds instead of delegating |
-| `hooks/agent-default-model.py` | Claude Code | Blocks `fork` subagents. Moves an Opus builder to Sonnet |
+| `hooks/agent-default-model.py` | Claude Code | Blocks `fork` subagents and editing subagents spawned with `isolation: "worktree"`. Moves an Opus builder to Sonnet |
+| `hooks/fix-rounds.py` | Claude Code | Blocks a 3rd `SendMessage` to one agent, so a 3rd fix round goes to a fresh builder. `fix-rounds: <to> <reason>` in `.pstack/status.md` lifts it |
 | `hooks/heavy-jobs.py` | Claude Code | Blocks polling loops and shell edits. Queues heavy jobs into 3 shared slots |
 | `hooks/lint-changed-lines.py` | All but Grok | Lints the JS and TS lines the agent just changed |
 | `hooks/compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through compaction |
-| `skills/pstack-local/scripts/mode-reminder` | Claude Code, Codex | Each prompt: read the method, write a value case. Flags "full stop" and "full send" |
+| `skills/pstack-local/scripts/mode-reminder` | Claude Code, Codex | Each prompt: read the method, write a value case. Flags "full stop", "full send" and a `.pstack/status.md` older than an hour |
 
 </details>
 

@@ -210,6 +210,25 @@ class NativeHookPayloadTests(unittest.TestCase):
                     got = None if output is None else (output["permissionDecision"], output.get("updatedInput", {}).get("model"))
                     self.assertEqual(got, expected)
 
+    def test_agent_model_denies_worktree_isolation_for_editing_agents_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            agents = pathlib.Path(directory) / ".claude/agents"
+            agents.mkdir(parents=True)
+            (agents / "poteto-agent.md").write_text("---\nname: poteto-agent\n---\n")
+            cases = [
+                ({"subagent_type": "poteto-agent", "isolation": "worktree"}, "deny"),
+                ({"subagent_type": "Explore", "isolation": "worktree"}, "allow"),
+                ({"subagent_type": "poteto-agent"}, "allow"),
+            ]
+            for tool_input, expected in cases:
+                with self.subTest(tool_input=tool_input):
+                    result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": tool_input}, directory)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    output = json.loads(result.stdout)["hookSpecificOutput"]
+                    self.assertEqual(output["permissionDecision"], expected)
+                    if expected == "deny":
+                        self.assertIn("git worktree add", output["permissionDecisionReason"])
+
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
         with tempfile.TemporaryDirectory() as directory:
             for key in ["tool_input", "toolInput"]:
@@ -249,6 +268,33 @@ class NativeHookPayloadTests(unittest.TestCase):
             context = json.loads(plain.stdout)["hookSpecificOutput"]["additionalContext"]
             self.assertNotIn("full-send", context)
             self.assertNotIn("full-stop", context)
+
+    def test_mode_reminder_flags_a_stale_status_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(os.path.realpath(directory))
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            status = root / ".pstack/status.md"
+            status.parent.mkdir()
+            status.write_text("Value: feature\n")
+            nested = root / "src"
+            nested.mkdir()
+            stale = "`.pstack/status.md` was last updated 90 minutes ago."
+
+            def context():
+                result = invoke(MODE_HOOK, {"prompt": "Where are we?", "cwd": str(nested)}, directory)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+
+            ninety_minutes_ago = time.time() - 90 * 60
+            os.utime(status, (ninety_minutes_ago, ninety_minutes_ago))
+            self.assertIn(stale, context())
+            os.utime(status)
+            self.assertNotIn("status.md", context())
+            status.unlink()
+            self.assertNotIn("status.md", context())
+            nowhere = invoke(MODE_HOOK, {"prompt": "Where are we?"}, directory)
+            self.assertEqual(nowhere.returncode, 0, nowhere.stderr)
+            self.assertIn("New engineering task", json.loads(nowhere.stdout)["hookSpecificOutput"]["additionalContext"])
 
     def test_heavy_jobs_blocks_sleep_polling_in_the_foreground_only(self):
         with tempfile.TemporaryDirectory() as directory:

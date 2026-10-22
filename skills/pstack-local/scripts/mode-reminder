@@ -2,7 +2,9 @@
 import json
 import os
 import re
+import subprocess
 import sys
+import time
 
 skills = os.path.expanduser("~/.agents/skills")
 mode = os.path.join(skills, "poteto-mode", "SKILL.md")
@@ -10,7 +12,8 @@ adapter = os.path.join(skills, "pstack-local", "SKILL.md")
 foundation = os.path.join(skills, "foundation", "SKILL.md")
 autonomy_phrase = re.compile(r"\bfull[\s-]+(send|stop)\b", re.IGNORECASE)
 
-prompt = json.load(sys.stdin)["prompt"]
+payload = json.load(sys.stdin)
+prompt = payload["prompt"]
 if prompt.lstrip().startswith("<task-notification>"):
     sys.exit(0)
 context = f"New engineering task: read {mode}, {adapter} and {foundation} once, and write the value case before the first edit."
@@ -20,4 +23,13 @@ for kind in sorted({match.lower() for match in autonomy_phrase.findall(prompt)})
         f"(~/.agents/skills/full-{kind}/SKILL.md) before any other step and follow it. "
         "If the phrase is only emphasis, ignore this."
     )
+STALE_MINUTES = 60
+directory = payload.get("cwd") or os.environ.get("PWD")
+if directory:
+    top = subprocess.run(["git", "-C", directory, "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    status = os.path.join(top.stdout.strip(), ".pstack", "status.md")
+    if top.returncode == 0 and os.path.isfile(status):
+        age = int((time.time() - os.path.getmtime(status)) // 60)
+        if age > STALE_MINUTES:
+            context += f" `.pstack/status.md` was last updated {age} minutes ago. Update it (done, next, blocked, Kolin asks) before you reply."
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context}}))
