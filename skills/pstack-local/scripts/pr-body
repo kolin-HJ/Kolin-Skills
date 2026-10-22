@@ -9,15 +9,13 @@ import sys
 
 GITHUB_BODY_LIMIT = 65_536
 FILLED_TEXT_RESERVE = 8_000
-OVERFLOW_LINE_RESERVE = 100
 GROUPS = ("Code", "Tests", "Docs")
 
 SECTIONS = (
     ("Summary", "<What ships, for whom, and what changes for them, in two to four sentences. "
                 "A release lists each merged PR in one line; PRs that cancel each other share one line.>"),
     ("Review this", "- [ ] <file:line: the decision or risky hunk to double check, and why>"),
-    ("Blast Radius", "<Migrations, access grants, config, deploy order, every change a user will notice, "
-                     "and each manual production step with its date. Write \"None.\" when there is none.>"),
+    ("Blast Radius", "<What this touches outside the diff (policy, Before a PR ships), or \"None.\">"),
     ("Verification", "- Ran: `<command>` <result>\n- Not run: <check>, because <why>"),
 )
 SKELETON = "Value: <kind> — <one sentence>\n\n" + "".join(
@@ -46,15 +44,22 @@ def fenced(text):
     return f"{fence}diff\n{text.rstrip()}\n{fence}"
 
 
+def files_label(n):
+    return f"{n} file{'' if n == 1 else 's'}"
+
+
 def changes(base, audit):
     files = []
     for record in audit.git("diff", "--numstat", "-z", "--no-renames", base, "HEAD").split("\0"):
         if not record:
             continue
         added, removed, path = record.split("\t", 2)
-        files.append({"path": path, "binary": added == "-", "added": 0 if added == "-" else int(added),
-                      "removed": 0 if removed == "-" else int(removed), "group": group_of(path, audit),
-                      "lock": bool(audit.LOCK.search(path))})
+        binary, lock = added == "-", bool(audit.LOCK.search(path))
+        heading = f"`{path}`" if binary else f"`{path}` +{added} -{removed}"
+        note = "binary" if binary else "lockfile" if lock else "diff not inlined, see Files changed"
+        files.append({"path": path, "added": 0 if binary else int(added), "removed": 0 if binary else int(removed),
+                      "group": group_of(path, audit), "lock": lock, "inline": not (binary or lock),
+                      "heading": heading, "text": f"{heading}: {note}"})
     return files
 
 
@@ -63,46 +68,37 @@ def count(files):
     return f"+{sum(f['added'] for f in counted)} -{sum(f['removed'] for f in counted)}"
 
 
-def file_block(base, f, audit):
-    heading = f"`{f['path']}` +{f['added']} -{f['removed']}"
-    if f["binary"]:
-        return f"`{f['path']}`: binary, diff not shown", None
-    if f["lock"]:
-        return f"{heading}: lockfile, diff not shown", None
-    diff = audit.git("diff", "--no-color", "--no-renames", base, "HEAD", "--", f["path"])
-    return f"{heading}: too large for the PR body, see Files changed", f"{heading}\n\n{fenced(diff)}"
+def fold(group, members, shown):
+    blocks = [f["text"] for f in shown]
+    if len(members) > len(shown):
+        blocks.append(f"Not shown: {files_label(len(members) - len(shown))}, see Files changed")
+    summary = f"{group}: {files_label(len(members))}, {count(members)}"
+    return f"<details>\n<summary>{summary}</summary>\n\n" + "\n\n".join(blocks) + "\n\n</details>\n\n"
 
 
 def render(base, files, audit):
-    rows = ["| Group | Files | Lines |", "|---|---|---|"]
-    for group in GROUPS:
-        members = [f for f in files if f["group"] == group]
-        rows.append(f"| {group} | {len(members)} | {count(members)} |")
+    groups = {group: [f for f in files if f["group"] == group] for group in GROUPS}
+    rows = ["| Group | Files | Lines |", "|---|---|---|"] + [
+        f"| {group} | {len(members)} | {count(members)} |" for group, members in groups.items()]
     head = SKELETON + "\n" + "\n".join(rows) + "\n\n"
-    budget = GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE - OVERFLOW_LINE_RESERVE - len(head)
-    sections, hidden = [], 0
-    for group in GROUPS:
-        members = [f for f in files if f["group"] == group]
-        summary = f"{group}: {len(members)} file{'' if len(members) == 1 else 's'}, {count(members)}"
-        opening, closing = f"<details>\n<summary>{summary}</summary>\n\n", "\n\n</details>\n\n"
-        if not members:
-            continue
-        if len(opening) + len(closing) > budget:
-            hidden += len(members)
-            continue
-        budget -= len(opening) + len(closing)
-        blocks = []
-        for f in members:
-            short, full = file_block(base, f, audit)
-            shown = next((text for text in (full, short) if text is not None and len(text) + 2 <= budget), None)
-            if shown is None:
-                hidden += 1
-                continue
-            budget -= len(shown) + 2
-            blocks.append(shown)
-        sections.append(opening + "\n\n".join(blocks) + closing)
-    overflow = f"{hidden} more files: see Files changed\n" if hidden else ""
-    return head + "".join(sections) + overflow
+    budget = GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE - len(head)
+    shown = {group: list(members) for group, members in groups.items() if members}
+
+    def body():
+        return "".join(fold(group, groups[group], shown[group]) for group in shown)
+
+    while len(body()) > budget:
+        shown[max(shown, key=lambda group: len(shown[group]))].pop()
+    spare = budget - len(body())
+    for f in (f for members in shown.values() for f in members if f["inline"]):
+        if spare <= len(f["heading"]):
+            break
+        diff = audit.git("--literal-pathspecs", "diff", "--no-color", "--no-renames", base, "HEAD", "--", f["path"])
+        full = f"{f['heading']}\n\n{fenced(diff)}"
+        if len(full) - len(f["text"]) <= spare:
+            spare -= len(full) - len(f["text"])
+            f["text"] = full
+    return head + body()
 
 
 def main():
