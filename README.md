@@ -78,10 +78,9 @@ Claude Code runs every guard. Codex runs the git and `.env` guards. Cursor runs 
 
 ## Install
 
-You need **git**, **`jq`**, **Python ≥ 3.9** and **Node ≥ 22.20**. Without `jq`, the git guard blocks every shell command. The repo is private, so you also need read access and git credentials that work with no prompt.
+You need **git**, **`jq`**, **Python ≥ 3.9** and **Node ≥ 22.20**. Without `jq`, the git guard blocks every shell command. The repo is public, so the clone needs no credentials.
 
 ```sh
-gh auth login && gh auth setup-git
 git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Kolin-Skills
 python3 ~/Kolin-Skills/bin/kolin-skills install
 ```
