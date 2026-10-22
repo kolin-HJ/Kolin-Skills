@@ -16,6 +16,8 @@ COSMETIC = {
     "quotes", "semi", "semi-spacing", "space-before-blocks",
     "space-before-function-paren", "space-infix-ops", "spaced-comment",
 }
+MID_EDIT_RULES = {"no-unused-vars", "jsx-no-undef"}
+OXLINT_IGNORED_FILE = "No files found to lint"
 MAX_REPORT = 12
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 PATCH_FILE = re.compile(r"^\*\*\* (?:Add|Update) File: (.+?)\s*$", re.M)
@@ -163,6 +165,8 @@ def oxlint_messages(path, root):
     run = subprocess.run(cmd + [path], cwd=root, capture_output=True, text=True, timeout=LINT_TIMEOUT_SECONDS)
     if run.returncode not in (0, 1):
         return [lint_did_not_run("oxlint", "exited {}".format(run.returncode), run.stderr or run.stdout)]
+    if run.returncode == 1 and OXLINT_IGNORED_FILE in run.stdout + run.stderr:
+        return []
     try:
         diagnostics = json.loads(run.stdout).get("diagnostics", [])
     except json.JSONDecodeError:
@@ -182,6 +186,10 @@ def oxlint_messages(path, root):
     return messages
 
 
+def bare_rule(rule_id):
+    return re.split(r"[/()]", rule_id.rstrip(")"))[-1]
+
+
 def report_for(path, cwd):
     messages = lint(path)
     if not messages:
@@ -190,6 +198,7 @@ def report_for(path, cwd):
     relevant = [
         m for m in messages
         if m["ruleId"] not in COSMETIC
+        and bare_rule(m["ruleId"]) not in MID_EDIT_RULES
         and (touched is None or m["line"] in touched or m["ruleId"] == "lint-did-not-run")
     ]
     if not relevant:
