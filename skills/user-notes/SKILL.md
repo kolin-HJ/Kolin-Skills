@@ -16,14 +16,18 @@ The release PR is the merged PR from the integration branch into the deploy bran
 
 ## Write
 
-Format, with the release PR's `mergedAt` date in Kolin's local time, for example "Oct 20":
+Kolin pastes the notes into Google Chat, so write Chat syntax, not Markdown: `*bold*`, `_italic_`, `•` bullets, no `#` headings and no `**`. Put the notes in one fenced block, with the release PR's `mergedAt` date in Kolin's local time, for example "Oct 20":
 
 ```
-## What's new, <Mon D>
+🚀 *What's new in <App>, <Mon D>*
 
-**<Page name>**
-- <One change, one line.>
+*<Page name>*
+• <One change, one line.>
+
+_Reload the tab to get the update._
 ```
+
+`<App>` is the app name users know, from the repo's `AGENTS.md`. The title emoji is Kolin's Chat style, an exception to `unslop`'s emoji rule. Keep the reload line only when users must reload to see the change; it is the one closing line the no-outro rule below allows.
 
 - Group by the page name the user sees in the app. Put the page with the biggest change first.
 - One bullet per change. One sentence, about 15 words or fewer. Two bullets per page is typical, three at most.
@@ -31,7 +35,7 @@ Format, with the release PR's `mergedAt` date in Kolin's local time, for example
 - No internal terms: no PR numbers, function names, table names, cache keys, crons, logs or env vars. No test or review numbers.
 - Keep a change only if a user can see it. Drop internal fixes, refactors, reliability work and gates.
 - A rename the user will notice gets its own bullet: "\"Pending\" is now \"On hold\"."
-- If a change needs the user to act, say the action: "Press **Submit** to save it."
+- If a change needs the user to act, say the action: "Press *Submit* to save it."
 - A date the user waits for gets the date: "The first one is Oct 25."
 - No intro, no outro, no "we're excited".
 
