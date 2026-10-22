@@ -117,6 +117,55 @@ class NativeHookPayloadTests(unittest.TestCase):
             self.assertEqual(many.stderr.count("Lint: 1 error on lines you changed in"), 4, many.stderr)
             self.assertIn("Not linted, so run the repo's lint for: e.ts.", many.stderr)
 
+    def lint_with_fake_linters(self, eslint_messages, oxlint_script):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "package.json").write_text("{}")
+            (root / ".oxlintrc.json").write_text("{}")
+            (root / "edited.ts").write_text("const value = 1;\n")
+            bin_dir = root / "node_modules/.bin"
+            bin_dir.mkdir(parents=True)
+            for name, script in (
+                ("eslint", f"print(json.dumps([{{'messages': {eslint_messages!r}}}]))\nsys.exit(1)\n"),
+                ("oxlint", oxlint_script),
+            ):
+                executable = bin_dir / name
+                executable.write_text(f"#!{sys.executable}\nimport json,sys\n{script}")
+                executable.chmod(0o755)
+            return invoke(LINT_HOOK, {"cwd": directory, "tool_input": {"file_path": "edited.ts"}}, directory)
+
+    def test_lint_stays_quiet_when_oxlint_ignores_the_edited_file(self):
+        result = self.lint_with_fake_linters(
+            [],
+            "print('No files found to lint. Please check your paths and ignore patterns.')\nsys.exit(1)\n",
+        )
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+
+    def test_lint_skips_rules_that_fire_mid_edit(self):
+        eslint_noise = [
+            {"ruleId": "@typescript-eslint/no-unused-vars", "severity": 2, "line": 1, "column": 7,
+             "message": "unused import"},
+            {"ruleId": "react/jsx-no-undef", "severity": 2, "line": 1, "column": 1, "message": "undefined tag"},
+        ]
+        oxlint_noise = [
+            {"code": "eslint(no-unused-vars)", "message": "unused var", "severity": "error",
+             "labels": [{"span": {"line": 1, "column": 7}}]},
+            {"code": "react(jsx-no-undef)", "message": "undefined tag", "severity": "error",
+             "labels": [{"span": {"line": 1, "column": 1}}]},
+        ]
+        real = {"code": "eslint(no-restricted-syntax)", "message": "banned syntax", "severity": "error",
+                "labels": [{"span": {"line": 1, "column": 1}}]}
+        quiet = self.lint_with_fake_linters(
+            eslint_noise, f"print(json.dumps({{'diagnostics': {oxlint_noise!r}}}))\nsys.exit(1)\n")
+        blocked = self.lint_with_fake_linters(
+            eslint_noise, f"print(json.dumps({{'diagnostics': {oxlint_noise + [real]!r}}}))\nsys.exit(1)\n")
+        self.assertEqual((quiet.returncode, quiet.stdout, quiet.stderr), (0, "", ""))
+        self.assertEqual(blocked.returncode, 2, blocked.stderr)
+        self.assertIn("Lint: 1 error on lines you changed in edited.ts", blocked.stderr)
+        self.assertIn("(eslint(no-restricted-syntax))", blocked.stderr)
+        self.assertNotIn("no-unused-vars)", blocked.stderr)
+        self.assertNotIn("jsx-no-undef", blocked.stderr)
+
     def test_agent_model_runs_builders_on_sonnet_and_denies_fork(self):
         with tempfile.TemporaryDirectory() as directory:
             agents = pathlib.Path(directory) / ".claude/agents"
