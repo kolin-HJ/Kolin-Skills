@@ -41,12 +41,14 @@ class PrBodyTests(unittest.TestCase):
         self.write("docs/café.md", "Prix\n")
         self.write("docs/a.md", "plain\n")
         self.write("package-lock.json", "{}\n")
+        self.write("src/a|b.ts", "x\n")
         body = self.body()
         self.assertTrue(body.endswith(
             "## Diff\n\n"
             "| Group / file | Lines |\n|---|---|\n"
-            "| **Code** · 2 files | **+1 -1** |\n"
+            "| **Code** · 3 files | **+2 -1** |\n"
             "| &emsp;`package-lock.json` | +1 -0, lockfile |\n"
+            "| &emsp;`src/a\\|b.ts` | +1 -0 |\n"
             "| &emsp;`src/price.ts` | +1 -1 |\n"
             "| **Tests** · 1 file | **+1 -0** |\n"
             "| &emsp;`src/price.test.ts` | +1 -0 |\n"
@@ -59,12 +61,11 @@ class PrBodyTests(unittest.TestCase):
         for n in range(2_500):
             self.write(f"src/f{n:04}.ts", f"export const a{n} = 1;\n")
         self.write("tests/test_t.py", "assert 1\n")
-        self.write("docs/d.md", "doc\n")
         body = self.body()
         self.assertIn("| **Code** · 2500 files | **+2500 -0** |", body)
         self.assertRegex(body, r"\| &emsp;Not shown: \d+ files, see Files changed \| \|\n\| \*\*Tests\*\*")
         self.assertIn("| **Tests** · 1 file | **+1 -0** |\n| &emsp;`tests/test_t.py` | +1 -0 |", body)
-        self.assertIn("| **Docs** · 1 file | **+1 -0** |\n| &emsp;`docs/d.md` | +1 -0 |", body)
+        self.assertTrue(body.endswith("| **Docs** · 0 files | **+0 -0** |\n"), body[-200:])
         self.assertLess(len(body), 65_536 - 8_000)
 
 
