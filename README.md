@@ -134,7 +134,7 @@ To change a rule, edit it here on a work branch and open a PR. Each machine take
 policy/AGENTS.md             global policy → points to foundation
 skills/
   foundation/                CORE: first principles, think with Kolin, flow, check points, bars (references/ui-bar.md)
-  pstack-local/              CORE: pstack adapter, models.md, scripts/diff-audit
+  pstack-local/              CORE: pstack adapter, models.md, scripts/diff-audit, scripts/pr-body
   gap-audit/                 PROCESS: legacy repo → ranked gaps → small steps → re-audit to zero
   loop-refactor-to-pstack/   PROCESS: whole-repo program on one branch
   full-stop/, full-send/     PROCESS: approval shortcuts
