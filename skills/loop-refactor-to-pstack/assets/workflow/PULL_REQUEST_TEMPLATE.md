@@ -1,8 +1,6 @@
-## Why
+## Summary
 
-## Scope
-
-## Tradeoffs
+## Review this
 
 ## Blast Radius
 
@@ -12,3 +10,7 @@
 <!-- - Ran: `pnpm -s verify goto /demand/demand-plan` 200, the checked placeholder row shows; evidence `.verify/evidence/demand-plan/placeholder.png` -->
 <!-- - Ran: `pnpm check` every gate passes -->
 <!-- - Not run: verify on the weekly grid, because <why> -->
+
+## Diff
+
+<!-- Paste the ## Diff section that ~/.agents/skills/pstack-local/scripts/pr-body <base> prints. -->

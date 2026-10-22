@@ -48,7 +48,7 @@ The global policy (`policy/AGENTS.md`) lists the rules that override pstack (App
 
 - **Autonomy and Opening a PR** act without asking in pstack. Here a commit, push or PR on a work branch needs no ask; a merge or deploy does (policy, Approvals). Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask. `autopilot-full` is not used.
 - **External writes** (chat, tickets) wait for a yes unless the repo's `AGENTS.md` allows them.
-- **PR title and body** use the repo's template. pstack's Why, Scope, Tradeoffs, Blast Radius and Verification sections fill in only where the repo has none.
+- **PR title and body** use the repo's template. Where the repo has none, start from `scripts/pr-body <base>` (policy, Before a PR ships) in place of pstack's Why, Scope and Tradeoffs.
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Tests and proof. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
 - **Feature, Bug fix and Refactoring** start with the AGENTS.md value case. **Opening a PR** runs `scripts/diff-audit <base>` first.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a gate directive with `-- <reason>`.
