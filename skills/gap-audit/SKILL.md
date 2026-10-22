@@ -41,10 +41,12 @@ Stop here and send the report unless the user already asked you to close the gap
 
 ## 3. Close (one gap per step)
 
+- Before the first step, send the decision bundle and wait for its answers, including scope Kolin may cut (UI, CI). Do not prototype an option he has not picked. List the open PRs (`gh pr list`) and fold or avoid any that touch the same files.
 - Gates first: add the missing gate, seed it at today's count, prove it flags one case and passes one.
 - Then drive counts down, a codemod first (`principle-build-the-lever`), then small lanes. Each step is one verified commit-sized change on a branch; commit and push it under the policy's Approvals rule.
 - Each repeated mistake found becomes a rule through `correct`.
-- After each step, rerun the audit rows the step touched and update the report: counts before and after, the next step.
+- After each step and before the next one starts, rerun the audit rows the step touched and update the report: counts before and after, the next step. Never defer the re-audit to a final wave.
+- After each step, write the resume point to `.pstack/status.md`, so a session limit loses no work.
 
 ## 4. Done
 
