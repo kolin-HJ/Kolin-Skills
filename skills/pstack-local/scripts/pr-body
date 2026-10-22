@@ -90,14 +90,15 @@ def render(base, files, audit):
     while len(body()) > budget:
         shown[max(shown, key=lambda group: len(shown[group]))].pop()
     spare = budget - len(body())
-    for f in (f for members in shown.values() for f in members if f["inline"]):
-        if spare <= len(f["heading"]):
-            break
+    inline = sorted((f for members in shown.values() for f in members if f["inline"]),
+                    key=lambda f: f["added"] + f["removed"])
+    for f in inline:
         diff = audit.git("--literal-pathspecs", "diff", "--no-color", "--no-renames", base, "HEAD", "--", f["path"])
         full = f"{f['heading']}\n\n{fenced(diff)}"
-        if len(full) - len(f["text"]) <= spare:
-            spare -= len(full) - len(f["text"])
-            f["text"] = full
+        if len(full) - len(f["text"]) > spare:
+            break
+        spare -= len(full) - len(f["text"])
+        f["text"] = full
     return head + body()
 
 
