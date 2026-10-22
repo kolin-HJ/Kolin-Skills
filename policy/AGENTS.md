@@ -88,10 +88,11 @@ Done means proven on the real artifact (`principle-prove-it-works`). Run the rep
 
 ## Before a PR ships
 
-Start the body from `~/.agents/skills/pstack-local/scripts/pr-body <base>`: `Value:`, `## Summary`, `## Review this`, `## Blast Radius`, `## Verification`, and a `## Diff` it fills, folded by code, tests and docs. Replace each `<placeholder>`. Where the repo's template differs, follow the repo.
+Start the body from `~/.agents/skills/pstack-local/scripts/pr-body <base>`. It fills `## Diff`, folded by code, tests and docs; you replace each `<placeholder>` above it. Where the repo's template differs, follow the repo.
 
 - `## Review this` is the reviewer's checklist: each decision, risky hunk or manual check, with `file:line` and why.
-- A release says which pages were driven and which saves were not. PRs that cancel each other merge into one line.
+- `## Blast Radius` names migrations, access grants, config, deploy order, each change a user will notice, and a manual production step with its date.
+- `## Verification` has one line per check: `Ran:` or `Not run: <check>, because <why>`. A release says which pages were driven and which saves were not.
 - Mark docs, tests, lockfiles, agent tooling and scripts `linguist-generated=true` in `.gitattributes`, so app code shows first.
 - A hand edit in a shared account (an ERP, a live dashboard) ships with a PR that brings the repo in line.
 

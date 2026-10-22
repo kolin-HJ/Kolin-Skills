@@ -38,14 +38,16 @@ class PrBodyTests(unittest.TestCase):
         self.write("src/price.ts", "export const price = 2;\n")
         self.write("src/price.test.ts", "it('prices', () => {});\n")
         self.write("README.md", "Run it with `pr-body`.\n```sh\npr-body main\n```\n")
+        self.write("docs/café.md", "Prix\n")
         self.write("package-lock.json", "{}\n")
         body = self.body()
-        self.assertIn("| Code | 2 | +2 -1 |\n| Tests | 1 | +1 -0 |\n| Docs | 1 | +4 -0 |", body)
-        self.assertIn("<summary>Code: 2 files, +2 -1</summary>", body)
+        self.assertIn("| Code | 2 | +1 -1 |\n| Tests | 1 | +1 -0 |\n| Docs | 2 | +5 -0 |", body)
+        self.assertIn("<summary>Code: 2 files, +1 -1</summary>", body)
         self.assertIn("`package-lock.json` +1 -0: lockfile, diff not shown", body)
         self.assertIn("-export const price = 1;\n+export const price = 2;", body)
         self.assertIn("````diff\n", body)
-        self.assertIn("## Review this", body)
+        self.assertIn("`docs/café.md` +1 -0\n\n```diff\n", body)
+        self.assertIn("+Prix", body)
 
     def test_a_diff_past_the_github_limit_is_named_but_not_inlined(self):
         self.write("src/small.ts", "export const small = 1;\n")
@@ -53,7 +55,14 @@ class PrBodyTests(unittest.TestCase):
         body = self.body()
         self.assertIn("`src/huge.ts` +5000 -0: too large for the PR body, see Files changed", body)
         self.assertIn("+export const small = 1;", body)
-        self.assertLess(len(body), 65_536)
+        self.assertLess(len(body), 65_536 - 8_000)
+
+    def test_many_small_files_stay_under_the_github_limit(self):
+        for n in range(800):
+            self.write(f"src/f{n:03}.ts", f"export const a{n} = 1;\nexport const b{n} = 2;\nexport const c{n} = 3;\n")
+        body = self.body()
+        self.assertRegex(body, r"\n\d+ more files: see Files changed\n$")
+        self.assertLess(len(body), 65_536 - 8_000)
 
 
 if __name__ == "__main__":
