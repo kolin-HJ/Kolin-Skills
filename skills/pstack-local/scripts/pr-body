@@ -49,8 +49,9 @@ def changes(base, audit):
         added, removed, path = record.split("\t", 2)
         binary, lock = added == "-", bool(audit.LOCK.search(path))
         lines = "binary" if binary else f"+{added} -{removed}" + (", lockfile" if lock else "")
+        cell = path.replace("|", "\\|")
         files.append({"added": 0 if binary else int(added), "removed": 0 if binary else int(removed),
-                      "group": group_of(path, audit), "lock": lock, "line": f"- `{path}` {lines}"})
+                      "group": group_of(path, audit), "lock": lock, "row": f"| &emsp;`{cell}` | {lines} |"})
     return files
 
 
@@ -59,28 +60,27 @@ def count(files):
     return f"+{sum(f['added'] for f in counted)} -{sum(f['removed'] for f in counted)}"
 
 
-def fold(group, members, shown):
-    lines = [f["line"] for f in shown]
+def group_rows(group, members, shown):
+    rows = [f"| **{group}** · {files_label(len(members))} | **{count(members)}** |"] + [f["row"] for f in shown]
     if len(members) > len(shown):
-        lines.append(f"- Not shown: {files_label(len(members) - len(shown))}, see Files changed")
-    summary = f"{group}: {files_label(len(members))}, {count(members)}"
-    return f"<details>\n<summary>{summary}</summary>\n\n" + "\n".join(lines) + "\n\n</details>\n\n"
+        rows.append(f"| &emsp;Not shown: {files_label(len(members) - len(shown))}, see Files changed | |")
+    return rows
 
 
 def render(files):
     groups = {group: [f for f in files if f["group"] == group] for group in GROUPS}
-    rows = ["| Group | Files | Lines |", "|---|---|---|"] + [
-        f"| {group} | {len(members)} | {count(members)} |" for group, members in groups.items()]
-    head = SKELETON + "\n" + "\n".join(rows) + "\n\n"
-    budget = GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE - len(head)
-    shown = {group: list(members) for group, members in groups.items() if members}
+    shown = {group: list(members) for group, members in groups.items()}
+    budget = GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE - len(SKELETON)
 
-    def body():
-        return "".join(fold(group, groups[group], shown[group]) for group in shown)
+    def table():
+        rows = ["| Group / file | Lines |", "|---|---|"]
+        for group, members in groups.items():
+            rows += group_rows(group, members, shown[group])
+        return "\n" + "\n".join(rows) + "\n"
 
-    while len(body()) > budget:
+    while len(table()) > budget:
         shown[max(shown, key=lambda group: len(shown[group]))].pop()
-    return head + body()
+    return SKELETON + table()
 
 
 def main():
