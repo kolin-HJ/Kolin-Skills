@@ -85,6 +85,52 @@ class HeavyJobsGuardTests(unittest.TestCase):
                 result = invoke(HEAVY_HOOK, {"command": command})
                 self.assertEqual((result.returncode, result.stderr), (0, ""))
 
+    def test_scratch_context_follows_cd_and_scratch_variables(self):
+        blocked = [
+            "cd /tmp && cd /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
+            "X=$(pwd); cat > $X/a.ts <<'EOF'\nx\nEOF",
+            "cd src && python3 - <<'EOF'\nopen(\"a.ts\",\"w\")\nEOF",
+            "cat > ../.scratch/x <<'EOF'\nx\nEOF",
+            "cd /tmp/x && cd - && cat > a.ts <<'EOF'\nx\nEOF",
+            "cd /tmp/x && cd -P /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
+            "cd /tmp/x && cd -- /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
+            "cd /tmp/x && cat > `echo /Users/x/repo/a.ts` <<'EOF'\nx\nEOF",
+            "cd /tmp/x && pushd /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
+            "cd /tmp/x && (cd /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF\n)",
+            "cd /tmp/x && { cd /Users/x/repo; cat > a.ts <<'EOF'\nx\nEOF\n}",
+            "cd /tmp/x && FOO=1 cd /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
+            "cd /tmp/x && builtin cd /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
+            "B=$(mktemp -d); export B=/Users/x/repo; cat > $B/a.ts <<'EOF'\nx\nEOF",
+            "B=$(mktemp -d); for B in /Users/x/repo; do cat > $B/a.ts <<'EOF'\nx\nEOF\ndone",
+            "B=$(mktemp -d); read B <<< /Users/x/repo; cat > $B/a.ts <<'EOF'\nx\nEOF",
+            "if cat > src/a.ts <<'EOF'\nx\nEOF\nthen true; fi",
+            "if false; then true; elif cat > src/a.ts <<'EOF'\nx\nEOF\nthen true; fi",
+            "while cat > src/a.ts <<'EOF'\nx\nEOF\ndo break; done",
+            "until cat > src/a.ts <<'EOF'\nx\nEOF\ndo break; done",
+            "time cat > src/a.ts <<'EOF'\nx\nEOF",
+            "cd /tmp/nope; cat > src/a.ts <<'EOF'\nx\nEOF",
+            "cd /tmp/x & cat > a.ts <<'EOF'\nx\nEOF",
+            "cd /tmp/x && python3 - <<'EOF'\nimport os\nos.chdir('/Users/x/repo')\nopen('a.ts','w')\nEOF",
+        ]
+        allowed = [
+            "cd /tmp/sp && cat > hook_orig.sql <<'EOF'\nselect 1;\nEOF",
+            "B=$(mktemp -d)/body.md; cat > $B <<'EOF'\nbody\nEOF",
+            "D=$(mktemp -d /tmp/f8rev.XXXX) && cat > \"$D/notes.md\" <<'EOF'\nx\nEOF",
+            "T=$(mktemp -d); cd $T && printf x > out.txt",
+            "cd /Users/x/repo/.scratch/supabase-audit && cat > pr-realtime.md <<'EOF'\nx\nEOF",
+            "cat > .scratch/probe.sh <<'EOF'\nx\nEOF",
+            "cd /tmp/ksaudit && python3 - <<'EOF'\nopen(\"mine.py\",\"w\").write(\"x\")\nEOF",
+        ]
+        for command in blocked:
+            with self.subTest(blocked=command):
+                result = invoke(HEAVY_HOOK, {"command": command})
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("Edit or Write tool", result.stderr)
+        for command in allowed:
+            with self.subTest(allowed=command):
+                result = invoke(HEAVY_HOOK, {"command": command})
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+
     def test_git_push_takes_a_slot_and_gate_output_is_never_filtered(self):
         prefix_pattern = re.compile(r"^python3 \S+heavy-slot\.py \$\$ \d+\n")
         push = updated_input(invoke(HEAVY_HOOK, {"command": "git push origin feature"}))

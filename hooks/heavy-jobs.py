@@ -4,6 +4,7 @@ import pathlib
 import re
 import shlex
 import sys
+from dataclasses import dataclass, field
 
 
 SLOT = pathlib.Path.home() / ".kolin-skills/bin/heavy-slot.py"
@@ -35,7 +36,16 @@ UNQUOTED_GLOB = re.compile(
 )
 SEGMENT = re.compile(r"(?:\"[^\"]*\"|'[^']*'|[^;&|\n\"'])+")
 TOKEN = re.compile(r"(?:\"[^\"]*\"|'[^']*'|\S)+")
-SCRATCH_PATH = re.compile(r"^(?:/tmp/|/private/tmp/|\$TMPDIR/|\$\{TMPDIR\}/|/dev/null$)|(?:^|/)\.pstack/")
+SCRATCH_PATH = re.compile(r"^(?:/tmp/|/private/tmp/|\$TMPDIR/|\$\{TMPDIR\}/|/dev/null$)|(?:^|/)\.(?:pstack|scratch)/")
+ASSIGNMENT = re.compile(r"^\s*(\w+)=(.*)$", re.DOTALL)
+SCRATCH_VALUE = re.compile(
+    r"^(?:\$\(\s*mktemp\b(?:\s+-\w+)*(?:\s+(?:/tmp/|/private/tmp/|\$TMPDIR/)[^\s)]*)?\s*\)(?:/\S*)?"
+    r"|(?:/tmp|/private/tmp)/\S*)$"
+)
+PLAIN_RELATIVE = re.compile(r"^[\w.][\w./-]*$")
+DIRECTORY_WORD = re.compile(r"(?<![\w-])(?:cd|pushd|popd)(?![\w-])")
+SHELL_KEYWORDS = ("do", "then", "else", "elif", "if", "while", "until", "time", "{", "!")
+VARIABLE_PATH = re.compile(r"^\$(?:\{(\w+)\}|(\w+))(?:/|$)")
 HEREDOC_SCRIPT = re.compile(
     COMMAND_START + r"(?:python3?|node)\b[^\n<;&|]*<<-?\s*(['\"]?)(\w+)\1[^\n]*\n(.*?)^[ \t]*\2[ \t]*$",
     re.DOTALL | re.MULTILINE,
@@ -59,7 +69,7 @@ POLL_MESSAGE = (
 )
 SHELL_EDIT_MESSAGE = (
     "Blocked: edit files with the Edit or Write tool, so the lint hook sees each change and the diff is readable. "
-    "Scratch output may go under /tmp or .pstack/."
+    "Scratch output may go under /tmp, .pstack/ or .scratch/."
 )
 FILTERED_GATE_MESSAGE = (
     "Blocked: do not filter gate output; a failure line can hide. Run it plain; the harness saves long output "
@@ -86,6 +96,49 @@ def is_scratch(path: str) -> bool:
     return ".." not in path.split("/") and bool(SCRATCH_PATH.search(path))
 
 
+@dataclass
+class ScratchContext:
+    in_scratch_dir: bool = False
+    scratch_names: set = field(default_factory=set)
+
+    def accepts(self, path: str) -> bool:
+        path = path.strip("'\"")
+        if is_scratch(path):
+            return True
+        if not path or ".." in path.split("/"):
+            return False
+        variable = VARIABLE_PATH.match(path)
+        if variable:
+            return (variable.group(1) or variable.group(2)) in self.scratch_names
+        return self.in_scratch_dir and bool(PLAIN_RELATIVE.match(path))
+
+    def enters_scratch_dir(self, segment: str, followed_by_and: bool) -> bool:
+        tokens = TOKEN.findall(segment)
+        return (
+            followed_by_and
+            and len(tokens) == 2
+            and tokens[0] == "cd"
+            and self.accepts(tokens[1].strip("'\"").rstrip("/") + "/")
+        )
+
+    def track(self, segment: str, followed_by_and: bool) -> None:
+        if DIRECTORY_WORD.search(segment):
+            self.in_scratch_dir = self.enters_scratch_dir(segment, followed_by_and)
+            if self.in_scratch_dir:
+                return
+        assignment = ASSIGNMENT.match(segment)
+        if assignment:
+            name, value = assignment.group(1), assignment.group(2).strip()
+            if SCRATCH_VALUE.match(value) and ".." not in value:
+                self.scratch_names.add(name)
+            else:
+                self.scratch_names.discard(name)
+            return
+        self.scratch_names = {
+            name for name in self.scratch_names if not re.search(rf"(?<![\w${{]){re.escape(name)}(?!\w)", segment)
+        }
+
+
 def write_targets(script: str):
     for match in PY_WRITE_TEXT.finditer(script):
         receiver = PY_PATH_RECEIVER.search(script[:match.start()])
@@ -97,8 +150,8 @@ def write_targets(script: str):
         yield literal.group(2) if literal else None
 
 
-def writes_outside_scratch(script: str) -> bool:
-    return any(target is None or not is_scratch(target) for target in write_targets(script))
+def writes_outside_scratch(script: str, context: ScratchContext) -> bool:
+    return any(target is None or not context.accepts(target) for target in write_targets(script))
 
 
 def redirect_targets(tokens):
@@ -113,8 +166,8 @@ def operands(tokens):
     return [token for token in tokens if not token.startswith(("-", ">"))]
 
 
-def segment_edits_outside_scratch(tokens) -> bool:
-    while tokens and re.match(r"^\w+=", tokens[0]):
+def segment_edits_outside_scratch(tokens, context: ScratchContext) -> bool:
+    while tokens and (tokens[0] in SHELL_KEYWORDS or re.match(r"^\w+=", tokens[0])):
         tokens = tokens[1:]
     if not tokens:
         return False
@@ -125,15 +178,15 @@ def segment_edits_outside_scratch(tokens) -> bool:
         files = operands(args)[-1:]
     elif command in ("cat", "echo", "printf"):
         files = list(redirect_targets(args))
-        return not all(is_scratch(path.strip("'\"")) for path in files)
+        return not all(context.accepts(path) for path in files)
     elif command == "tee":
         files = operands(args)
     elif command in INLINE_FLAG and INLINE_FLAG[command] in args:
         script = args[args.index(INLINE_FLAG[command]) + 1:][:1]
-        return any(writes_outside_scratch(item) for item in script)
+        return any(writes_outside_scratch(item, context) for item in script)
     else:
         return False
-    return not files or not all(is_scratch(path.strip("'\"")) for path in files)
+    return not files or not all(context.accepts(path) for path in files)
 
 
 def heredoc_header_tail(match) -> str:
@@ -141,13 +194,34 @@ def heredoc_header_tail(match) -> str:
     return " " + text[HEREDOC_OPENER.match(text).end():].split("\n", 1)[0]
 
 
-def edits_files_from_shell(command: str) -> bool:
-    if any(writes_outside_scratch(match.group(3)) for match in HEREDOC_SCRIPT.finditer(command)):
-        return True
+def tracked_segments(command: str):
     bare = HEREDOC.sub(heredoc_header_tail, command)
+    context = ScratchContext()
+    for segment in SEGMENT.finditer(bare):
+        context.track(segment.group(0), bare.startswith("&&", segment.end()))
+        yield segment.group(0), context
+
+
+def context_before(command: str, start: int) -> ScratchContext:
+    end = start + 1 if command[start:start + 1] in (";", "&", "|", "(", "\n") else start
+    context = ScratchContext()
+    for _, context in tracked_segments(command[:end]):
+        pass
+    return context
+
+
+def heredoc_script_edits_outside_scratch(command: str, match) -> bool:
+    script = match.group(3)
+    context = ScratchContext() if "chdir" in script else context_before(command, match.start())
+    return writes_outside_scratch(script, context)
+
+
+def edits_files_from_shell(command: str) -> bool:
+    if any(heredoc_script_edits_outside_scratch(command, match) for match in HEREDOC_SCRIPT.finditer(command)):
+        return True
     return any(
-        segment_edits_outside_scratch(TOKEN.findall(segment.group(0)))
-        for segment in SEGMENT.finditer(bare)
+        segment_edits_outside_scratch(TOKEN.findall(text), context)
+        for text, context in tracked_segments(command)
     )
 
 
