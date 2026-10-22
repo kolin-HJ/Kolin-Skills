@@ -190,7 +190,7 @@ def run_hook(command, cwd, env=None):
 def run_file_hook(path, cwd, key="tool_input"):
     payload = {key: {"file_path": path}, "cwd": cwd}
     return subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
-                          capture_output=True, cwd=cwd, timeout=20)
+                          capture_output=True, cwd=cwd, env={**os.environ, "HOME": cwd}, timeout=20)
 
 
 class ForbiddenGitHookTests(unittest.TestCase):
