@@ -3,6 +3,7 @@ import json
 import pathlib
 import re
 import shlex
+import subprocess
 import sys
 from dataclasses import dataclass, field
 
@@ -99,6 +100,19 @@ def is_scratch(path: str) -> bool:
     return ".." not in path.split("/") and bool(SCRATCH_PATH.search(path))
 
 
+def outside_any_work_tree(path: str) -> bool:
+    if not path.startswith(("/", "~")):
+        return False
+    target = pathlib.Path(path).expanduser().resolve()
+    parent = target if path.endswith("/") else target.parent
+    while not parent.exists():
+        parent = parent.parent
+    probe = subprocess.run(
+        ["git", "-C", str(parent), "rev-parse", "--is-inside-work-tree"], capture_output=True, text=True
+    )
+    return probe.returncode != 0
+
+
 @dataclass
 class ScratchContext:
     in_scratch_dir: bool = False
@@ -114,6 +128,12 @@ class ScratchContext:
         if variable:
             return (variable.group(1) or variable.group(2)) in self.scratch_names
         return self.in_scratch_dir and bool(PLAIN_RELATIVE.match(path))
+
+    def accepts_write(self, path: str) -> bool:
+        if self.accepts(path):
+            return True
+        path = path.strip("'\"")
+        return ".." not in path.split("/") and outside_any_work_tree(path)
 
     def enters_scratch_dir(self, segment: str, followed_by_and: bool) -> bool:
         tokens = TOKEN.findall(segment)
@@ -154,7 +174,7 @@ def write_targets(script: str):
 
 
 def writes_outside_scratch(script: str, context: ScratchContext) -> bool:
-    return any(target is None or not context.accepts(target) for target in write_targets(script))
+    return any(target is None or not context.accepts_write(target) for target in write_targets(script))
 
 
 def redirect_targets(tokens):
@@ -181,7 +201,7 @@ def segment_edits_outside_scratch(tokens, context: ScratchContext) -> bool:
         files = operands(args)[-1:]
     elif command in ("cat", "echo", "printf"):
         files = list(redirect_targets(args))
-        return not all(context.accepts(path) for path in files)
+        return not all(context.accepts_write(path) for path in files)
     elif command == "tee":
         files = operands(args)
     elif command in INLINE_FLAG and INLINE_FLAG[command] in args:
@@ -189,7 +209,7 @@ def segment_edits_outside_scratch(tokens, context: ScratchContext) -> bool:
         return any(writes_outside_scratch(item, context) for item in script)
     else:
         return False
-    return not files or not all(context.accepts(path) for path in files)
+    return not files or not all(context.accepts_write(path) for path in files)
 
 
 def heredoc_header_tail(match) -> str:

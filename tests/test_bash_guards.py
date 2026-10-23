@@ -85,9 +85,34 @@ class HeavyJobsGuardTests(unittest.TestCase):
                 result = invoke(HEAVY_HOOK, {"command": command})
                 self.assertEqual((result.returncode, result.stderr), (0, ""))
 
+    def test_shell_append_is_allowed_outside_any_git_work_tree_and_denied_inside(self):
+        with tempfile.TemporaryDirectory() as plain, tempfile.TemporaryDirectory() as repo:
+            subprocess.run(["git", "init", "-q", repo], check=True)
+            pathlib.Path(plain, "linked.md").symlink_to(pathlib.Path(repo, "tracked.md"))
+            allowed = [
+                f"echo '- [x](x.md)' >> {plain}/MEMORY.md",
+                f"echo x >> {plain}/new/dir/MEMORY.md",
+            ]
+            blocked = [
+                f"echo '- [x](x.md)' >> {repo}/MEMORY.md",
+                f"cd {repo} && printf '- x' >> MEMORY.md",
+                f"echo x >> {repo}/new/dir/MEMORY.md",
+                f"echo x >> {plain}/linked.md",
+                f"cd {pathlib.Path(repo).parent} && echo x >> {pathlib.Path(repo).name}/a.md",
+                f"cd {pathlib.Path(repo).parent} && sed -i 's/a/b/' {pathlib.Path(repo).name}/a.md",
+            ]
+            for command in allowed:
+                with self.subTest(allowed=command):
+                    result = invoke(HEAVY_HOOK, {"command": command})
+                    self.assertEqual((result.returncode, result.stderr), (0, ""))
+            for command in blocked:
+                with self.subTest(blocked=command):
+                    result = invoke(HEAVY_HOOK, {"command": command})
+                    self.assertEqual(result.returncode, 2, result.stdout)
+
     def test_scratch_context_follows_cd_and_scratch_variables(self):
         blocked = [
-            "cd /tmp && cd /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
+            f"cd /tmp && cd {REPO} && cat > a.ts <<'EOF'\nx\nEOF",
             "X=$(pwd); cat > $X/a.ts <<'EOF'\nx\nEOF",
             "cd src && python3 - <<'EOF'\nopen(\"a.ts\",\"w\")\nEOF",
             "cat > ../.scratch/x <<'EOF'\nx\nEOF",

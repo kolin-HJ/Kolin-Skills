@@ -4,11 +4,11 @@ The one policy file for every harness. The Kolin-Skills repo owns it and every g
 
 Agents do most of the coding, so judge every choice by whether an agent with little context gets it right first try.
 
-Precedence, highest first: my instructions in the session, this file, the repo's `AGENTS.md`, then pstack. Use the repo file for project facts: commands, paths, domain terms. On a conflict this file wins; say which rule you followed.
+Precedence, highest first: my instructions in the session, this file, the repo's `AGENTS.md`, then pstack. Use the repo file for project facts: commands, paths, domain terms. On a conflict, say which rule you followed.
 
 ## pstack is the method
 
-Engineering work runs on Lauren Tan's pstack. At the start, the main session reads `~/.agents/skills/poteto-mode/SKILL.md`, `pstack-local/SKILL.md` and `foundation/SKILL.md` (the root: flow, checkpoints, bars; `gap-audit` for a legacy repo), then follows the matching playbook. A subagent reads only what its brief names. Lean on `architect` and `correct`. Skip it for a casual turn or when I opt out.
+Engineering work runs on Lauren Tan's pstack. At the start, the main session reads `~/.agents/skills/poteto-mode/SKILL.md`, `pstack-local/SKILL.md` and `foundation/SKILL.md`, then follows the matching playbook. A subagent reads only what its brief names. Lean on `architect` and `correct`. Skip it for a casual turn or when I opt out.
 
 pstack owns the method: the playbooks, the `principle-*` skills and the rest. This file holds only what pstack lacks or what I set differently. Point to a skill; never copy it.
 
@@ -136,3 +136,4 @@ Each repo has one instruction file, `AGENTS.md` at the root, with no `CLAUDE.md`
 ## Harness
 
 - In Claude Code, use Plan Mode for multi-file or uncertain work.
+- In Claude Code, edit repo files with Edit or Write, not the shell.
