@@ -59,7 +59,7 @@ Every turn re-reads the whole context, so a tool call costs about the context's 
 
 - **Size tier.** For one owner and about 10 files or fewer, skip `how`, `architect` and the throughput checkpoint, and say so in one line. The value case, the builder, the fresh review and the verification skill stay; `.pstack/status.md` stays when the work has more than one unit.
 - **New task, new session.** A long session re-reads all of its old context on each turn.
-- **Read once.** The orchestrator reads ranges (`rg -n`, `sed -n a,b`), not whole files, and passes the `file:line` anchors, the neighbor it chose and the plan sections and skills by path in the brief, so the builder and the reviewer do not explore again.
+- **Read once.** The orchestrator reads ranges (`rg -n`, `sed -n a,b`), not whole files, and passes the `file:line` anchors, the neighbor it chose and the plan sections and skills by path in the brief, so the builder and the reviewer do not explore again. A hook injects the six policy principle leaves into `poteto-agent` only; a repo implementer's brief names them.
 - **Batch.** Put independent reads and searches in one turn. Use `rg -g '*.ts'`, not an unquoted zsh glob.
 - **Edit with Edit** (policy, Harness). A `sed -i` or heredoc edit gets only the late Bash lint pass, and the diff is harder to read.
 - **Gate once.** The builder runs targeted tests and the repo's known-trap check (for example `fallow:audit`) while it builds, and the full gate once at the end. Run the repo's known-trap check only through its script (for example `npm run fallow:audit`), never as raw `npx` with hand-typed flags. The builder owns the pre-review gate. The orchestrator runs the repo gate once, after the review fixes.

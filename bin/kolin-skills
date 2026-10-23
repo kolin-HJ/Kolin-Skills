@@ -530,6 +530,9 @@ def check():
         failures.append("home differs from the repo; fix each line above")
     if not vendor_skills():
         failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
+    builder = subprocess.run([sys.executable, str(REPO / "hooks/builder-context.py")], text=True, capture_output=True)
+    if builder.returncode:
+        failures.append(builder.stderr.strip())
     failures += spend_failures()
     for relative, budget in SIZE_BUDGETS.items():
         size = (REPO / relative).stat().st_size

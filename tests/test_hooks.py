@@ -1,6 +1,7 @@
 import json
 import os
 import pathlib
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -16,6 +17,8 @@ MODE_HOOK = REPO / "skills/pstack-local/scripts/mode-reminder"
 HEAVY_HOOK = REPO / "hooks/heavy-jobs.py"
 SLOT = REPO / "hooks/heavy-slot.py"
 MODEL_HOOK = REPO / "hooks/agent-default-model.py"
+CONTEXT_HOOK = REPO / "hooks/builder-context.py"
+CONTEXT_SKILLS = runpy.run_path(str(CONTEXT_HOOK))["SKILLS"]
 
 
 def invoke(hook, payload, cwd):
@@ -388,6 +391,60 @@ class NativeHookPayloadTests(unittest.TestCase):
             self.assertGreaterEqual(time.monotonic() - started, 1)
             for holder in holders:
                 self.assertEqual(holder.communicate(timeout=10), ("", ""))
+
+
+class BuilderContextTests(unittest.TestCase):
+    def run_hook(self, home):
+        payload = {"hook_event_name": "SubagentStart", "agent_type": "poteto-agent", "agent_id": "a1", "cwd": str(home)}
+        return subprocess.run(
+            [sys.executable, str(CONTEXT_HOOK)],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            env={**os.environ, "HOME": str(home)},
+            timeout=10,
+        )
+
+    def write_leaves(self, home, missing=None, padding=""):
+        for name in CONTEXT_SKILLS:
+            if name == missing:
+                continue
+            skill = home / ".agents/skills" / name / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            extra = padding if name == CONTEXT_SKILLS[0] else ""
+            skill.write_text(f"---\nname: {name}\ndescription: front {name}\n---\n\nbody of {name}\n{extra}\n")
+
+    def test_injects_every_leaf_in_order_without_frontmatter(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = pathlib.Path(directory)
+            self.write_leaves(home)
+            result = self.run_hook(home)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = json.loads(result.stdout)["hookSpecificOutput"]
+            self.assertEqual(output["hookEventName"], "SubagentStart")
+            context = output["additionalContext"]
+            self.assertNotIn("description: front", context)
+            self.assertNotIn("---", context)
+            positions = []
+            for name in CONTEXT_SKILLS:
+                self.assertIn(f"{home}/.agents/skills/{name}/SKILL.md", context)
+                positions.append(context.index(f"body of {name}"))
+            self.assertEqual(positions, sorted(positions))
+
+    def test_fails_loudly_on_a_missing_or_oversized_leaf(self):
+        missing = CONTEXT_SKILLS[2]
+        cases = [
+            ("missing", {"missing": missing}, f"{missing}/SKILL.md"),
+            ("oversized", {"padding": "x" * 15_000}, "10000"),
+        ]
+        for label, options, expected_error in cases:
+            with self.subTest(label), tempfile.TemporaryDirectory() as directory:
+                home = pathlib.Path(directory)
+                self.write_leaves(home, **options)
+                result = self.run_hook(home)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(expected_error, result.stderr)
 
 
 if __name__ == "__main__":

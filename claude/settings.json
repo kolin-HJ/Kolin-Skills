@@ -170,6 +170,18 @@
         ]
       }
     ],
+    "SubagentStart": [
+      {
+        "matcher": "poteto-agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/builder-context.py'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PreCompact": [
       {
         "hooks": [
