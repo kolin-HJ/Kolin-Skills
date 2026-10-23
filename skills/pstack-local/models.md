@@ -61,7 +61,7 @@ Every turn re-reads the whole context, so a tool call costs about the context's 
 - **New task, new session.** A long session re-reads all of its old context on each turn.
 - **Read once.** The orchestrator reads ranges (`rg -n`, `sed -n a,b`), not whole files, and passes the `file:line` anchors, the neighbor it chose and the plan sections and skills by path in the brief, so the builder and the reviewer do not explore again.
 - **Batch.** Put independent reads and searches in one turn. Use `rg -g '*.ts'`, not an unquoted zsh glob.
-- **Edit with Edit.** A `sed -i` or heredoc edit gets only the late Bash lint pass, and the diff is harder to read. `hooks/heavy-jobs.py` denies `sed -i`, `perl -i`, inline-script writes and `cat >` outside /tmp and .pstack/.
+- **Edit with Edit** (policy, Harness). A `sed -i` or heredoc edit gets only the late Bash lint pass, and the diff is harder to read.
 - **Gate once.** The builder runs targeted tests and the repo's known-trap check (for example `fallow:audit`) while it builds, and the full gate once at the end. Run the repo's known-trap check only through its script (for example `npm run fallow:audit`), never as raw `npx` with hand-typed flags. The builder owns the pre-review gate. The orchestrator runs the repo gate once, after the review fixes.
 - **Background and parallel.** Spawn the builder in the background, and start the app stack (database, dev server) while it builds. Run the reviewer and the verification skill in parallel, and tell the reviewer the verification is running.
 - **Watchers.** Stop a `Monitor` when its target changes. Cancel a fallback `ScheduleWakeup` once the agent it guards has reported. Run the last gate in the foreground, so the turn ends with the report and not with "waiting".
