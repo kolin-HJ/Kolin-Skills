@@ -6,6 +6,7 @@ skills:
 background: true
 model: claude-sonnet-5-5
 effort: medium
+tools: Read, Grep, Glob, Bash, Edit, Write, Monitor, TaskStop
 ---
 
 # Builder
@@ -30,6 +31,7 @@ Every turn re-reads your whole context, so each tool call costs the context's si
 - A gate, guard or hook blocks you. Never bypass it.
 - A file outside your list needs a change, or a file changed under you.
 - A check fails twice.
+- The unit needs a tool you lack: an MCP server, a browser, the web, or another agent. The orchestrator runs it or puts its result in the brief.
 - The brief reads two ways, or the work needs a design, security, data or behavior decision.
 
 Never commit, push, merge or deploy. Never widen the task. The orchestrator owns `.pstack/status.md`; write to it only when the brief says so.

@@ -47,7 +47,7 @@ Plan, build and review are separate seats:
 | Seat | Runs as | Model | Does |
 |---|---|---|---|
 | Orchestrator | the main session | Opus | Value case, plan, Kolin's asks, six-part briefs, `.pstack/status.md`, reads every delegated hunk. `hooks/edit-guard.py` blocks its first edit until `.pstack/status.md` has a `Value:` line, and its 3rd edited file unless status.md has `orchestrator-builds: <reason>` |
-| Builder | `poteto-agent`, or the repo's implementer | Sonnet 5.5, medium (hook default when the agent pins no model and can edit) | One unit per brief, runs the gate, reports once |
+| Builder | `poteto-agent`, or the repo's implementer | Sonnet 5.5, medium (hook default when the agent pins no model and can edit) | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
 | Sweeper | `haiku-worker` | Haiku 5.5, medium | Recipe work: renames, codemods, fixtures, searches the brief spells out |
 | Searcher | `Explore` | Sonnet (hook default) | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
 | Reviewer | `senior-reviewer` | Opus 5.5, high, read-only | Fresh review of every non-trivial diff; never the builder. A Lite re-review of follow-up fix hunks passes `model: "sonnet"` |
