@@ -72,7 +72,7 @@ The models are the Claude Code seats. Codex runs both subagents on its default m
 | Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge | Protected branches change only through a PR you merge |
 | Reading a `.env` file | Secrets stay out of the context |
 | First edit before a value case | No outcome, no code |
-| Sleep loops, edits through the shell, filtered gate output | Agents see the real output and use the real tools |
+| Sleep loops, edits through the shell, filtered gate output (a trailing filter is stripped; one that cannot be stripped safely is blocked) | Agents see the real output and use the real tools |
 
 Claude Code runs every guard. Codex runs the git and `.env` guards. Cursor runs only the lint hook, and Grok runs no hooks.
 
