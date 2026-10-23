@@ -158,6 +158,9 @@ class HeavyJobsGuardTests(unittest.TestCase):
             "pnpm check 2>&1 | tail -2 > /tmp/out.txt; cat /tmp/out.txt",
             "pnpm check | grep error | wc -l",
             "pnpm check | tail -5 \\\n&& echo ok",
+            "git push 2>&1 | grep -q rejected; echo $?",
+            "pnpm check 2>&1 | grep -Ec 'FAIL|error'",
+            "git push 2>&1 | tail -2; echo $?",
         ]
         for command in unsafe:
             with self.subTest(unsafe=command):

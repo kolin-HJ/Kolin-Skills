@@ -30,6 +30,7 @@ FILTERED_GATE = re.compile(
     r"(?:(?!&&|\|\||;|\n).)*?(?P<filters>(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b)"
 )
 FILTER_STAGES = re.compile(r"(?:(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b(?:2>&1|[^;&|\n])*)+")
+STATUS_FLAG = re.compile(r"\s(?:-[a-zA-Z]*[qcl][a-zA-Z]*|--(?:quiet|silent|count|files-with-matches))\b")
 MASKED = re.compile(rf"(?ms:{HEREDOC.pattern})|{QUOTED.pattern}")
 LONG_CURL_RETRY = re.compile(r"\bcurl\b[^;&|\n]*?--retry(?:\s+|=)(\d+)")
 UNQUOTED_GLOB = re.compile(
@@ -243,7 +244,8 @@ def drop_gate_filters(command: str):
         start = gate.start("filters")
         end = FILTER_STAGES.match(masked, start).end()
         stages = masked[start:end].replace("2>&1", "")
-        if ")" in stages or ">" in stages or "\\" in stages or masked[end:end + 1] not in ("", ";", "\n"):
+        unsafe = ")" in stages or ">" in stages or "\\" in stages or STATUS_FLAG.search(stages) or "$?" in masked[end:]
+        if unsafe or masked[end:end + 1] not in ("", ";", "\n"):
             return None
         command = command[:start].rstrip(" \t") + command[end:]
 
