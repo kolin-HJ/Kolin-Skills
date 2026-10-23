@@ -27,8 +27,11 @@ HEAVY = re.compile(
 )
 FILTERED_GATE = re.compile(
     COMMAND_START + r"(?:git\s+(?:-C\s+\S+\s+)?push\b|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:check|verify)[\w:-]*)"
-    r"(?:(?!&&|\|\||;|\n).)*?(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b"
+    r"(?:(?!&&|\|\||;|\n).)*?(?P<filters>(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b)"
 )
+FILTER_STAGES = re.compile(r"(?:(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b(?:2>&1|[^;&|\n])*)+")
+STATUS_FLAG = re.compile(r"\s(?:-[a-zA-Z]*[qcl][a-zA-Z]*|--(?:quiet|silent|count|files-with-matches))\b")
+MASKED = re.compile(rf"(?ms:{HEREDOC.pattern})|{QUOTED.pattern}")
 LONG_CURL_RETRY = re.compile(r"\bcurl\b[^;&|\n]*?--retry(?:\s+|=)(\d+)")
 UNQUOTED_GLOB = re.compile(
     rf"(?ms:{HEREDOC.pattern})|{QUOTED.pattern}"
@@ -232,6 +235,21 @@ def quote_globs(command: str) -> str:
     )
 
 
+def drop_gate_filters(command: str):
+    while True:
+        masked = MASKED.sub(lambda match: "x" * len(match.group(0)), command)
+        gate = FILTERED_GATE.search(masked)
+        if gate is None:
+            return command
+        start = gate.start("filters")
+        end = FILTER_STAGES.match(masked, start).end()
+        stages = masked[start:end].replace("2>&1", "")
+        unsafe = ")" in stages or ">" in stages or "\\" in stages or STATUS_FLAG.search(stages) or "$?" in masked[end:]
+        if unsafe or masked[end:end + 1] not in ("", ";", "\n"):
+            return None
+        command = command[:start].rstrip(" \t") + command[end:]
+
+
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
@@ -250,9 +268,12 @@ def main() -> int:
         print(SHELL_EDIT_MESSAGE, file=sys.stderr)
         return 2
 
-    if FILTERED_GATE.search(code):
+    unfiltered = drop_gate_filters(command)
+    if unfiltered is None:
         print(FILTERED_GATE_MESSAGE, file=sys.stderr)
         return 2
+    command = unfiltered
+    code = QUOTED.sub(" ", HEREDOC.sub(" ", command))
 
     retry = LONG_CURL_RETRY.search(code)
     if retry and int(retry.group(1)) > 10 and not background:

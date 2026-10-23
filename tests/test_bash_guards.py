@@ -131,25 +131,50 @@ class HeavyJobsGuardTests(unittest.TestCase):
                 result = invoke(HEAVY_HOOK, {"command": command})
                 self.assertEqual((result.returncode, result.stderr), (0, ""))
 
-    def test_git_push_takes_a_slot_and_gate_output_is_never_filtered(self):
+    def test_git_push_takes_a_slot_and_gate_filters_are_dropped(self):
         prefix_pattern = re.compile(r"^python3 \S+heavy-slot\.py \$\$ \d+\n")
         push = updated_input(invoke(HEAVY_HOOK, {"command": "git push origin feature"}))
         self.assertRegex(push["command"], prefix_pattern)
-        blocked = [
-            "git push origin feature 2>&1 | tail -20",
-            "pnpm run check | grep error",
-            "yarn verify | head -5",
-            "cd web && npm run check:all | awk '{print $1}'",
+        heredoc = "cat <<'EOF'\npnpm check | tail -2\nEOF"
+        cases = [
+            ("git push -u origin x 2>&1 | tail -2", "git push -u origin x 2>&1", True),
+            (
+                'pnpm check 2>&1 | grep -E "FAIL|error" | head -20; git status',
+                "pnpm check 2>&1; git status",
+                True,
+            ),
+            ("npm run check:agents 2>&1 | tail -3; git add -A", "npm run check:agents 2>&1; git add -A", True),
+            ("cd web && npm run check:all | awk '{print $1}'", "cd web && npm run check:all", True),
+            ("yarn verify | head -5", "yarn verify", True),
+            (heredoc, heredoc, False),
+            ("pnpm vitest run | tail -20", "pnpm vitest run | tail -20", True),
+            ("git push origin feature && echo done | tail -1", "git push origin feature && echo done | tail -1", True),
+            ("git log | head -5", "git log | head -5", False),
         ]
-        allowed = ["pnpm vitest run | tail -20", "git push origin feature && echo done | tail -1", "git log | head -5"]
-        for command in blocked:
-            with self.subTest(blocked=command):
+        unsafe = [
+            "pnpm check | grep -q FAIL && echo failed",
+            'out=$(pnpm check 2>&1 | tail -5); echo "$out"',
+            "(pnpm check | tail -5) && echo ok",
+            "pnpm check 2>&1 | tail -2 > /tmp/out.txt; cat /tmp/out.txt",
+            "pnpm check | grep error | wc -l",
+            "pnpm check | tail -5 \\\n&& echo ok",
+            "git push 2>&1 | grep -q rejected; echo $?",
+            "pnpm check 2>&1 | grep -Ec 'FAIL|error'",
+            "git push 2>&1 | tail -2; echo $?",
+        ]
+        for command in unsafe:
+            with self.subTest(unsafe=command):
                 result = invoke(HEAVY_HOOK, {"command": command})
                 self.assertEqual(result.returncode, 2, result.stdout)
                 self.assertIn("do not filter gate output", result.stderr)
-        for command in allowed:
-            with self.subTest(allowed=command):
-                self.assertEqual(invoke(HEAVY_HOOK, {"command": command}).returncode, 0)
+        for command, expected, takes_slot in cases:
+            with self.subTest(command=command):
+                result = invoke(HEAVY_HOOK, {"command": command})
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+                updated = updated_input(result)
+                rewritten = updated["command"] if updated else command
+                self.assertEqual(prefix_pattern.sub("", rewritten), expected)
+                self.assertEqual(bool(prefix_pattern.match(rewritten)), takes_slot)
 
     def test_poll_loop_nested_in_a_command_substitution_is_blocked(self):
         blocked = invoke(HEAVY_HOOK, {"command": NESTED_POLL})
