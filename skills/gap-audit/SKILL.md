@@ -17,9 +17,9 @@ Run `how` on each area, fanned out with `swarm` when the repo is large. Measure,
 | Gates | Formatter, type-aware linter, strict type check, dead-code check, tests, and one check command. Local hooks (pre-commit, pre-push, `verify` evidence) if there is no CI |
 | Ratchets | A baseline file with target 0 per rule; counts per rule today |
 | Typing | `any`, casts, non-null assertions, untyped JS files |
-| Shape | Files over the line limit, long functions, deep nesting, duplicates (jscpd), single-caller helpers |
+| Shape | Files over the line limit, long functions, deep nesting, duplicates (jscpd), single-caller helpers, functions with a CRAP score of 10 or more (complexity joined with coverage, `unclebob/crapper`; a flat `switch` or lookup table is exempt; without the tool, mark it missing and propose it) |
 | Errors | Swallowed errors, try/catch around own code, retries outside the one owner |
-| Tests | A test for each behavior a caller relies on (policy, Tests and proof), not one per entry point; tests of a constant, config, prose or file existence to delete; recorded contract fixtures for external APIs; slow or sleeping tests |
+| Tests | A test for each behavior a caller relies on (policy, Tests and proof), not one per entry point; tests of a constant, config, prose or file existence to delete; recorded contract fixtures for external APIs; slow or sleeping tests; surviving mutants in tested code (Stryker for TypeScript), as a ratchet; without the tool, mark it missing and propose it |
 | Boundaries | Import rules, one home per concept, parked or out-of-scope code |
 | Guardrails | Agent hooks that block gate skips and protected pushes; secrets out of the tree |
 | Approval text | Repo instruction text (`AGENTS.md`, repo skills) that requires an ask before a reversible step on a work branch (commit, push, opening a PR) conflicts with the global policy's Approvals. Flag it with `file:line` and rewrite it to match. It cost waits of 9 to 67 minutes in two repos |
