@@ -297,7 +297,28 @@ class NativeHookPayloadTests(unittest.TestCase):
             self.assertNotIn("status.md", context())
             nowhere = invoke(MODE_HOOK, {"prompt": "Where are we?"}, directory)
             self.assertEqual(nowhere.returncode, 0, nowhere.stderr)
-            self.assertIn("New engineering task", json.loads(nowhere.stdout)["hookSpecificOutput"]["additionalContext"])
+            self.assertIn("poteto-mode/SKILL.md", json.loads(nowhere.stdout)["hookSpecificOutput"]["additionalContext"])
+
+    def test_mode_reminder_names_the_skills_once_per_session(self):
+        with tempfile.TemporaryDirectory() as directory:
+            transcript = pathlib.Path(directory) / "session.jsonl"
+            transcript.write_text("")
+            payload = {"prompt": "Fix the grid filter.", "transcript_path": str(transcript)}
+            first = invoke(MODE_HOOK, payload, directory)
+            reminder = json.loads(first.stdout)["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("poteto-mode/SKILL.md", reminder)
+            attachment = {"type": "attachment", "attachment": {"type": "hook_additional_context", "content": [reminder]}}
+            transcript.write_text(json.dumps(attachment) + "\n")
+            later = invoke(MODE_HOOK, payload, directory)
+            self.assertEqual((later.returncode, later.stdout), (0, ""))
+            routed = invoke(MODE_HOOK, {**payload, "prompt": "full send"}, directory)
+            context = json.loads(routed.stdout)["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("full-send/SKILL.md", context)
+            self.assertNotIn("poteto-mode/SKILL.md", context)
+            with transcript.open("a") as handle:
+                handle.write(json.dumps({"type": "system", "subtype": "compact_boundary"}, separators=(",", ":")) + "\n")
+            compacted = invoke(MODE_HOOK, payload, directory)
+            self.assertIn("poteto-mode/SKILL.md", json.loads(compacted.stdout)["hookSpecificOutput"]["additionalContext"])
 
     def test_bash_guard_blocks_sleep_polling_in_the_foreground_only(self):
         with tempfile.TemporaryDirectory() as directory:

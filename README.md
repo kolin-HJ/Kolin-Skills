@@ -249,7 +249,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `hooks/mcp-access.py` | Claude Code | When an MCP tool fails with an access error, tells the agent this account lacks the connector, to stop calling it and to use the CLI |
 | `hooks/lint-changed-lines.py` | All but Grok | Lints the JS and TS lines the agent just changed |
 | `hooks/compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through compaction |
-| `skills/pstack-local/scripts/mode-reminder` | Claude Code, Codex | Each prompt: read the method, write a value case. Flags "full stop", "full send" and a `.pstack/status.md` older than an hour |
+| `skills/pstack-local/scripts/mode-reminder` | Claude Code, Codex | Read the method, write a value case: in Claude Code on the first prompt and after each compaction, in Codex on each prompt. Flags "full stop", "full send" and a `.pstack/status.md` older than an hour |
 
 </details>
 
