@@ -53,6 +53,7 @@ The global policy (`policy/AGENTS.md`) lists the rules that override pstack (App
 - **Feature, Bug fix and Refactoring** start with the AGENTS.md value case. **Opening a PR** runs `scripts/diff-audit <base>` first.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a gate directive with `-- <reason>`.
 - **Builder brief.** poteto-mode says to put its path in every `poteto-agent` prompt. Here the builder gets the principle leaves from `hooks/builder-context.py` and does not read poteto-mode.
+- **Fix rounds.** poteto-mode gives each fix round a fresh subagent. Here up to two rounds go back to the builder (policy, Delegation; `models.md` Spend), then a fresh builder.
 - **Reply style.** Keep pstack's Writing the reply rules. State the principles that changed a decision in one line, not a section.
 
 ## Own skills

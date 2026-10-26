@@ -16,7 +16,21 @@ payload = json.load(sys.stdin)
 prompt = payload["prompt"]
 if prompt.lstrip().startswith("<task-notification>"):
     sys.exit(0)
-context = f"New engineering task: read {mode}, {adapter} and {foundation} once, and write the value case before the first edit."
+read_once = (
+    f"Before engineering work in this session, read {mode}, {adapter} and {foundation} once, "
+    "and write the value case before the first edit. A question or a read-only task needs neither."
+)
+
+
+def text_since_compaction(path):
+    if not path or not os.path.isfile(path):
+        return ""
+    with open(path, errors="ignore") as handle:
+        return handle.read().rsplit('"subtype":"compact_boundary"', 1)[-1]
+
+
+reminded = read_once in text_since_compaction(payload.get("transcript_path"))
+context = "" if reminded else read_once
 for kind in sorted({match.lower() for match in autonomy_phrase.findall(prompt)}):
     context += (
         f" The prompt says \"full {kind}\". If Kolin invokes it for a task or PR, load the full-{kind} skill "
@@ -32,4 +46,5 @@ if directory:
         age = int((time.time() - os.path.getmtime(status)) // 60)
         if age > STALE_MINUTES:
             context += f" `.pstack/status.md` was last updated {age} minutes ago. Update it (done, next, blocked, Kolin asks) before you reply."
-print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context}}))
+if context:
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context.strip()}}))

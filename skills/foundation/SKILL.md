@@ -78,6 +78,7 @@ Each bar is a command with pass/fail output and fix text, so an agent knows it i
 - One pinned runtime version (for example one Node LTS) in every repo, the box and the host.
 - Gates run locally, never in paid CI: pre-commit (about 10 s), pre-push (a few minutes) and a `verify` command that writes evidence per commit SHA. Pushes to protected branches need that evidence. Agents never skip a gate; `hooks/gate/block-forbidden-git.sh` blocks the skip flags.
 - Parity with the base or staging is a gate: routes, handlers and jobs match the baseline unless a delete was approved.
+- A rebuild, port or migration of a live feature starts with `.pstack/parity.md`, before any builder runs: one row per behavior a user relies on (`behavior | live file:line | smoke step | status`), from a read-only pass over the live code. Each builder brief carries its rows, and its "Done when" is their smoke steps passing. A review finding for a live behavior with no row adds the row and its smoke step in the same fix round. A cutover waits until every row passes or carries Kolin's approved cut.
 - Local databases run without Docker (`local-supabase`).
 
 ## UI bar
