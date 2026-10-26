@@ -52,6 +52,7 @@ The global policy (`policy/AGENTS.md`) lists the rules that override pstack (App
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Tests and proof. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
 - **Feature, Bug fix and Refactoring** start with the AGENTS.md value case. **Opening a PR** runs `scripts/diff-audit <base>` first.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a gate directive with `-- <reason>`.
+- **Builder brief.** poteto-mode says to put its path in every `poteto-agent` prompt. Here the builder gets the principle leaves from `hooks/builder-context.py` and does not read poteto-mode.
 - **Reply style.** Keep pstack's Writing the reply rules. State the principles that changed a decision in one line, not a section.
 
 ## Own skills

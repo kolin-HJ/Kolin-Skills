@@ -6,7 +6,7 @@ The strongest model (Opus) plans and reviews, the mid-tier model (Sonnet) builds
 
 | Job | Agent | Why this one |
 |---|---|---|
-| Lane worker, codemod author, census or audit helper, verifier for a unit | `poteto-agent`, or the implementer the repo's `AGENTS.md` names | It reads `poteto-mode/SKILL.md` with its Principles index and `pstack-local/SKILL.md` before any work. A `general-purpose` delegate skips that read and drifts. |
+| Lane worker, codemod author, census or audit helper, verifier for a unit | `poteto-agent`, or the implementer the repo's `AGENTS.md` names | The `builder-context.py` hook gives it the six principle leaves, and it does not read `poteto-mode`. A `general-purpose` delegate gets no leaves and drifts. |
 | Diff review before a commit | `senior-reviewer` (Opus 5.5) | Fresh context, read-only tools, two passes |
 | Comment sweep before review (`no-comments`) | `comment-sicko` | pstack's own comment reviewer, with no model pin |
 | Bounded mechanical work with a spelled-out recipe and a gate per site: a rename or renumber from a census, a gate-driven codemod, a codemod with stop conditions, a fixture | `haiku-worker` (Haiku 5.5) | Same final quality as Sonnet, at 27 to 55% lower total cost (measured). The advisor (the coordinator) writes the brief and reads every hunk. See "Advisor pattern" below. |
