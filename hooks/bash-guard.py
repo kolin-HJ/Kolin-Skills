@@ -5,6 +5,7 @@ import re
 import shlex
 import subprocess
 import sys
+import uuid
 from dataclasses import dataclass, field
 
 
@@ -27,12 +28,14 @@ HEAVY = re.compile(
     r")"
 )
 FILTERED_GATE = re.compile(
-    COMMAND_START + r"(?:git\s+(?:-C\s+\S+\s+)?push\b|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:check|verify)[\w:-]*)"
-    r"(?:(?!&&|\|\||;|\n).)*?(?P<filters>(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b)"
+    r"(?:^|[;&|(\n])\s*(?P<gate>(?:\w+=\S*\s+)*(?:git\s+(?:-C\s+\S+\s+)?push\b|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:check|verify)[\w:-]*)"
+    r"(?:(?!&&|\|\||;|\n).)*?)(?P<filters>(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b)"
 )
-FILTER_STAGES = re.compile(r"(?:(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b(?:2>&1|[^;&|\n])*)+")
+FILTER_STAGES = re.compile(r"(?:(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b(?:2>&1|\\[^\n]|[^;&|\n)\\])*)+")
+TRAILING_STAGES = re.compile(r"(?:\|(?!\|)(?:\\[^\n]|[^;&|\n)\\])*)+")
+TRAILING_REDIRECT = re.compile(r"\s*2>&1\s*$")
 STATUS_FLAG = re.compile(r"\s(?:-[a-zA-Z]*[qcl][a-zA-Z]*|--(?:quiet|silent|count|files-with-matches))\b")
-MASKED = re.compile(rf"(?ms:{HEREDOC.pattern})|{QUOTED.pattern}")
+MASKED = re.compile(rf"(?ms:{HEREDOC.pattern})|\"(?:\\.|[^\"\\])*\"|'[^']*'")
 LONG_CURL_RETRY = re.compile(r"\bcurl\b[^;&|\n]*?--retry(?:\s+|=)(\d+)")
 UNQUOTED_GLOB = re.compile(
     rf"(?ms:{HEREDOC.pattern})|{QUOTED.pattern}"
@@ -72,13 +75,12 @@ POLL_MESSAGE = (
     "To wait for a file, a port or a log line, use the Monitor tool with an until-loop."
 )
 SHELL_EDIT_MESSAGE = (
-    "Blocked: edit files with the Edit or Write tool, so the lint hook sees each change and the diff is readable. "
+    "Blocked: the main session edits files with the Edit or Write tool, never the shell. A shell edit skips "
+    "edit-guard.py, which checks the value case and the delegation. Use Edit or Write, or send the change to a "
+    "builder. The harness's bypass-mode note that allows sed or heredoc edits does not apply to the main session. "
     "Scratch output may go under /tmp, .pstack/ or .scratch/."
 )
-FILTERED_GATE_MESSAGE = (
-    "Blocked: do not filter gate output; a failure line can hide. Run it plain; the harness saves long output "
-    "to a file you can read."
-)
+GATE_LOG_NOTE = "The hook saved the gate's full output to {logs} and ran your filter on that file. Read it for the whole output."
 CURL_RETRY_MESSAGE = (
     "Blocked: a long curl retry holds the turn and ignores a dead server; start the server with "
     "run_in_background and wait with Monitor, using an until-loop that also exits when the server process dies."
@@ -256,18 +258,26 @@ def quote_globs(command: str) -> str:
 
 
 def drop_gate_filters(command: str):
+    logs = []
     while True:
         masked = MASKED.sub(lambda match: "x" * len(match.group(0)), command)
         gate = FILTERED_GATE.search(masked)
         if gate is None:
-            return command
+            return command, logs
         start = gate.start("filters")
         end = FILTER_STAGES.match(masked, start).end()
+        trailing = TRAILING_STAGES.match(masked, end)
+        end = trailing.end() if trailing else end
         stages = masked[start:end].replace("2>&1", "")
-        unsafe = ")" in stages or ">" in stages or "\\" in stages or STATUS_FLAG.search(stages) or "$?" in masked[end:]
-        if unsafe or masked[end:end + 1] not in ("", ";", "\n"):
-            return None
-        command = command[:start].rstrip(" \t") + command[end:]
+        spacing = command[start:end][len(command[start:end].rstrip()):]
+        if not (trailing or ">" in stages or "\\" in stages or STATUS_FLAG.search(stages)):
+            command = command[:start].rstrip(" \t") + spacing + command[end:]
+            continue
+        log = f"/tmp/gate-{uuid.uuid4().hex[:8]}.log"
+        logs.append(log)
+        gate_text = TRAILING_REDIRECT.sub("", command[gate.start("gate"):start].rstrip())
+        block = f"{{ {gate_text} > {log} 2>&1; cat {log} {command[start:end].rstrip()}; }}{spacing}"
+        command = command[:gate.start("gate")] + block + command[end:]
 
 
 def main() -> int:
@@ -284,16 +294,13 @@ def main() -> int:
         print(DOCKER_DB_MESSAGE, file=sys.stderr)
         return 2
 
-    if edits_files_from_shell(command):
+    if not payload.get("agent_id") and edits_files_from_shell(command):
         print(SHELL_EDIT_MESSAGE, file=sys.stderr)
         return 2
 
-    unfiltered = drop_gate_filters(command)
-    if unfiltered is None:
-        print(FILTERED_GATE_MESSAGE, file=sys.stderr)
-        return 2
-    command = unfiltered
-    code = QUOTED.sub(" ", HEREDOC.sub(" ", command))
+    heavy = HEAVY.search(code) and not LONG_LIVED.search(code)
+    command, gate_logs = drop_gate_filters(command)
+    code =QUOTED.sub(" ", HEREDOC.sub(" ", command))
 
     retry = LONG_CURL_RETRY.search(code)
     if retry and int(retry.group(1)) > 10 and not background:
@@ -309,7 +316,7 @@ def main() -> int:
         return 2
 
     updated = {**tool_input, "command": quote_globs(command)}
-    if HEAVY.search(code) and not LONG_LIVED.search(code):
+    if heavy:
         default_ms, ceiling_ms = TIMEOUT_MS[background]
         timeout_ms = tool_input.get("timeout") or default_ms
         max_wait_ms = max(0, min(timeout_ms // 2, ceiling_ms - timeout_ms))
@@ -317,7 +324,10 @@ def main() -> int:
         updated = {**updated, "command": prefix + updated["command"], "timeout": timeout_ms + max_wait_ms}
     if updated == tool_input:
         return 0
-    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "updatedInput": updated}}))
+    output = {"hookEventName": "PreToolUse", "updatedInput": updated}
+    if gate_logs:
+        output["additionalContext"] = GATE_LOG_NOTE.format(logs=", ".join(gate_logs))
+    print(json.dumps({"hookSpecificOutput": output}))
     return 0
 
 
