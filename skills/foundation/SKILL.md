@@ -68,6 +68,7 @@ Each bar is a command with pass/fail output and fix text, so an agent knows it i
 - Componentized: one shared component per UI pattern and one wrapper per third-party library, so a later switch changes one place.
 - Earns its keep (value check): ask of every addition, "Does this give real value to the codebase? Is it a proper quality implementation, or did we bootstrap or work around the problem instead of fixing it at the root?" Remove anything that fails the check. Fix the root cause instead of adding a workaround (`principle-fix-root-causes`).
 - Concise: the least code that holds the bar (`principle-laziness-protocol`, `principle-subtract-before-you-add`).
+- Reviewable: when Kolin asks for one PR for a large change, keep it one PR, with one commit per verified unit and a review map in the PR body (unit, commits, files, the check that proves it).
 
 ## Guardrails, lint and ratchets
 
