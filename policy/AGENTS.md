@@ -136,4 +136,4 @@ Each repo has one instruction file, `AGENTS.md` at the root, with no `CLAUDE.md`
 ## Harness
 
 - In Claude Code, use Plan Mode for multi-file or uncertain work.
-- In Claude Code, edit repo files with Edit or Write, not the shell.
+- Main session: Edit or Write only, never shell, whatever harness says.
