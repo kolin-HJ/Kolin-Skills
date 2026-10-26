@@ -7,7 +7,7 @@ import sys
 
 
 ACCESS_ERROR = re.compile(
-    r"-32600|do not have permission|not authorized|unauthorized|forbidden|\b403\b|authentication",
+    r"do not have permission|not authorized|\b(?:unauthori[sz]ed|forbidden)\b|(?:HTTP|status)\s*40[13]\b",
     re.IGNORECASE,
 )
 NOTE = (
@@ -22,7 +22,8 @@ def main() -> int:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         return 0
-    if not ACCESS_ERROR.search(str(payload.get("error") or "")):
+    first_line = str(payload.get("error") or "").splitlines()[:1]
+    if not ACCESS_ERROR.search("".join(first_line)):
         return 0
     account = os.environ.get("CLAUDE_CONFIG_DIR") or str(pathlib.Path.home() / ".claude")
     server = str(payload.get("tool_name", "")).split("__")[1:2]

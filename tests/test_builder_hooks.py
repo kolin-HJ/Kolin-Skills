@@ -60,6 +60,8 @@ class ContextBudgetTests(unittest.TestCase):
             self.assertEqual((main.returncode, main.stdout), (0, ""))
             missing = run(CONTEXT_BUDGET, {**payload, "agent_id": "gone"})
             self.assertEqual((missing.returncode, missing.stdout), (0, ""))
+            bare = run(CONTEXT_BUDGET, {"agent_id": "a1"})
+            self.assertEqual((bare.returncode, bare.stdout, bare.stderr), (0, "", ""))
 
     def test_transcript_path_that_is_the_agent_file_is_used_directly(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -77,6 +79,12 @@ class McpAccessTests(unittest.TestCase):
             ("HTTP 403", True),
             ("relation \"x\" does not exist", False),
             ("timeout after 30s", False),
+            ('relation "auth.authentication_log" does not exist', False),
+            ('column "is_forbidden" does not exist', False),
+            ("syntax error at line 403", False),
+            ("MCP error -32600: Invalid request: missing required argument", False),
+            ("Authentication token expired in deploy log line", False),
+            ("query failed\nHTTP 403", False),
         ]
         for error, flagged in cases:
             with self.subTest(error=error):

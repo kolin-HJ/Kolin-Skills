@@ -28,11 +28,11 @@ HEAVY = re.compile(
     r")"
 )
 FILTERED_GATE = re.compile(
-    COMMAND_START + r"(?P<gate>(?:git\s+(?:-C\s+\S+\s+)?push\b|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:check|verify)[\w:-]*)"
+    r"(?:^|[;&|(\n])\s*(?P<gate>(?:\w+=\S*\s+)*(?:git\s+(?:-C\s+\S+\s+)?push\b|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:check|verify)[\w:-]*)"
     r"(?:(?!&&|\|\||;|\n).)*?)(?P<filters>(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b)"
 )
-FILTER_STAGES = re.compile(r"(?:(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b(?:2>&1|[^;&|\n)\\])*)+")
-TRAILING_STAGES = re.compile(r"(?:\|(?!\|)[^;&|\n)\\]*)+")
+FILTER_STAGES = re.compile(r"(?:(?<!\|)\|(?!\|)\s*(?:grep|tail|head|awk|sed)\b(?:2>&1|\\[^\n]|[^;&|\n)\\])*)+")
+TRAILING_STAGES = re.compile(r"(?:\|(?!\|)(?:\\[^\n]|[^;&|\n)\\])*)+")
 TRAILING_REDIRECT = re.compile(r"\s*2>&1\s*$")
 STATUS_FLAG = re.compile(r"\s(?:-[a-zA-Z]*[qcl][a-zA-Z]*|--(?:quiet|silent|count|files-with-matches))\b")
 MASKED = re.compile(rf"(?ms:{HEREDOC.pattern})|\"(?:\\.|[^\"\\])*\"|'[^']*'")
@@ -270,7 +270,7 @@ def drop_gate_filters(command: str):
         end = trailing.end() if trailing else end
         stages = masked[start:end].replace("2>&1", "")
         spacing = command[start:end][len(command[start:end].rstrip()):]
-        if not (trailing or ">" in stages or STATUS_FLAG.search(stages)):
+        if not (trailing or ">" in stages or "\\" in stages or STATUS_FLAG.search(stages)):
             command = command[:start].rstrip(" \t") + spacing + command[end:]
             continue
         log = f"/tmp/gate-{uuid.uuid4().hex[:8]}.log"
@@ -298,8 +298,9 @@ def main() -> int:
         print(SHELL_EDIT_MESSAGE, file=sys.stderr)
         return 2
 
+    heavy = HEAVY.search(code) and not LONG_LIVED.search(code)
     command, gate_logs = drop_gate_filters(command)
-    code = QUOTED.sub(" ", HEREDOC.sub(" ", command))
+    code =QUOTED.sub(" ", HEREDOC.sub(" ", command))
 
     retry = LONG_CURL_RETRY.search(code)
     if retry and int(retry.group(1)) > 10 and not background:
@@ -315,7 +316,7 @@ def main() -> int:
         return 2
 
     updated = {**tool_input, "command": quote_globs(command)}
-    if HEAVY.search(code) and not LONG_LIVED.search(code):
+    if heavy:
         default_ms, ceiling_ms = TIMEOUT_MS[background]
         timeout_ms = tool_input.get("timeout") or default_ms
         max_wait_ms = max(0, min(timeout_ms // 2, ceiling_ms - timeout_ms))

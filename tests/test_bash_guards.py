@@ -156,6 +156,9 @@ class HeavyJobsGuardTests(unittest.TestCase):
                 result = invoke(BASH_GUARD, {"command": command})
                 self.assertEqual((result.returncode, result.stderr), (0, ""))
 
+    def syntax_check(self, command):
+        return subprocess.run(["bash", "-n"], input=command, text=True, capture_output=True).returncode
+
     def test_shell_edit_is_blocked_on_the_main_thread_and_passes_in_a_subagent(self):
         command = "sed -i 's/a/b/' src/app.ts"
         main = invoke(BASH_GUARD, {"command": command})
@@ -213,12 +216,27 @@ class HeavyJobsGuardTests(unittest.TestCase):
                 "git push 2>&1 | grep -q rejected; echo $?",
                 r"\{ git push > (/tmp/gate-\w+\.log) 2>&1; cat \1 \| grep -q rejected; \}; echo \$\?",
             ),
+            (
+                "CI=1 pnpm check | grep -q FAIL",
+                r"\{ CI=1 pnpm check > (/tmp/gate-\w+\.log) 2>&1; cat \1 \| grep -q FAIL; \}",
+            ),
+            (
+                "pnpm check | grep foo\\|bar",
+                r"\{ pnpm check > (/tmp/gate-\w+\.log) 2>&1; cat \1 \| grep foo\\\|bar; \}",
+            ),
         ]
+        for command, expected in stripped:
+            with self.subTest(syntax=command):
+                result = invoke(BASH_GUARD, {"command": command})
+                self.assertEqual(self.syntax_check(prefix_pattern.sub("", updated_input(result)["command"])), 0)
         for command, pattern in rewritten:
             with self.subTest(rewritten=command):
                 result = invoke(BASH_GUARD, {"command": command})
                 self.assertEqual((result.returncode, result.stderr), (0, ""))
-                self.assertRegex(prefix_pattern.sub("", updated_input(result)["command"]), f"^{pattern}$")
+                rewritten_command = updated_input(result)["command"]
+                self.assertRegex(rewritten_command, prefix_pattern)
+                self.assertEqual(self.syntax_check(prefix_pattern.sub("", rewritten_command)), 0)
+                self.assertRegex(prefix_pattern.sub("", rewritten_command), f"^{pattern}$")
                 context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
                 self.assertRegex(context, r"/tmp/gate-\w+\.log")
         for command, expected, takes_slot in cases:

@@ -49,7 +49,7 @@ def main() -> int:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         return 0
-    if not payload.get("agent_id"):
+    if not payload.get("agent_id") or not payload.get("transcript_path"):
         return 0
     tokens = last_context_tokens(transcript_of(payload)) or 0
     if tokens >= STOP_TOKENS:
