@@ -4,10 +4,11 @@ dir=$(jq -r '.workspace.current_dir // .cwd // empty' <<<"$input" 2>/dev/null)
 status=""
 if [ -n "$dir" ] && top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) && [ -f "$top/.pstack/status.md" ]; then
   status=$(awk '
-    match($0, /^[ \t]*(Blocked|Asks|Next):[ \t]*/) {
-      key = $0; sub(/^[ \t]*/, "", key); sub(/:.*/, "", key); key = tolower(key)
+    match(tolower($0), /^[ \t]*(- )?(blocked|asks|kolin asks|next):[ \t]*/) {
+      key = tolower($0); sub(/^[ \t]*(- )?/, "", key); sub(/:.*/, "", key)
+      if (key == "kolin asks") key = "asks"
       val = substr($0, RLENGTH + 1)
-      if (val != "" && !(key in seen)) { seen[key] = val }
+      if (tolower(val) !~ /^(none|n\/a|-)([ .,;:]|$)/ && val != "") seen[key] = val
     }
     END {
       if (("blocked" in seen) || ("asks" in seen)) {

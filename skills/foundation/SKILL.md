@@ -41,6 +41,8 @@ When to bring him in is your judgment call. Signals that point toward asking: a 
 | 7 Release | PR in the policy format, then Kolin merges | policy "Before a PR ships" | **Kolin's yes** |
 | 8 Learn | Every mistake seen becomes a check | `correct` | Rule, test or type merged |
 
+When Kolin asks for one PR for a large change, keep it one PR, with one commit per verified unit and a review map in the PR body (unit, commits, files, the check that proves it).
+
 ## Where Kolin steps in
 
 He checks these himself. Everything else is reversible and proceeds.
@@ -68,8 +70,6 @@ Each bar is a command with pass/fail output and fix text, so an agent knows it i
 - Componentized: one shared component per UI pattern and one wrapper per third-party library, so a later switch changes one place.
 - Earns its keep (value check): ask of every addition, "Does this give real value to the codebase? Is it a proper quality implementation, or did we bootstrap or work around the problem instead of fixing it at the root?" Remove anything that fails the check. Fix the root cause instead of adding a workaround (`principle-fix-root-causes`).
 - Concise: the least code that holds the bar (`principle-laziness-protocol`, `principle-subtract-before-you-add`).
-- Reviewable: when Kolin asks for one PR for a large change, keep it one PR, with one commit per verified unit and a review map in the PR body (unit, commits, files, the check that proves it).
-
 ## Guardrails, lint and ratchets
 
 - Every bad pattern becomes a lint rule, test or check, seeded at today's count in a ratchet and driven to zero (`correct`). A rule message names the fix and the file to use instead.

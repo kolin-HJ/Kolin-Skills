@@ -37,7 +37,7 @@ check() {
   fi
 }
 
-check poteto-agent "poteto-mode/SKILL.md"
+check poteto-agent "builder-context.py"
 check senior-reviewer "" "${REVIEWER_MODEL:-claude-opus-5-5}" any
 check comment-sicko "" any any
 check haiku-worker "" "${WORKER_MODEL:-claude-haiku-5-5}"
