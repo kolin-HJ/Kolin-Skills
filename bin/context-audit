@@ -11,6 +11,7 @@ import sys
 import time
 
 HOME = pathlib.Path.home()
+ACTIVE = pathlib.Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude"))
 STATE = HOME / ".kolin-skills"
 REPORT = STATE / "context-audit.json"
 CACHE = STATE / "context-audit-cache.json"
@@ -35,11 +36,15 @@ KEPT = {
 
 
 def config_dirs():
-    dirs = [pathlib.Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude")), HOME / ".claude"]
+    dirs = [ACTIVE, HOME / ".claude"]
     unique = {}
     for path in dirs:
         unique.setdefault(path.resolve(), path)
     return [path / "projects" for path in unique.values() if (path / "projects").is_dir()]
+
+
+def context_tokens(usage):
+    return usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
 
 
 def records(path):
@@ -77,7 +82,7 @@ def read_requests(path):
             texts += [block.get("text", "") for block in record["message"]["content"] if isinstance(block, dict)]
         elif kind == "assistant" and shape is not None and first is None:
             usage = record["message"]["usage"]
-            first = ("\n".join(texts), usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("cache_read_input_tokens", 0))
+            first = ("\n".join(texts), context_tokens(usage))
     return (shape, first, "\n".join(texts)) if first else None
 
 
@@ -226,8 +231,7 @@ def session_stats(path):
         elif kind == "assistant":
             message = record["message"]
             usage = message.get("usage") or {}
-            context = usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
-            messages[message.get("id") or record.get("uuid")] = (message.get("model"), context, usage.get("output_tokens", 0))
+            messages[message.get("id") or record.get("uuid")] = (message.get("model"), context_tokens(usage), usage.get("output_tokens", 0))
             for block in message["content"] if isinstance(message.get("content"), list) else []:
                 if block.get("type") == "tool_use":
                     calls[block["id"]] = block["name"]
@@ -252,7 +256,7 @@ def session_stats(path):
 
 def session_files(days):
     cutoff = time.time() - days * 86400
-    root = config_dirs()[0]
+    root = ACTIVE / "projects"
     for pattern, is_agent in (("*/*.jsonl", False), ("*/*/subagents/agent-*.jsonl", True)):
         for path in root.glob(pattern):
             if path.stat().st_mtime >= cutoff:
@@ -300,7 +304,7 @@ def print_sessions(days):
     for (label, model), group in sorted(runs.items(), key=lambda item: -sum(run["tokens"] for run in item[1])):
         peaks = [run["peak"] for run in group]
         print(f"  {label:<24} {model:<28} {len(group):>5} {sum(run['tokens'] for run in group):>15,} {median([run['calls'] for run in group]):>7g} "
-              f"{sum(run['calls'] > LONG_RUN_CALLS for run in group):>4} {median(peaks):>11,g} {max(peaks):>11,}")
+              f"{sum(run['calls'] > LONG_RUN_CALLS for run in group):>4} {int(median(peaks)):>11,} {max(peaks):>11,}")
     print("\nCostliest sessions, subagents included: project, date, tokens, subagents, compactions")
     for (project, _), entry in sorted(sessions.items(), key=lambda item: -item[1]["tokens"])[:5]:
         print(f"  {project[-40:]:<40} {entry['date'] or '-':<10} {entry['tokens']:>15,} {entry['subagents']:>4} {entry['compactions']:>3}")
@@ -319,11 +323,11 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--notice", action="store_true", help="session-start hook: one line when waste exists; refresh in the background when the report is a week old")
     mode.add_argument("--refresh", action="store_true", help="rebuild the report and print nothing")
-    mode.add_argument("--sessions", action="store_true", help="report token use, hook blocks and failing tools across recent session transcripts")
-    parser.add_argument("--days", type=int, default=SESSION_DAYS, help="window for --sessions")
+    mode.add_argument("--sessions", nargs="?", const=SESSION_DAYS, type=int, metavar="DAYS",
+                      help=f"report token use, hook blocks and failing tools across transcripts of the last DAYS days (default {SESSION_DAYS})")
     args = parser.parse_args()
-    if args.sessions:
-        return print_sessions(args.days)
+    if args.sessions is not None:
+        return print_sessions(args.sessions)
     if args.notice:
         return notice()
     report = refresh()
