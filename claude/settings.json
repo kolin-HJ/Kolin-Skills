@@ -69,6 +69,15 @@
     ],
     "PreToolUse": [
       {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/context-budget.py'",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "Bash|Write|Edit|MultiEdit",
         "hooks": [
           {
@@ -102,7 +111,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 '{{REPO}}/hooks/heavy-jobs.py'",
+            "command": "python3 '{{REPO}}/hooks/bash-guard.py'",
             "timeout": 5
           }
         ]
@@ -133,6 +142,18 @@
           {
             "type": "command",
             "command": "python3 '{{REPO}}/hooks/keep-awake.py'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/mcp-access.py'",
             "timeout": 5
           }
         ]

@@ -8,16 +8,16 @@ import unittest
 
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-HEAVY_HOOK = REPO / "hooks/heavy-jobs.py"
+BASH_GUARD = REPO / "hooks/bash-guard.py"
 ENV_HOOK = REPO / "hooks/block-env-reads.py"
 NESTED_POLL = "for i in $(seq 1 16); do p=$(for n in 874 857; do gh pr view $n; done); echo $p; sleep 30; done"
 
 
-def invoke(hook, tool_input):
+def invoke(hook, tool_input, **payload):
     with tempfile.TemporaryDirectory() as directory:
         return subprocess.run(
             [sys.executable, str(hook)],
-            input=json.dumps({"tool_input": tool_input}),
+            input=json.dumps({"tool_input": tool_input, **payload}),
             text=True,
             capture_output=True,
             cwd=directory,
@@ -32,7 +32,7 @@ def updated_input(result):
 class HeavyJobsGuardTests(unittest.TestCase):
     def test_slot_prefix_names_no_git_path(self):
         command = "pnpm check"
-        updated = updated_input(invoke(HEAVY_HOOK, {"command": command}))
+        updated = updated_input(invoke(BASH_GUARD, {"command": command}))
         prefix = updated["command"].removesuffix(command)
         self.assertIn(".kolin-skills/bin/heavy-slot.py", prefix)
         self.assertNotIn("git", prefix.lower())
@@ -77,12 +77,12 @@ class HeavyJobsGuardTests(unittest.TestCase):
         ]
         for command in blocked:
             with self.subTest(blocked=command):
-                result = invoke(HEAVY_HOOK, {"command": command})
+                result = invoke(BASH_GUARD, {"command": command})
                 self.assertEqual(result.returncode, 2, result.stdout)
                 self.assertIn("Edit or Write tool", result.stderr)
         for command in allowed:
             with self.subTest(allowed=command):
-                result = invoke(HEAVY_HOOK, {"command": command})
+                result = invoke(BASH_GUARD, {"command": command})
                 self.assertEqual((result.returncode, result.stderr), (0, ""))
 
     def test_shell_append_is_allowed_outside_any_git_work_tree_and_denied_inside(self):
@@ -103,11 +103,11 @@ class HeavyJobsGuardTests(unittest.TestCase):
             ]
             for command in allowed:
                 with self.subTest(allowed=command):
-                    result = invoke(HEAVY_HOOK, {"command": command})
+                    result = invoke(BASH_GUARD, {"command": command})
                     self.assertEqual((result.returncode, result.stderr), (0, ""))
             for command in blocked:
                 with self.subTest(blocked=command):
-                    result = invoke(HEAVY_HOOK, {"command": command})
+                    result = invoke(BASH_GUARD, {"command": command})
                     self.assertEqual(result.returncode, 2, result.stdout)
 
     def test_scratch_context_follows_cd_and_scratch_variables(self):
@@ -148,17 +148,28 @@ class HeavyJobsGuardTests(unittest.TestCase):
         ]
         for command in blocked:
             with self.subTest(blocked=command):
-                result = invoke(HEAVY_HOOK, {"command": command})
+                result = invoke(BASH_GUARD, {"command": command})
                 self.assertEqual(result.returncode, 2, result.stdout)
                 self.assertIn("Edit or Write tool", result.stderr)
         for command in allowed:
             with self.subTest(allowed=command):
-                result = invoke(HEAVY_HOOK, {"command": command})
+                result = invoke(BASH_GUARD, {"command": command})
                 self.assertEqual((result.returncode, result.stderr), (0, ""))
+
+    def syntax_check(self, command):
+        return subprocess.run(["bash", "-n"], input=command, text=True, capture_output=True).returncode
+
+    def test_shell_edit_is_blocked_on_the_main_thread_and_passes_in_a_subagent(self):
+        command = "sed -i 's/a/b/' src/app.ts"
+        main = invoke(BASH_GUARD, {"command": command})
+        self.assertEqual(main.returncode, 2)
+        self.assertIn("bypass-mode", main.stderr)
+        subagent = invoke(BASH_GUARD, {"command": command}, agent_id="a1", agent_type="poteto-agent")
+        self.assertEqual((subagent.returncode, subagent.stderr), (0, ""))
 
     def test_git_push_takes_a_slot_and_gate_filters_are_dropped(self):
         prefix_pattern = re.compile(r"^python3 \S+heavy-slot\.py \$\$ \d+\n")
-        push = updated_input(invoke(HEAVY_HOOK, {"command": "git push origin feature"}))
+        push = updated_input(invoke(BASH_GUARD, {"command": "git push origin feature"}))
         self.assertRegex(push["command"], prefix_pattern)
         heredoc = "cat <<'EOF'\npnpm check | tail -2\nEOF"
         cases = [
@@ -176,25 +187,61 @@ class HeavyJobsGuardTests(unittest.TestCase):
             ("git push origin feature && echo done | tail -1", "git push origin feature && echo done | tail -1", True),
             ("git log | head -5", "git log | head -5", False),
         ]
-        unsafe = [
-            "pnpm check | grep -q FAIL && echo failed",
-            'out=$(pnpm check 2>&1 | tail -5); echo "$out"',
-            "(pnpm check | tail -5) && echo ok",
-            "pnpm check 2>&1 | tail -2 > /tmp/out.txt; cat /tmp/out.txt",
-            "pnpm check | grep error | wc -l",
-            "pnpm check | tail -5 \\\n&& echo ok",
-            "git push 2>&1 | grep -q rejected; echo $?",
-            "pnpm check 2>&1 | grep -Ec 'FAIL|error'",
-            "git push 2>&1 | tail -2; echo $?",
+        stripped = [
+            ("(npm run check 2>&1 | tail -25)", "(npm run check 2>&1)"),
+            ("npm run check 2>&1 | tail -40; echo EXIT=$?", "npm run check 2>&1; echo EXIT=$?"),
+            ("pnpm check 2>&1 | tail -45; echo EXIT $?", "pnpm check 2>&1; echo EXIT $?"),
+            ("pnpm check 2>&1 | tail -8 && git commit -m x", "pnpm check 2>&1 && git commit -m x"),
+            ('out=$(pnpm check 2>&1 | tail -5); echo "$out"', 'out=$(pnpm check 2>&1); echo "$out"'),
         ]
-        for command in unsafe:
-            with self.subTest(unsafe=command):
-                result = invoke(HEAVY_HOOK, {"command": command})
-                self.assertEqual(result.returncode, 2, result.stdout)
-                self.assertIn("do not filter gate output", result.stderr)
+        for command, expected in stripped:
+            with self.subTest(stripped=command):
+                result = invoke(BASH_GUARD, {"command": command})
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+                self.assertEqual(prefix_pattern.sub("", updated_input(result)["command"]), expected)
+        rewritten = [
+            (
+                "pnpm check 2>&1 | grep -q FAIL && echo failed",
+                r"\{ pnpm check > (/tmp/gate-\w+\.log) 2>&1; cat \1 \| grep -q FAIL; \} && echo failed",
+            ),
+            (
+                "pnpm check 2>&1 | tail -2 > /tmp/out.txt; cat /tmp/out.txt",
+                r"\{ pnpm check > (/tmp/gate-\w+\.log) 2>&1; cat \1 \| tail -2 > /tmp/out.txt; \}; cat /tmp/out.txt",
+            ),
+            (
+                "pnpm check | grep error | wc -l",
+                r"\{ pnpm check > (/tmp/gate-\w+\.log) 2>&1; cat \1 \| grep error \| wc -l; \}",
+            ),
+            (
+                "git push 2>&1 | grep -q rejected; echo $?",
+                r"\{ git push > (/tmp/gate-\w+\.log) 2>&1; cat \1 \| grep -q rejected; \}; echo \$\?",
+            ),
+            (
+                "CI=1 pnpm check | grep -q FAIL",
+                r"\{ CI=1 pnpm check > (/tmp/gate-\w+\.log) 2>&1; cat \1 \| grep -q FAIL; \}",
+            ),
+            (
+                "pnpm check | grep foo\\|bar",
+                r"\{ pnpm check > (/tmp/gate-\w+\.log) 2>&1; cat \1 \| grep foo\\\|bar; \}",
+            ),
+        ]
+        for command, expected in stripped:
+            with self.subTest(syntax=command):
+                result = invoke(BASH_GUARD, {"command": command})
+                self.assertEqual(self.syntax_check(prefix_pattern.sub("", updated_input(result)["command"])), 0)
+        for command, pattern in rewritten:
+            with self.subTest(rewritten=command):
+                result = invoke(BASH_GUARD, {"command": command})
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+                rewritten_command = updated_input(result)["command"]
+                self.assertRegex(rewritten_command, prefix_pattern)
+                self.assertEqual(self.syntax_check(prefix_pattern.sub("", rewritten_command)), 0)
+                self.assertRegex(prefix_pattern.sub("", rewritten_command), f"^{pattern}$")
+                context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+                self.assertRegex(context, r"/tmp/gate-\w+\.log")
         for command, expected, takes_slot in cases:
             with self.subTest(command=command):
-                result = invoke(HEAVY_HOOK, {"command": command})
+                result = invoke(BASH_GUARD, {"command": command})
                 self.assertEqual((result.returncode, result.stderr), (0, ""))
                 updated = updated_input(result)
                 rewritten = updated["command"] if updated else command
@@ -202,11 +249,11 @@ class HeavyJobsGuardTests(unittest.TestCase):
                 self.assertEqual(bool(prefix_pattern.match(rewritten)), takes_slot)
 
     def test_poll_loop_nested_in_a_command_substitution_is_blocked(self):
-        blocked = invoke(HEAVY_HOOK, {"command": NESTED_POLL})
+        blocked = invoke(BASH_GUARD, {"command": NESTED_POLL})
         self.assertEqual(blocked.returncode, 2)
         self.assertIn("run_in_background: true", blocked.stderr)
-        self.assertEqual(invoke(HEAVY_HOOK, {"command": NESTED_POLL, "run_in_background": True}).returncode, 0)
-        self.assertEqual(invoke(HEAVY_HOOK, {"command": "p=$(for n in 1 2; do gh pr view $n; done); echo $p"}).returncode, 0)
+        self.assertEqual(invoke(BASH_GUARD, {"command": NESTED_POLL, "run_in_background": True}).returncode, 0)
+        self.assertEqual(invoke(BASH_GUARD, {"command": "p=$(for n in 1 2; do gh pr view $n; done); echo $p"}).returncode, 0)
 
     def test_long_foreground_curl_retry_is_blocked(self):
         cases = [
@@ -218,9 +265,9 @@ class HeavyJobsGuardTests(unittest.TestCase):
         ]
         for tool_input, code in cases:
             with self.subTest(tool_input=tool_input):
-                result = invoke(HEAVY_HOOK, tool_input)
+                result = invoke(BASH_GUARD, tool_input)
                 self.assertEqual(result.returncode, code, result.stderr)
-        self.assertIn("Monitor", invoke(HEAVY_HOOK, cases[0][0]).stderr)
+        self.assertIn("Monitor", invoke(BASH_GUARD, cases[0][0]).stderr)
 
     def test_unquoted_include_globs_are_quoted_for_zsh(self):
         cases = [
@@ -230,20 +277,20 @@ class HeavyJobsGuardTests(unittest.TestCase):
         ]
         for command, expected in cases:
             with self.subTest(command=command):
-                self.assertEqual(updated_input(invoke(HEAVY_HOOK, {"command": command}))["command"], expected)
+                self.assertEqual(updated_input(invoke(BASH_GUARD, {"command": command}))["command"], expected)
         for command in ["grep -rn foo --include='*.ts' src", "grep -rn foo --include=ts src",
                         "cat > /tmp/x <<'EOF'\ngrep --include=*.ts\nEOF"]:
             with self.subTest(command=command):
-                self.assertEqual(invoke(HEAVY_HOOK, {"command": command}).stdout, "")
+                self.assertEqual(invoke(BASH_GUARD, {"command": command}).stdout, "")
 
     def test_glob_quoting_and_slot_prefix_arrive_in_one_updated_input(self):
         command = "pnpm test && grep -rn foo --include=*.ts src"
-        updated = updated_input(invoke(HEAVY_HOOK, {"command": command}))
+        updated = updated_input(invoke(BASH_GUARD, {"command": command}))
         self.assertRegex(updated["command"], r"^python3 \S+heavy-slot\.py \$\$ \d+\npnpm test && grep -rn foo --include='\*\.ts' src$")
         self.assertEqual(updated["timeout"], 180000)
 
     def test_docker_database_message_tells_the_agent_to_carry_on(self):
-        blocked = invoke(HEAVY_HOOK, {"command": "docker compose up -d postgres"})
+        blocked = invoke(BASH_GUARD, {"command": "docker compose up -d postgres"})
         self.assertEqual(blocked.returncode, 2)
         self.assertIn("do not ask Kolin to exempt this hook", blocked.stderr)
 
