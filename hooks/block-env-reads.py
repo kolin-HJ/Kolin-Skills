@@ -6,6 +6,7 @@ import sys
 
 
 OPERAND = re.compile(r"^(?:[\w./~@:-]*[/:@])?\.env(\.[\w.-]+)?$", re.IGNORECASE)
+EMBEDDED = re.compile(r"(?:^|[\s'\"(=,:])((?:[\w.~@-]*/)*\.env(?:\.[\w-]+)*)(?=$|[\s'\"),;])", re.IGNORECASE)
 SAFE_SUFFIX = re.compile(r"\.(example|sample|template|dist)$", re.IGNORECASE)
 HEREDOC = re.compile(
     r"<<-?\s*(['\"]?)([A-Za-z_][\w]*)\1.*?^\s*\2\s*$",
@@ -50,7 +51,8 @@ def main() -> int:
 
     for token in tokens:
         name = token.split("=")[-1] if token.startswith("-") else token
-        if not OPERAND.match(name) or SAFE_SUFFIX.search(name):
+        embedded = [path for path in EMBEDDED.findall(token) if not SAFE_SUFFIX.search(path)]
+        if (not OPERAND.match(name) or SAFE_SUFFIX.search(name)) and not embedded:
             continue
         print(
             f"Blocked: `{token}` is a .env file. Secrets are off limits — use "

@@ -295,6 +295,30 @@ class HeavyJobsGuardTests(unittest.TestCase):
         self.assertIn("do not ask Kolin to exempt this hook", blocked.stderr)
 
 
+class EnvGuardEmbeddedPathTests(unittest.TestCase):
+    def test_env_path_inside_a_script_argument_is_blocked(self):
+        blocked = [
+            """node -e 'console.log(require("fs").readFileSync("apps/web/.env.local","utf8"))'""",
+            """python3 -c "print(open('.env').read())\"""",
+            "awk -F= '{print $1}' apps/web/.env.local",
+            """node -e "require('dotenv').config({path:'./.env.production'})\"""",
+        ]
+        allowed = [
+            """node -e 'console.log(process.env.NODE_ENV)'""",
+            """node -e "require('dotenv/config')\"""",
+            "cat .envrc",
+            """node -e 'read("apps/web/.env.example")'""",
+            "pnpm secrets pull",
+        ]
+        for command in blocked:
+            with self.subTest(blocked=command):
+                self.assertEqual(invoke(ENV_HOOK, {"command": command}).returncode, 2, command)
+        for command in allowed:
+            with self.subTest(allowed=command):
+                result = invoke(ENV_HOOK, {"command": command})
+                self.assertEqual((result.returncode, result.stderr), (0, ""), command)
+
+
 class EnvGuardExistenceCheckTests(unittest.TestCase):
     def test_env_file_may_be_named_only_by_existence_checks(self):
         blocked = ["ls .env.local && cat .env.local", "cat .env.local", "ls .env; cat .env", "ls .env.local | xargs cat", "test -f .env && source .env"]
