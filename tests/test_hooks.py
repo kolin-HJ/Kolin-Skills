@@ -14,7 +14,7 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 LINT_HOOK = REPO / "hooks/lint-changed-lines.py"
 ENV_HOOK = REPO / "hooks/block-env-reads.py"
 MODE_HOOK = REPO / "skills/pstack-local/scripts/mode-reminder"
-HEAVY_HOOK = REPO / "hooks/heavy-jobs.py"
+BASH_GUARD = REPO / "hooks/bash-guard.py"
 SLOT = REPO / "hooks/heavy-slot.py"
 MODEL_HOOK = REPO / "hooks/agent-default-model.py"
 CONTEXT_HOOK = REPO / "hooks/builder-context.py"
@@ -299,7 +299,7 @@ class NativeHookPayloadTests(unittest.TestCase):
             self.assertEqual(nowhere.returncode, 0, nowhere.stderr)
             self.assertIn("New engineering task", json.loads(nowhere.stdout)["hookSpecificOutput"]["additionalContext"])
 
-    def test_heavy_jobs_blocks_sleep_polling_in_the_foreground_only(self):
+    def test_bash_guard_blocks_sleep_polling_in_the_foreground_only(self):
         with tempfile.TemporaryDirectory() as directory:
             cases = [
                 ({"command": "until [ -f out.json ]; do sleep 15; done"}, 2),
@@ -312,12 +312,12 @@ class NativeHookPayloadTests(unittest.TestCase):
             ]
             for tool_input, code in cases:
                 with self.subTest(tool_input=tool_input):
-                    result = invoke(HEAVY_HOOK, {"tool_input": tool_input}, directory)
+                    result = invoke(BASH_GUARD, {"tool_input": tool_input}, directory)
                     self.assertEqual(result.returncode, code, result.stderr)
-            blocked = invoke(HEAVY_HOOK, {"tool_input": cases[0][0]}, directory)
+            blocked = invoke(BASH_GUARD, {"tool_input": cases[0][0]}, directory)
             self.assertIn("run_in_background: true", blocked.stderr)
 
-    def test_heavy_jobs_blocks_a_database_run_in_docker(self):
+    def test_bash_guard_blocks_a_database_run_in_docker(self):
         with tempfile.TemporaryDirectory() as directory:
             cases = [
                 ("docker exec supabase_db_hj-plm psql -U postgres -c 'select 1'", 2),
@@ -331,12 +331,12 @@ class NativeHookPayloadTests(unittest.TestCase):
             ]
             for command, code in cases:
                 with self.subTest(command=command):
-                    result = invoke(HEAVY_HOOK, {"tool_input": {"command": command}}, directory)
+                    result = invoke(BASH_GUARD, {"tool_input": {"command": command}}, directory)
                     self.assertEqual(result.returncode, code, result.stderr)
-            blocked = invoke(HEAVY_HOOK, {"tool_input": {"command": cases[0][0]}}, directory)
+            blocked = invoke(BASH_GUARD, {"tool_input": {"command": cases[0][0]}}, directory)
             self.assertIn("local-supabase", blocked.stderr)
 
-    def test_heavy_jobs_queues_gate_commands_behind_a_slot(self):
+    def test_bash_guard_queues_gate_commands_behind_a_slot(self):
         with tempfile.TemporaryDirectory() as directory:
             cases = [
                 ({"command": "pnpm check 2>&1", "description": "Run gate"}, 60, 180000),
@@ -346,7 +346,7 @@ class NativeHookPayloadTests(unittest.TestCase):
             ]
             for tool_input, max_wait, timeout in cases:
                 with self.subTest(tool_input=tool_input):
-                    result = invoke(HEAVY_HOOK, {"tool_input": tool_input}, directory)
+                    result = invoke(BASH_GUARD, {"tool_input": tool_input}, directory)
                     updated = json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"]
                     command = f"python3 {pathlib.Path.home() / '.kolin-skills/bin/heavy-slot.py'} $$ {max_wait}\n{tool_input['command']}"
                     self.assertEqual(updated, {**tool_input, "command": command, "timeout": timeout})
@@ -354,7 +354,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                             "gh pr create --body 'Ran: pnpm check'", "rg tsc docs/", "cat vitest.config.ts",
                             "pnpm test --watch", "pnpm dev"]:
                 with self.subTest(command=command):
-                    light = invoke(HEAVY_HOOK, {"tool_input": {"command": command}}, directory)
+                    light = invoke(BASH_GUARD, {"tool_input": {"command": command}}, directory)
                     self.assertEqual((light.returncode, light.stdout, light.stderr), (0, "", ""))
 
     def test_heavy_slot_keeps_the_machine_awake_until_the_job_exits(self):

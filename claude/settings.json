@@ -102,7 +102,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 '{{REPO}}/hooks/heavy-jobs.py'",
+            "command": "python3 '{{REPO}}/hooks/bash-guard.py'",
             "timeout": 5
           }
         ]

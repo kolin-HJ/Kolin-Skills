@@ -244,7 +244,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `hooks/agent-default-model.py` | Claude Code | Blocks `fork` subagents and editing subagents spawned with `isolation: "worktree"`. Moves an Opus builder to Sonnet |
 | `hooks/builder-context.py` | Claude Code | Loads the six principle leaves into each `poteto-agent` at start. `kolin-skills check` fails when a leaf is missing or the text exceeds the 10,000-character hook limit |
 | `hooks/fix-rounds.py` | Claude Code | Blocks a 3rd `SendMessage` to one agent, so a 3rd fix round goes to a fresh builder. `fix-rounds: <to> <reason>` in `.pstack/status.md` lifts it |
-| `hooks/heavy-jobs.py` | Claude Code | Blocks polling loops and shell edits. Queues heavy jobs into 3 shared slots |
+| `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks polling loops, Docker databases, long curl retries and shell edits, strips filters from gate output, and queues heavy jobs into 3 shared slots |
 | `hooks/lint-changed-lines.py` | All but Grok | Lints the JS and TS lines the agent just changed |
 | `hooks/compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through compaction |
 | `skills/pstack-local/scripts/mode-reminder` | Claude Code, Codex | Each prompt: read the method, write a value case. Flags "full stop", "full send" and a `.pstack/status.md` older than an hour |
