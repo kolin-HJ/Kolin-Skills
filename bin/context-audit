@@ -20,6 +20,9 @@ WINDOW_DAYS = 30
 REFRESH_DAYS = 7
 MIN_ITEM_TOKENS = 100
 MIN_NOTICE_TOKENS = 500
+SESSION_DAYS = 14
+LONG_RUN_CALLS = 200
+HOOK_BLOCK = re.compile(r"hook error: \[[^\]]*?([^/\s']+?)'?\]: (.{0,50})", re.S)
 SKILL_PATH = re.compile(r"skills/([A-Za-z0-9:_-]+)/SKILL\.md")
 COMMAND = re.compile(r"<command-name>/?([^<]+)</command-name>")
 LISTED_SKILL = re.compile(r"^- ([A-Za-z0-9:_-]+)(?::|$)", re.M)
@@ -204,12 +207,123 @@ def notice():
         print(json.dumps({"systemMessage": message}))
 
 
+def result_text(content):
+    if isinstance(content, str):
+        return content
+    return "\n".join(block.get("text", "") for block in content if isinstance(block, dict))
+
+
+def session_stats(path):
+    messages, calls, outcomes = {}, {}, {}
+    hooks, urls, compactions, first = collections.Counter(), set(), 0, None
+    for record in records(path):
+        kind = record.get("type")
+        first = first or record.get("timestamp")
+        if kind == "pr-link":
+            urls.add(record["prUrl"])
+        elif kind == "system" and record.get("subtype") == "compact_boundary":
+            compactions += 1
+        elif kind == "assistant":
+            message = record["message"]
+            usage = message.get("usage") or {}
+            context = usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
+            messages[message.get("id") or record.get("uuid")] = (message.get("model"), context, usage.get("output_tokens", 0))
+            for block in message["content"] if isinstance(message.get("content"), list) else []:
+                if block.get("type") == "tool_use":
+                    calls[block["id"]] = block["name"]
+        elif kind == "user" and isinstance(record["message"].get("content"), list):
+            for block in record["message"]["content"]:
+                if block.get("type") != "tool_result":
+                    continue
+                failed = bool(block.get("is_error"))
+                outcomes[block["tool_use_id"]] = failed
+                blocked = HOOK_BLOCK.search(result_text(block.get("content", ""))) if failed else None
+                if blocked:
+                    hooks[(blocked.group(1), " ".join(blocked.group(2).split()))] += 1
+    models = collections.Counter(model for model, _, _ in messages.values())
+    return {
+        "model": models.most_common(1)[0][0] if models else "unknown",
+        "tokens": sum(context + output for _, context, output in messages.values()),
+        "peak": max((context for _, context, _ in messages.values()), default=0),
+        "calls": len(calls), "compactions": compactions, "hooks": hooks, "urls": urls, "first": first,
+        "tools": [(name, outcomes.get(tool_id) is False) for tool_id, name in calls.items()],
+    }
+
+
+def session_files(days):
+    cutoff = time.time() - days * 86400
+    root = config_dirs()[0]
+    for pattern, is_agent in (("*/*.jsonl", False), ("*/*/subagents/agent-*.jsonl", True)):
+        for path in root.glob(pattern):
+            if path.stat().st_mtime >= cutoff:
+                yield path, is_agent
+
+
+def agent_type(path):
+    meta = path.with_suffix(".meta.json")
+    return json.loads(meta.read_text()).get("agentType", "unknown") if meta.is_file() else "unknown"
+
+
+def median(values):
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
+
+
+def print_sessions(days):
+    runs, tools = collections.defaultdict(list), collections.defaultdict(lambda: [0, 0])
+    hooks, urls, split = collections.Counter(), set(), collections.Counter()
+    sessions = collections.defaultdict(lambda: {"tokens": 0, "compactions": 0, "date": "", "subagents": 0})
+    for path, is_agent in session_files(days):
+        stats = session_stats(path)
+        owner = (path.parent.parent.parent.name, path.parent.parent.name) if is_agent else (path.parent.name, path.stem)
+        side = "subagent" if is_agent else "main"
+        runs[(agent_type(path) if is_agent else "main", stats["model"])].append(stats)
+        split[side] += stats["tokens"]
+        split[side + " runs"] += 1
+        urls |= stats["urls"]
+        for name, succeeded in stats["tools"]:
+            tools[name][0] += 1
+            tools[name][1] += succeeded
+        for (hook, text), count in stats["hooks"].items():
+            hooks[(side, hook, text)] += count
+        entry = sessions[owner]
+        entry["tokens"] += stats["tokens"]
+        if is_agent:
+            entry["subagents"] += 1
+        else:
+            entry["compactions"] = stats["compactions"]
+            entry["date"] = (stats["first"] or "")[:10]
+    print(f"Sessions audit, last {days} days: {split['main runs']} main sessions, {split['subagent runs']} subagents, "
+          f"{split['main'] + split['subagent']:,} tokens (main {split['main']:,}, subagents {split['subagent']:,}).")
+    print(f"\nBy agent and model: runs, tokens, median calls, runs over {LONG_RUN_CALLS} calls, peak context median and max")
+    for (label, model), group in sorted(runs.items(), key=lambda item: -sum(run["tokens"] for run in item[1])):
+        peaks = [run["peak"] for run in group]
+        print(f"  {label:<24} {model:<28} {len(group):>5} {sum(run['tokens'] for run in group):>15,} {median([run['calls'] for run in group]):>7g} "
+              f"{sum(run['calls'] > LONG_RUN_CALLS for run in group):>4} {median(peaks):>11,g} {max(peaks):>11,}")
+    print("\nCostliest sessions, subagents included: project, date, tokens, subagents, compactions")
+    for (project, _), entry in sorted(sessions.items(), key=lambda item: -item[1]["tokens"])[:5]:
+        print(f"  {project[-40:]:<40} {entry['date'] or '-':<10} {entry['tokens']:>15,} {entry['subagents']:>4} {entry['compactions']:>3}")
+    print("\nHook blocks, top 10")
+    for (side, hook, text), count in hooks.most_common(10):
+        print(f"  {count:>5}  {side:<8} {hook}: {text}")
+    print("\nTools that always fail, 3+ calls and 0 successes")
+    for name, (calls, successes) in sorted(tools.items()):
+        if calls >= 3 and successes == 0:
+            print(f"  {name}: {calls}")
+    print(f"\nUnique PR URLs linked: {len(urls)}")
+
+
 def main():
     parser = argparse.ArgumentParser(prog="context-audit", description="List skills, tools and MCP servers that cost context in every session and went unused for 30 days.")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--notice", action="store_true", help="session-start hook: one line when waste exists; refresh in the background when the report is a week old")
     mode.add_argument("--refresh", action="store_true", help="rebuild the report and print nothing")
+    mode.add_argument("--sessions", action="store_true", help="report token use, hook blocks and failing tools across recent session transcripts")
+    parser.add_argument("--days", type=int, default=SESSION_DAYS, help="window for --sessions")
     args = parser.parse_args()
+    if args.sessions:
+        return print_sessions(args.days)
     if args.notice:
         return notice()
     report = refresh()

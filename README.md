@@ -229,7 +229,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `kolin-skills upstream` | Installs third-party skills at pinned commits. `--bump` moves the pins |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
 | `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, tools, tests, comments. In a worktree it skips home drift |
-| `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days |
+| `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [--days N]` reports token use, hook blocks and failing tools across recent transcripts |
 
 </details>
 

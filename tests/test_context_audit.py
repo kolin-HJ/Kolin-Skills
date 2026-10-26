@@ -89,6 +89,35 @@ class ContextAuditTests(unittest.TestCase):
         listed = {line.split()[1] for line in self.run_cli().stdout.splitlines() if line.startswith("  ")}
         self.assertEqual(listed, {"idle", "Workflow"})
 
+    def test_sessions_report_counts_each_message_once_and_names_hook_blocks_and_failing_tools(self):
+        def assistant(message_id, model, usage, *calls):
+            content = [{"type": "tool_use", "id": call_id, "name": name, "input": {}} for call_id, name in calls]
+            return {"type": "assistant", "timestamp": "2026-10-20T10:00:00Z", "message": {"id": message_id, "model": model, "usage": usage, "content": content}}
+
+        def result(call_id, text, failed=True):
+            return {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": call_id, "is_error": failed, "content": text}]}}
+
+        first = assistant("m1", "claude-opus-5-5", {"input_tokens": 10, "cache_creation_input_tokens": 20, "cache_read_input_tokens": 70, "output_tokens": 5},
+                          ("t1", "Bash"), ("t2", "mcp__x__query"), ("t3", "mcp__x__query"))
+        second = assistant("m2", "claude-opus-5-5", {"input_tokens": 1, "cache_read_input_tokens": 199, "output_tokens": 10}, ("t4", "mcp__x__query"))
+        block = "PreToolUse:Bash hook error: [python3 '/r/hooks/heavy-jobs.py']: Blocked: edit files with the Edit or Write tool, so the lint hook sees each change."
+        pr = {"type": "pr-link", "prUrl": "https://github.com/o/r/pull/1"}
+        transcript(self.projects / "proj/s1.jsonl", first, first, second, result("t1", block), result("t2", "boom"),
+                   result("t3", [{"type": "text", "text": "boom"}]), result("t4", "boom"), pr, pr,
+                   {"type": "system", "subtype": "compact_boundary"})
+        agent = self.projects / "proj/s1/subagents/agent-a1"
+        transcript(agent.with_suffix(".jsonl"), assistant("s1", "claude-sonnet-5-5", {"input_tokens": 1000, "output_tokens": 50}, ("u1", "Read")),
+                   result("u1", "ok", failed=False))
+        agent.with_suffix(".meta.json").write_text(json.dumps({"agentType": "reviewer"}))
+        rows = {line.split()[0]: line.split() for line in self.run_cli("--sessions").stdout.splitlines() if line.strip()}
+        self.assertEqual(rows["Sessions"][5:10], ["1", "main", "sessions,", "1", "subagents,"])
+        self.assertEqual(rows["main"][1:], ["claude-opus-5-5", "1", "315", "4", "0", "200", "200"])
+        self.assertEqual(rows["reviewer"][1:], ["claude-sonnet-5-5", "1", "1,050", "1", "0", "1,000", "1,000"])
+        self.assertEqual(rows["proj"][1:], ["2026-10-20", "1,365", "1", "1"])
+        self.assertEqual(rows["1"][1:4], ["main", "heavy-jobs.py:", "Blocked:"])
+        self.assertEqual(rows["mcp__x__query:"], ["mcp__x__query:", "3"])
+        self.assertEqual(rows["Unique"][-1], "1")
+
 
 if __name__ == "__main__":
     unittest.main()
