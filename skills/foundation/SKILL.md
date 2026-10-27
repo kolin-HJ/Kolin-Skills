@@ -90,7 +90,7 @@ src/
 
 - A feature folder starts with one file per side of a boundary (for example `contract.ts`, `server.ts`, `page.tsx`, plus tests) and grows a file only by the Readable rule.
 - Boundary gates protect the layout: features never import each other, and a platform SDK or a library the repo wraps (Componentized) is imported only in `foundation/`. Inside a feature, gate only a runtime boundary (the page never imports the server file); never add layer folders.
-- Budget per feature, in source files and lines with tests excluded, set in the step 3 plan Kolin reviews. Defaults: a read-only page 5 files and 800 lines, an edit page 7 and 1,200, a core write flow 12 and 2,500. Over budget fails review; over twice the budget stops the wave until Kolin approves a new budget.
+- Budget per feature, in source files and lines with tests excluded, set in the step 3 plan Kolin reviews (`.pstack/feature-budgets.json`). Defaults: a read-only page 5 files and 800 lines, an edit page 7 and 1,200, a core write flow 12 and 2,500. `bin/feature-budget` reports the counts (report-only in `kolin-skills check`). Over budget fails review; over twice the budget stops the wave until Kolin approves a new budget (`Where Kolin steps in`).
 - **Feature read.** A fresh agent opens one finished feature with no brief beyond its name, traces one request from the page to the data, and reports the files opened, the lines and every file under 40 lines with one importer (inline it), except a single library wrapper (Componentized: one wrapper per third-party lib).
 
 ## Guardrails, lint and ratchets

@@ -36,6 +36,7 @@ class FeatureBudgetTests(unittest.TestCase):
         for name in ("a", "b", "c"):
             self.source(f"src/features/otif/{name}.ts", 10)
         self.source("src/features/otif/otif.test.ts", 200)
+        self.source("node_modules/features/fake/x.ts", 10)
         result = self.run_cli()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("files=3 lines=30 budget=5/800 (read)  ok", result.stdout)
@@ -65,6 +66,13 @@ class FeatureBudgetTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("custom  files=3 lines=3 budget=2/40 (plan)  over — fails review", result.stdout)
         self.assertIn("form  files=7 lines=7 budget=7/1200 (edit)  ok", result.stdout)
+
+    def test_a_tree_with_no_feature_folder_reports_zero_and_exits_0(self):
+        self.source("src/lib/util.ts", 10)
+        result = self.run_cli()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("0 features (report-only)", result.stdout)
+        self.assertIn("Where Kolin steps in", result.stdout)
 
     def test_lists_under_40_line_single_importer_and_skips_a_library_wrapper(self):
         self.source("src/features/otif/tiny.ts", 12)
