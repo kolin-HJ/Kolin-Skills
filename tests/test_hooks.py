@@ -179,16 +179,22 @@ class NativeHookPayloadTests(unittest.TestCase):
             (agents / "read-only-opus.md").write_text("---\nname: read-only-opus\ntools: Read, Grep\n---\n")
             (agents / "inherits.md").write_text("---\nname: inherits\nmodel: inherit\n---\n")
             (agents / "seat.md").write_text("---\nname: seat\nmodel: claude-sonnet-5-5\n---\n")
+            (agents / "senior-reviewer.md").write_text(
+                "---\nname: senior-reviewer\ntools: Read, Grep, Glob, Bash\nmodel: claude-sonnet-5-5\n---\n")
             sonnet = ("allow", "sonnet")
+            denied = ("deny", None)
             cases = [
                 ({"subagent_type": "repo-builder"}, {}, sonnet),
                 ({"subagent_type": "general-purpose"}, {}, sonnet),
                 ({"subagent_type": "repo-reviewer"}, {}, None),
-                ({"subagent_type": "repo-builder", "model": "opus"}, {}, sonnet),
-                ({"subagent_type": "seat", "model": "opus"}, {}, sonnet),
-                ({"subagent_type": "general-purpose", "model": "opus"}, {}, sonnet),
+                ({"subagent_type": "repo-builder", "model": "opus"}, {}, denied),
+                ({"subagent_type": "seat", "model": "opus"}, {}, denied),
+                ({"subagent_type": "general-purpose", "model": "opus"}, {}, denied),
                 ({"subagent_type": "general-purpose", "model": "opus"}, {"KOLIN_OPUS_BUILDERS": "1"}, None),
-                ({"model": "opus"}, {}, sonnet),
+                ({"model": "opus"}, {}, denied),
+                ({"subagent_type": "senior-reviewer"}, {}, ("allow", "opus")),
+                ({"subagent_type": "senior-reviewer", "model": "sonnet"}, {}, None),
+                ({"subagent_type": "Plan", "model": "opus"}, {}, None),
                 ({}, {}, sonnet),
                 ({"subagent_type": "fork"}, {}, ("deny", None)),
                 ({"subagent_type": "Explore", "model": "opus"}, {}, None),
@@ -212,6 +218,17 @@ class NativeHookPayloadTests(unittest.TestCase):
                     output = json.loads(result.stdout)["hookSpecificOutput"] if result.stdout else None
                     got = None if output is None else (output["permissionDecision"], output.get("updatedInput", {}).get("model"))
                     self.assertEqual(got, expected)
+                    if expected == denied and tool_input.get("model"):
+                        self.assertIn("`Plan`", output["permissionDecisionReason"])
+
+    def test_agent_model_leaves_an_opus_pinned_reviewer_seat_alone(self):
+        with tempfile.TemporaryDirectory() as directory:
+            agents = pathlib.Path(directory) / ".claude/agents"
+            agents.mkdir(parents=True)
+            (agents / "senior-reviewer.md").write_text(
+                "---\nname: senior-reviewer\ntools: Read, Grep\nmodel: claude-opus-5-5\n---\n")
+            result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": {"subagent_type": "senior-reviewer"}}, directory)
+            self.assertEqual((result.returncode, result.stdout), (0, ""))
 
     def test_agent_model_denies_worktree_isolation_for_editing_agents_only(self):
         with tempfile.TemporaryDirectory() as directory:
