@@ -1,6 +1,6 @@
 ---
 name: pstack-local
-description: Use whenever poteto-mode or any other pstack skill (how, why, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, the principle-* skills) runs in Claude Code, Codex, Grok or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
+description: Use whenever poteto-mode or any other pstack skill (how, why, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, statechart, the principle-* skills) runs in Claude Code, Codex, Grok or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
 ---
 
 # pstack on this machine
@@ -29,6 +29,7 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 | `/deslop`, `control-ui`, `control-cli` from `cursor-team-kit` | Vendored and linked with the same names. For proof, use the repo's own verification skill (its CLI and feature map) first; if the repo has none, build one with `create-verification-skill` rather than scripting a one-off. The chrome-devtools MCP is for ad-hoc inspection. |
 | `.cursor/skills/<name>/` output, or any project-local skill a pstack skill writes | `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. |
 | `create-formal-verification-skill` tools | Install the verifier per repo at a pinned version (TLC: Java 11+ and `tla2tools.jar`. Kani: `cargo install --locked kani-verifier`, then `cargo kani setup`). A spec or harness has no comments. |
+| `statechart` | TLA+ model → chart. |
 | `/visualize` (ketchup) | A Mermaid diagram in the reply, or a chart that a script renders. |
 | `agent-transcripts/`, `~/.cursor/projects/` | Claude Code: `~/.claude/projects/<cwd with each / and . as ->/*.jsonl`. Codex: `~/.codex/sessions/`. Read only the current workspace's transcripts. |
 | `mcps/` discovery (why) | The MCP tools listed in this session. |
