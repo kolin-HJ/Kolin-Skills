@@ -45,7 +45,7 @@ flowchart TB
 | A rule in a prompt is only a request | A hook blocks the action, and the gate fails the push |
 | The agent reviews its own code | A fresh reviewer reads every diff |
 | "Done" means it compiles | "Done" means proven on the real app |
-| The same mistake comes back | A mistake seen twice becomes a lint rule, a test or a type |
+| The same mistake comes back | A mistake seen twice, or once for security, data-loss, or irreversible classes, becomes a lint rule, a test or a type |
 
 ## How it works
 

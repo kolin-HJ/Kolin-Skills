@@ -5,7 +5,7 @@ description: "Run a long, multi-session program that refactors a whole repositor
 
 # Loop: refactor a repo to pstack on one branch
 
-poteto's trust model is the premise. You parallelize only as far as you can trust unattended work, and trust comes from the environment, not from watching each chat. The codebase is the agents' memory, and agents copy what they see. So every correction goes to the strongest layer that can hold it: architecture, then a type, then a gate, then prose. Review is last.
+poteto's trust model is the premise. You parallelize only as far as you can trust unattended work, and trust comes from the environment, not from watching each chat. The codebase is the agents' memory, and agents copy what they see. So every correction seen twice, or once for security, data-loss, or irreversible classes, goes to the strongest layer that can hold it: architecture, then a type, then a gate, then prose. Review is last.
 
 The whole program lives on **one branch** and lands as **one PR**. Each unit is one verified commit, so the PR reads commit by commit and `git bisect` finds a regression to its unit. The branch is pushed and kept mergeable at every wave boundary, so the user can land it at any boundary.
 
@@ -52,7 +52,7 @@ Check every row at the end of each wave. Keep looping until all hold. Never rela
 2. `gates:status` lists no baselines, so every gate runs with zero allowance.
 3. The last full lockstep parity run against the current base shows only changes the user approved.
 4. The target architecture in `.pstack/architecture.md` is reached. A gate enforces every boundary in its module map, and its red-flag census reads zero (`references/architecture.md`).
-5. Every mistake class `correct` found has a row in the instruction file's rule table, and each row names the check that enforces it.
+5. Every mistake class seen twice, or once for security, data-loss, or irreversible classes, that `correct` found has a row in the instruction file's rule table, and each row names the check that enforces it.
 6. Only if the user chose Effect: adoption is complete: the `effect-adoption` baseline is deleted, every language-service diagnostic runs at error, and each legacy helper Effect replaced is deleted and banned. Skip this row by default.
 7. The workflow is installed. Every row of `references/workflow-setup.md` holds, and the last `maintain-verification-skill` pass ended `clean`.
 8. The trust audit (`references/trust-audit.md`) has no open row, or the user chose to leave a row open.

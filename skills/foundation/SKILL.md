@@ -42,7 +42,7 @@ When to bring him in is your judgment call. Signals that point toward asking: a 
 | 5 Review | A fresh read-only reviewer that did not build the unit, at most two rounds. At each wave end, a fresh agent reads one finished feature cold (Layout, feature read) | `senior-reviewer`, `interrogate` by risk | PASS, and every feature inside its budget |
 | 6 Verify | Proof on the real artifact: the repo's verification skill, staging first, parity against the base | `principle-prove-it-works`, the verification skill | Evidence pasted |
 | 7 Release | PR in the policy format, then Kolin merges | policy "Before a PR ships" | **Kolin's yes** |
-| 8 Learn | A mistake seen twice becomes a check | `correct` | Rule, test or type merged |
+| 8 Learn | A mistake seen twice, or once for security, data-loss, or irreversible classes, becomes a check | `correct` | Rule, test or type merged |
 
 After a release, `bin/context-audit --pr <repo>#<n>` measures it. Each finding moves up the layers of the global policy's "How agents earn trust".
 
@@ -54,6 +54,7 @@ He checks these himself. Everything else is reversible and proceeds.
 
 - A multi-phase plan (Phase 0), before its build starts. Work of one or a few units proceeds on the value case.
 - The exemplar feature (step 4a), before builders fan out. Its layout becomes every feature's layout, so a wrong shape here is copied everywhere.
+- A feature over twice its budget (Layout): the wave stops until Kolin approves a new budget.
 - **Data structures and system flows (design-approval gate).** Before you add or change a data structure (types, tables, schemas, payloads, state machines) or a system flow (who calls whom, in what order, through which queue or job), show Kolin the proposed layout: the shapes, relations, the flow and a short reason. Ask: "Here is how we will lay this out. Does this make sense? Is this what you had in mind?" Wait for his approval before you implement it.
 - Merges, and any change to `main`, `master`, `staging` or `sandbox` (policy, Approvals). Deploys and production releases.
 - Money: billing, pricing, purchases, spend caps.
@@ -90,12 +91,12 @@ src/
 - A feature folder starts with one file per side of a boundary (for example `contract.ts`, `server.ts`, `page.tsx`, plus tests) and grows a file only by the Readable rule.
 - Boundary gates protect the layout: features never import each other, and a platform SDK or a library the repo wraps (Componentized) is imported only in `foundation/`. Inside a feature, gate only a runtime boundary (the page never imports the server file); never add layer folders.
 - Budget per feature, in source files and lines with tests excluded, set in the step 3 plan Kolin reviews. Defaults: a read-only page 5 files and 800 lines, an edit page 7 and 1,200, a core write flow 12 and 2,500. Over budget fails review; over twice the budget stops the wave until Kolin approves a new budget.
-- **Feature read.** A fresh agent opens one finished feature with no brief beyond its name, traces one request from the page to the data, and reports the files opened, the lines and every file under 40 lines with one importer (inline it).
+- **Feature read.** A fresh agent opens one finished feature with no brief beyond its name, traces one request from the page to the data, and reports the files opened, the lines and every file under 40 lines with one importer (inline it), except a single library wrapper (Componentized: one wrapper per third-party lib).
 
 ## Guardrails, lint and ratchets
 
-- A bad pattern seen twice becomes a lint rule, test or check, seeded at today's count in a ratchet and driven to zero (`correct`). A rule message names the fix and the file to use instead.
-- Every gate names the bug it prevents, and gate tooling stays small next to the code it guards (about a quarter of the app's lines at most). Metric gates report; they never block an edit, commit or push, because agents pass a blocking metric by cutting code into fragments. Metric gates are cyclomatic and cognitive complexity, CRAP, mutation score, and the lint rules `max-depth`, `max-lines-per-function`, `max-statements`, `max-params` and `max-nested-callbacks`. The one size rule that blocks is the policy's 1,000-line file limit, at commit and push, never at edit. Turning off an existing blocking metric gate is its own gap-audit PR, with Kolin's yes.
+- A bad pattern seen twice, or once for security, data-loss, or irreversible classes, becomes a lint rule, test or check, seeded at today's count in a ratchet and driven to zero (`correct`). A rule message names the fix and the file to use instead.
+- Every gate names the bug it prevents, and gate tooling stays small next to the code it guards (about a quarter of the app's lines at most). Metric gates report; they never block an edit, commit or push, because agents pass a blocking metric by cutting code into fragments. Metric gates are cyclomatic and cognitive complexity, CRAP, mutation score, and the lint rules `max-depth`, `max-lines-per-function`, `max-statements`, `max-params` and `max-nested-callbacks`. The one size rule that blocks, where the repo's pre-commit or pre-push enforces it, is the policy's 1,000-line file limit, never at edit. Turning off an existing blocking metric gate is its own gap-audit PR, with Kolin's yes.
 - Strict TypeScript where the repo uses TS; a type-aware linter (OXC: oxlint and oxfmt) and the newest TypeScript the tools support.
 - Errors in plain TypeScript, with no effects library unless the user asks: a `Result` union, tagged error kinds that each carry a fix hint, an exhaustive `switch` on the kind, one retry owner, one rate limiter per external connection, dependencies passed as one typed argument.
 - One pinned runtime version (for example one Node LTS) in every repo, the box and the host.
