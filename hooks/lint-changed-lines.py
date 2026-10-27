@@ -17,6 +17,10 @@ COSMETIC = {
     "space-before-function-paren", "space-infix-ops", "spaced-comment",
 }
 MID_EDIT_RULES = {"no-unused-vars", "jsx-no-undef"}
+METRIC_RULES = {
+    "complexity", "max-depth", "max-lines", "max-lines-per-function", "max-statements",
+    "max-nested-callbacks", "max-params", "cognitive-complexity",
+}
 OXLINT_IGNORED_FILE = "No files found to lint"
 MAX_REPORT = 12
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
@@ -203,7 +207,7 @@ def report_for(path, cwd):
     ]
     if not relevant:
         return None
-    errors = sum(1 for m in relevant if m["severity"] == 2)
+    errors = sum(1 for m in relevant if m["severity"] == 2 and bare_rule(m["ruleId"]) not in METRIC_RULES)
     label = "error" if errors else "warning"
     header = "Lint: {} {}{} on lines you changed in {}".format(
         len(relevant), label, "" if len(relevant) == 1 else "s",
