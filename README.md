@@ -69,7 +69,7 @@ The models are the Claude Code seats. Codex runs both subagents on its default m
 
 | 🚫 Blocked | Why |
 |---|---|
-| Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge | Protected branches change only through a PR you merge |
+| Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge | Protected branches change only through a PR you merge. An agent may create a missing one with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
 | Reading a `.env` file | Secrets stay out of the context |
 | First edit before a value case | No outcome, no code |
 | Sleep loops, edits through the shell, filtered gate output (a trailing filter is stripped; one that cannot be stripped safely is blocked) | Agents see the real output and use the real tools |

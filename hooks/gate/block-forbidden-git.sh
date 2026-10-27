@@ -38,10 +38,13 @@ fi
 guard api-merge; rc=$?
 (( rc == 0 )) && deny "merging via the API is forbidden"
 (( rc != 1 )) && [[ $cmd =~ (merge|automerge|auto_merge|enablePullRequestAutoMerge) && $cmd =~ gh[[:space:]]+api ]] && deny "merging via the API is forbidden"
+guard api-ref; rc=$?
+(( rc == 0 )) && deny "moving or deleting a protected branch via the API is forbidden; it changes only through a PR"
+(( rc != 1 )) && [[ $cmd =~ (git/refs/heads/|updateRef|deleteRef) && $cmd =~ gh[[:space:]]+api ]] && deny "moving or deleting a branch via the API is forbidden (unparsed command)"
 pushes=$(sed -e ':a' -e '/\\$/N; s/\\\n/ /; ta' <<<"$cmd" | tr -d "\"'" | grep -oiE 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+push([[:space:]][^;&|`]*)?')
 if [[ -n $pushes ]]; then
   [[ $pushes =~ (--for|--de|--m|--pru|[[:space:]]-[^-[:space:]]*[fd]|[[:space:]][+:][^[:space:]]) ]] && deny "force-push / delete / mirror push is forbidden"
-  [[ $pushes =~ (^|[[:space:]]|:|refs/heads/)$protected([[:space:]]|\)|$) ]] && deny "pushing to ${BASH_REMATCH[2]} is forbidden; it changes only through a PR"
+  [[ $pushes =~ (^|[[:space:]]|:|heads/)$protected([[:space:]]|\)|$) ]] && deny "pushing to ${BASH_REMATCH[2]} is forbidden; it changes only through a PR. To create a missing one, use gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/${BASH_REMATCH[2]} -f sha=<sha>, which GitHub rejects if it exists"
   branch=$(git -C "${cwd:-.}" rev-parse --abbrev-ref HEAD 2>/dev/null)
   [[ $branch =~ ^$protected$ ]] && deny "pushing while on $branch is forbidden; it changes only through a PR"
 fi
