@@ -202,6 +202,9 @@ exec cat "$GH_FIXTURES/head-$(echo "$base" | tr / _).json"
         notool = mention("https://github.com/o/r/pull/11")
         notool["message"]["content"] = notool["message"]["content"][:1]
         transcript(self.projects / "p/sess5555-x.jsonl", notool)
+        oneshot = mention("https://github.com/o/r/pull/11")
+        oneshot["message"]["content"][1]["name"] = "StructuredOutput"
+        transcript(self.projects / "p/sess7777-x.jsonl", oneshot)
         own = mention("https://github.com/o/r/pull/11")
         own["message"]["content"][1]["input"] = {"command": "bin/context-audit --pr o/r#10"}
         transcript(self.projects / "p/sess6666-x.jsonl", own)

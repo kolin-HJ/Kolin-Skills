@@ -306,7 +306,7 @@ def print_sessions(days, needles=()):
         if needles and (owner not in sessions if is_agent else not mentions(path, needles)):
             continue
         stats = session_stats(path)
-        if needles and not is_agent and (stats["audits"] or not stats["calls"]):
+        if needles and not is_agent and (stats["audits"] or all(name == "StructuredOutput" for name, _ in stats["tools"])):
             continue
         side = "subagent" if is_agent else "main"
         label = agent_meta(path).get("agentType", "unknown") if is_agent else "main"
