@@ -28,8 +28,8 @@ class ContextAuditTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.home)
 
-    def run_cli(self, *args, config=".claude"):
-        env = {**os.environ, "HOME": str(self.home), "CLAUDE_CONFIG_DIR": str(self.home / config)}
+    def run_cli(self, *args, config=".claude", **extra):
+        env = {**os.environ, "HOME": str(self.home), "CLAUDE_CONFIG_DIR": str(self.home / config), **extra}
         return subprocess.run([sys.executable, str(CLI), *args], env=env, text=True, capture_output=True, timeout=60)
 
     def session_with_listing(self, idle_description):
@@ -104,7 +104,6 @@ class ContextAuditTests(unittest.TestCase):
         block = "PreToolUse:Bash hook error: [python3 '/r/hooks/heavy-jobs.py']: Blocked: edit files with the Edit or Write tool, so the lint hook sees each change."
         pr = {"type": "pr-link", "prUrl": "https://github.com/o/r/pull/1"}
         self.projects = self.home / ".claude_personal/projects"
-        transcript(self.home / ".claude/projects/other/s9.jsonl", first)
         transcript(self.projects / "proj/s1.jsonl", first, first, second, result("t1", block), result("t2", "boom"),
                    result("t3", [{"type": "text", "text": "boom"}]), result("t4", "boom"),
                    result("f1", "ok", failed=False), result("f2", "boom"), result("f3", "boom"), pr, pr,
@@ -122,6 +121,111 @@ class ContextAuditTests(unittest.TestCase):
         self.assertEqual(rows["1"][1:4], ["main", "heavy-jobs.py:", "Blocked:"])
         self.assertEqual(rows["mcp__x__query:"], ["mcp__x__query:", "3"])
         self.assertEqual(rows["Unique"][-1], "1")
+
+    def test_sessions_report_reads_every_config_dir(self):
+        message = {"type": "assistant", "message": {"id": "m", "model": "claude-opus-5-5", "usage": {"input_tokens": 1}, "content": []}}
+        transcript(self.home / ".claude/projects/p/a.jsonl", message)
+        transcript(self.home / ".claude_personal/projects/p/b.jsonl", message)
+        self.assertIn("2 main sessions", self.run_cli("--sessions", config=".claude_personal").stdout)
+
+    def spawn_fixture(self, requested):
+        def assistant(model, *content):
+            return {"type": "assistant", "timestamp": "2026-10-20T10:00:00Z", "message": {"id": model + str(len(content)), "model": model, "usage": {"input_tokens": 1}, "content": list(content)}}
+
+        spawns = [{"type": "tool_use", "id": f"toolu_{n}", "name": "Agent", "input": {"model": model, "subagent_type": "general-purpose"}} for n, model in enumerate(requested)]
+        transcript(self.projects / "p/s.jsonl", assistant("claude-opus-5-5", *spawns))
+        for n, _ in enumerate(requested):
+            agent = self.projects / f"p/s/subagents/agent-{n}"
+            transcript(agent.with_suffix(".jsonl"), assistant("claude-sonnet-5-5"))
+            agent.with_suffix(".meta.json").write_text(json.dumps({"agentType": "general-purpose", "toolUseId": f"toolu_{n}"}))
+        output = self.run_cli("--sessions").stdout
+        return output.partition("Seat mismatches: agent type, requested, ran, count\n")[2].split("Hook blocks")[0].strip().splitlines()
+
+    def test_seat_mismatch_lists_requested_family_against_the_family_that_ran(self):
+        self.assertEqual([row.split() for row in self.spawn_fixture(["opus", "sonnet", None])], [["general-purpose", "opus", "sonnet", "1"]])
+
+    def test_seat_that_ran_as_requested_is_not_a_mismatch(self):
+        self.assertEqual(self.spawn_fixture(["claude-sonnet-5-5"]), [])
+
+    def gh_fixture(self):
+        def check(name, status="COMPLETED", conclusion="SUCCESS", done="2026-10-20T09:00:00Z", started="2026-10-20T08:00:00Z"):
+            return {"name": name, "status": status, "conclusion": conclusion, "startedAt": started, "completedAt": done}
+
+        def pr(number, title, head, base, merged, checks, body=""):
+            return {"number": number, "title": title, "body": body, "headRefName": head, "baseRefName": base, "mergedAt": merged, "state": "MERGED", "statusCheckRollup": checks}
+
+        fixtures = self.home / "gh"
+        fixtures.mkdir()
+        files = {
+            "pr-10": pr(10, "Release: reland of foo", "release/x", "main", "2026-10-20T10:00:00Z", [check("build")], "Includes #11 #12 #13 #14 #15 #16 #17 #18 #19 #20 #99 and #10"),
+            "pr-11": pr(11, "Fix a", "feat/a", "release/x", "2026-10-20T10:00:00Z", [check("build", conclusion="FAILURE")]),
+            "pr-12": pr(12, "Revert b", "feat/b", "feat/c", "2026-10-20T11:00:00Z", [check("build")]),
+            "pr-13": pr(13, "Fix d", "feat/d", "release/x", "2026-10-20T10:00:00Z", [check("test", status="IN_PROGRESS", conclusion="", done="0001-01-01T00:00:00Z")]),
+            "pr-14": pr(14, "Fix e", "feat/e", "staging", "2026-10-20T11:00:00Z", [check("build")]),
+            "pr-15": pr(15, "Fix f", "feat/f", "trunk", "2026-10-20T11:00:00Z", [check("build")]),
+            "pr-16": pr(16, "Fix g", "feat/g", "release/x", "2026-10-20T10:00:00Z", [check("build", conclusion="FAILURE", started="2026-10-20T12:00:00Z")]),
+            "pr-17": pr(17, "Fix h", "feat/h", "release/x", "2026-10-20T10:00:00Z", [{"context": "ci/x", "state": "ERROR", "createdAt": "2026-10-20T08:00:00Z"}]),
+            "pr-18": pr(18, "Fix i", "feat/i", "release/x", "2026-10-20T10:00:00Z", [check("lint", conclusion="TIMED_OUT")]),
+            "pr-19": pr(19, "Fix j", "feat/j", "feat/old", "2026-10-20T10:00:00Z", [check("build")]),
+            "pr-20": pr(20, "Fix k", "feat/k", "release/x", "2026-10-20T10:00:00Z", [check("verify", conclusion="CANCELLED"), check("verify", started="2026-10-20T08:30:00Z")]),
+            "head-feat_old": [{"mergedAt": "2026-10-20T06:00:00Z"}],
+            "repo": {"defaultBranchRef": {"name": "trunk"}},
+            "head-main": [], "head-release_x": [], "head-feat_c": [{"mergedAt": "2026-10-20T10:30:00Z"}],
+            "head-staging": [{"mergedAt": "2026-10-20T10:30:00Z"}], "head-trunk": [{"mergedAt": "2026-10-20T10:30:00Z"}],
+        }
+        for name, data in files.items():
+            (fixtures / f"{name}.json").write_text(json.dumps(data))
+        gh = self.home / "bin/gh"
+        gh.parent.mkdir()
+        gh.write_text('''#!/bin/sh
+if [ "$1" = repo ]; then exec cat "$GH_FIXTURES/repo.json"; fi
+if [ -n "$GH_AUTH_FAIL" ]; then echo "gh: To use GitHub CLI, run: gh auth login" >&2; exit 4; fi
+if [ "$2" = view ]; then [ -f "$GH_FIXTURES/pr-$3.json" ] || { echo "Could not resolve to a PullRequest with the number of $3" >&2; exit 1; }; exec cat "$GH_FIXTURES/pr-$3.json"; fi
+while [ $# -gt 0 ]; do [ "$1" = --head ] && base=$2; shift; done
+exec cat "$GH_FIXTURES/head-$(echo "$base" | tr / _).json"
+''')
+        gh.chmod(0o755)
+        return {"PATH": f"{gh.parent}:{os.environ['PATH']}", "GH_FIXTURES": str(fixtures)}
+
+    def test_gh_failure_other_than_a_missing_pr_exits(self):
+        result = self.run_cli("--pr", "o/r#10", GH_AUTH_FAIL="1", **self.gh_fixture())
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("gh auth login", result.stderr)
+
+    def test_pr_report_selects_sessions_and_flags_merges(self):
+        def mention(text):
+            return {"type": "assistant", "timestamp": "2026-10-20T10:00:00Z", "message": {"id": text, "model": "claude-opus-5-5", "usage": {"input_tokens": 5}, "content": [{"type": "text", "text": text}, {"type": "tool_use", "id": "t" + text, "name": "Bash", "input": {"command": "ls"}}]}}
+
+        transcript(self.projects / "p/sess1111-x.jsonl", mention("see https://github.com/o/r/pull/11"))
+        transcript(self.projects / "p/sess2222-x.jsonl", mention("branch feat/b"))
+        transcript(self.projects / "p/sess3333-x.jsonl", mention("unrelated"))
+        transcript(self.projects / "p/sess4444-x.jsonl", mention("https://github.com/o/r/pull/110 and feat/bar"))
+        notool = mention("https://github.com/o/r/pull/11")
+        notool["message"]["content"] = notool["message"]["content"][:1]
+        transcript(self.projects / "p/sess5555-x.jsonl", notool)
+        oneshot = mention("https://github.com/o/r/pull/11")
+        oneshot["message"]["content"][1]["name"] = "StructuredOutput"
+        transcript(self.projects / "p/sess7777-x.jsonl", oneshot)
+        own = mention("https://github.com/o/r/pull/11")
+        own["message"]["content"][1]["input"] = {"command": "bin/context-audit --pr o/r#10"}
+        transcript(self.projects / "p/sess6666-x.jsonl", own)
+        transcript(self.projects / "p/sess1111-x/subagents/agent-a.jsonl", mention("helper"))
+        transcript(self.projects / "p/sess3333-x/subagents/agent-a.jsonl", mention("stray"))
+        output = self.run_cli("--pr", "o/r#10", **self.gh_fixture()).stdout
+        flags = [line for line in output.splitlines() if line.startswith("    FLAG")]
+        self.assertEqual(flags, [
+            "    FLAG #10 title says reland or revert",
+            "    FLAG #11 merged while a check failed or had not finished: build",
+            "    FLAG #12 merged into feat/c, which another PR had already merged",
+            "    FLAG #12 title says reland or revert",
+            "    FLAG #13 merged while a check failed or had not finished: test",
+            "    FLAG #17 merged while a check failed or had not finished: ci/x",
+            "    FLAG #18 merged while a check failed or had not finished: lint",
+            "    FLAG #19 merged into feat/old, which another PR had already merged",
+        ])
+        self.assertIn("  #99 is not a pull request", output)
+        found = output.split("Sessions found: session, date, tokens, subagents, compactions\n")[1].split("\n\n")[0].splitlines()
+        self.assertEqual([row.split() for row in found], [["sess1111", "2026-10-20", "10", "1", "0"], ["sess2222", "2026-10-20", "5", "0", "0"]])
 
 
 if __name__ == "__main__":

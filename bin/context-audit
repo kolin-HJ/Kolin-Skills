@@ -22,6 +22,15 @@ REFRESH_DAYS = 7
 MIN_ITEM_TOKENS = 100
 MIN_NOTICE_TOKENS = 500
 SESSION_DAYS = 14
+PR_DAYS = 30
+PR_FIELDS = "number,title,body,baseRefName,headRefName,mergedAt,statusCheckRollup,state"
+PR_REF = re.compile(r"([^/\s]+/[^#\s]+)#(\d+)")
+BODY_REF = re.compile(r"#(\d+)\b")
+RED = {"FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "STARTUP_FAILURE", "ACTION_REQUIRED"}
+PENDING = {"PENDING", "EXPECTED"}
+NOT_A_PR = "Could not resolve to a PullRequest"
+TRUNKS = {"main", "master", "sandbox", "staging"}
+FAMILY = re.compile(r"opus|sonnet|haiku")
 LONG_RUN_CALLS = 200
 HOOK_BLOCK = re.compile(r"hook error: \[[^\]]*?([^/\s']+?)'?\]: (.{0,50})", re.S)
 SKILL_PATH = re.compile(r"skills/([A-Za-z0-9:_-]+)/SKILL\.md")
@@ -219,7 +228,7 @@ def result_text(content):
 
 
 def session_stats(path):
-    messages, calls, outcomes = {}, {}, {}
+    messages, calls, outcomes, spawns, audits = {}, {}, {}, {}, False
     hooks, urls, compactions, first = collections.Counter(), set(), 0, None
     for record in records(path):
         kind = record.get("type")
@@ -235,6 +244,9 @@ def session_stats(path):
             for block in message["content"] if isinstance(message.get("content"), list) else []:
                 if block.get("type") == "tool_use":
                     calls[block["id"]] = block["name"]
+                    audits = audits or (block["name"] == "Bash" and "context-audit --pr" in json.dumps(block.get("input")))
+                    if block["name"] in ("Agent", "Task") and (block.get("input") or {}).get("model"):
+                        spawns[block["id"]] = block["input"]["model"]
         elif kind == "user" and isinstance(record["message"].get("content"), list):
             for block in record["message"]["content"]:
                 if block.get("type") != "tool_result":
@@ -249,23 +261,33 @@ def session_stats(path):
         "model": models.most_common(1)[0][0] if models else "unknown",
         "tokens": sum(context + output for _, context, output in messages.values()),
         "peak": max((context for _, context, _ in messages.values()), default=0),
-        "calls": len(calls), "compactions": compactions, "hooks": hooks, "urls": urls, "first": first,
+        "calls": len(calls), "compactions": compactions, "hooks": hooks, "urls": urls, "first": first, "spawns": spawns, "audits": audits,
         "tools": [(name, outcomes.get(tool_id) is False) for tool_id, name in calls.items()],
     }
 
 
 def session_files(days):
     cutoff = time.time() - days * 86400
-    root = ACTIVE / "projects"
-    for pattern, is_agent in (("*/*.jsonl", False), ("*/*/subagents/agent-*.jsonl", True)):
-        for path in root.glob(pattern):
-            if path.stat().st_mtime >= cutoff:
-                yield path, is_agent
+    for root in config_dirs():
+        for pattern, is_agent in (("*/*.jsonl", False), ("*/*/subagents/agent-*.jsonl", True)):
+            for path in root.glob(pattern):
+                if path.stat().st_mtime >= cutoff:
+                    yield path, is_agent
 
 
-def agent_type(path):
+def agent_meta(path):
     meta = path.with_suffix(".meta.json")
-    return json.loads(meta.read_text()).get("agentType", "unknown") if meta.is_file() else "unknown"
+    return json.loads(meta.read_text()) if meta.is_file() else {}
+
+
+def family(model):
+    found = FAMILY.search(model or "")
+    return found.group(0) if found else None
+
+
+def mentions(path, needles):
+    pattern = "|".join(re.escape(needle) for needle in needles)
+    return re.search(f"(?:{pattern})(?![\\w-])", path.read_text(errors="ignore")) is not None
 
 
 def median(values):
@@ -274,15 +296,24 @@ def median(values):
     return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
 
 
-def print_sessions(days):
+def print_sessions(days, needles=()):
     runs, tools = collections.defaultdict(list), collections.defaultdict(lambda: [0, 0])
     hooks, urls, split = collections.Counter(), set(), collections.Counter()
     sessions = collections.defaultdict(lambda: {"tokens": 0, "compactions": 0, "date": "", "subagents": 0})
+    spawns, ran = {}, []
     for path, is_agent in session_files(days):
-        stats = session_stats(path)
         owner = (path.parent.parent.parent.name, path.parent.parent.name) if is_agent else (path.parent.name, path.stem)
+        if needles and (owner not in sessions if is_agent else not mentions(path, needles)):
+            continue
+        stats = session_stats(path)
+        if needles and not is_agent and (stats["audits"] or all(name == "StructuredOutput" for name, _ in stats["tools"])):
+            continue
         side = "subagent" if is_agent else "main"
-        runs[(agent_type(path) if is_agent else "main", stats["model"])].append(stats)
+        label = agent_meta(path).get("agentType", "unknown") if is_agent else "main"
+        runs[(label, stats["model"])].append(stats)
+        spawns.update(stats["spawns"])
+        if is_agent:
+            ran.append((agent_meta(path).get("toolUseId"), label, stats["model"]))
         split[side] += stats["tokens"]
         split[side + " runs"] += 1
         urls |= stats["urls"]
@@ -300,6 +331,10 @@ def print_sessions(days):
             entry["date"] = (stats["first"] or "")[:10]
     print(f"Sessions audit, last {days} days: {split['main runs']} main sessions, {split['subagent runs']} subagents, "
           f"{split['main'] + split['subagent']:,} tokens (main {split['main']:,}, subagents {split['subagent']:,}).")
+    if needles:
+        print("\nSessions found: session, date, tokens, subagents, compactions")
+        for (_, session), entry in sorted(sessions.items(), key=lambda item: (item[1]["date"], item[0][1])):
+            print(f"  {session[:8]:<8} {entry['date'] or '-':<10} {entry['tokens']:>15,} {entry['subagents']:>4} {entry['compactions']:>3}")
     print(f"\nBy agent and model: runs, tokens, median calls, runs over {LONG_RUN_CALLS} calls, peak context median and max")
     for (label, model), group in sorted(runs.items(), key=lambda item: -sum(run["tokens"] for run in item[1])):
         peaks = [run["peak"] for run in group]
@@ -308,6 +343,14 @@ def print_sessions(days):
     print("\nCostliest sessions, subagents included: project, date, tokens, subagents, compactions")
     for (project, _), entry in sorted(sessions.items(), key=lambda item: -item[1]["tokens"])[:5]:
         print(f"  {project[-40:]:<40} {entry['date'] or '-':<10} {entry['tokens']:>15,} {entry['subagents']:>4} {entry['compactions']:>3}")
+    print("\nSeat mismatches: agent type, requested, ran, count")
+    mismatches = collections.Counter()
+    for tool_id, label, model in ran:
+        asked = family(spawns.get(tool_id))
+        if asked and asked != family(model):
+            mismatches[(label, asked, family(model) or model)] += 1
+    for (label, asked, got), count in mismatches.most_common():
+        print(f"  {label:<24} {asked:<8} {got:<8} {count:>5}")
     print("\nHook blocks, top 10")
     for (side, hook, text), count in hooks.most_common(10):
         print(f"  {count:>5}  {side:<8} {hook}: {text}")
@@ -318,6 +361,76 @@ def print_sessions(days):
     print(f"\nUnique PR URLs linked: {len(urls)}")
 
 
+def run_gh(*args):
+    return subprocess.run(["gh", *args], text=True, capture_output=True)
+
+
+def gh(*args):
+    result = run_gh(*args)
+    if result.returncode and NOT_A_PR in result.stderr:
+        return None
+    if result.returncode:
+        sys.exit(f"context-audit: gh {' '.join(args)} failed: {result.stderr.strip()}")
+    return json.loads(result.stdout)
+
+
+def pull(repo, number):
+    return gh("pr", "view", str(number), "-R", repo, "--json", PR_FIELDS)
+
+
+def red_checks(rollup, merged):
+    latest = {}
+    for check in rollup:
+        started = check.get("startedAt") or check.get("createdAt") or ""
+        name = check.get("name") or check["context"]
+        if started < merged and started >= latest.get(name, ("", None))[0]:
+            latest[name] = (started, check)
+    red = []
+    for name, (_, check) in latest.items():
+        state = check.get("state")
+        status = check.get("status") or (None if state is None else "IN_PROGRESS" if state in PENDING else "COMPLETED")
+        if status is None:
+            continue
+        if (check.get("conclusion") or state) in RED or status != "COMPLETED" or (check.get("completedAt") or "") > merged:
+            red.append(name)
+    return sorted(red)
+
+
+def pr_flags(repo, pr, trunks):
+    flags, merged = [], pr["mergedAt"]
+    if merged:
+        unfinished = red_checks(pr["statusCheckRollup"], merged)
+        if unfinished:
+            flags.append(f"merged while a check failed or had not finished: {', '.join(unfinished)}")
+        earlier = [] if pr["baseRefName"] in trunks else gh("pr", "list", "-R", repo, "--head", pr["baseRefName"], "--state", "merged", "--json", "mergedAt")
+        if any(other["mergedAt"] < merged for other in earlier):
+            flags.append(f"merged into {pr['baseRefName']}, which another PR had already merged")
+    if re.search("reland|revert", pr["title"], re.I):
+        flags.append("title says reland or revert")
+    return flags
+
+
+def github_section(repo, number):
+    root = pull(repo, number)
+    if root is None:
+        sys.exit(f"context-audit: gh could not read {repo}#{number}")
+    print(f"GitHub: {repo}#{number} and the PRs its body references")
+    trunks = TRUNKS | {gh("repo", "view", repo, "--json", "defaultBranchRef")["defaultBranchRef"]["name"]}
+    prs = [root]
+    for ref in sorted({int(found) for found in BODY_REF.findall(root["body"] or "")} - {number}):
+        found = pull(repo, ref)
+        if found:
+            prs.append(found)
+        else:
+            print(f"  #{ref} is not a pull request")
+    for pr in prs:
+        print(f"  #{pr['number']} {pr['state'].lower()} {pr['baseRefName']} <- {pr['headRefName']}: {pr['title']}")
+        for flag in pr_flags(repo, pr, trunks):
+            print(f"    FLAG #{pr['number']} {flag}")
+    branches = {pr["headRefName"] for pr in prs} - trunks
+    return tuple(f"https://github.com/{repo}/pull/{pr['number']}" for pr in prs) + tuple(branches)
+
+
 def main():
     parser = argparse.ArgumentParser(prog="context-audit", description="List skills, tools and MCP servers that cost context in every session and went unused for 30 days.")
     mode = parser.add_mutually_exclusive_group()
@@ -325,7 +438,14 @@ def main():
     mode.add_argument("--refresh", action="store_true", help="rebuild the report and print nothing")
     mode.add_argument("--sessions", nargs="?", const=SESSION_DAYS, type=int, metavar="DAYS",
                       help=f"report token use, hook blocks and failing tools across transcripts of the last DAYS days (default {SESSION_DAYS})")
+    mode.add_argument("--pr", metavar="OWNER/REPO#N", help="report the sessions that mention this PR, the PRs its body references, or their branches, with GitHub merge flags")
+    parser.add_argument("--days", type=int, default=PR_DAYS, help=f"with --pr, how far back to read transcripts (default {PR_DAYS})")
     args = parser.parse_args()
+    if args.pr:
+        match = PR_REF.fullmatch(args.pr) or parser.error("--pr takes OWNER/REPO#N")
+        needles = github_section(match[1], int(match[2]))
+        print()
+        return print_sessions(args.days, needles)
     if args.sessions is not None:
         return print_sessions(args.sessions)
     if args.notice:
