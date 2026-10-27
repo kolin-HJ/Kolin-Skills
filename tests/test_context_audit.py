@@ -152,7 +152,7 @@ class ContextAuditTests(unittest.TestCase):
             return {"name": name, "status": status, "conclusion": conclusion, "startedAt": started, "completedAt": done}
 
         def pr(number, title, head, base, merged, checks, body=""):
-            return {"number": number, "title": title, "body": body, "createdAt": "2026-10-20T07:00:00Z", "headRefName": head, "baseRefName": base, "mergedAt": merged, "state": "MERGED", "statusCheckRollup": checks}
+            return {"number": number, "title": title, "body": body, "headRefName": head, "baseRefName": base, "mergedAt": merged, "state": "MERGED", "statusCheckRollup": checks}
 
         fixtures = self.home / "gh"
         fixtures.mkdir()
