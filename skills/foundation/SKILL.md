@@ -41,6 +41,8 @@ When to bring him in is your judgment call. Signals that point toward asking: a 
 | 7 Release | PR in the policy format, then Kolin merges | policy "Before a PR ships" | **Kolin's yes** |
 | 8 Learn | Every mistake seen becomes a check | `correct` | Rule, test or type merged |
 
+After a release, `bin/context-audit --pr <repo>#<n>` measures it. Each finding moves up the layers of the global policy's "How agents earn trust".
+
 When Kolin asks for one PR for a large change, keep it one PR, with one commit per verified unit and a review map in the PR body (unit, commits, files, the check that proves it).
 
 ## Where Kolin steps in
