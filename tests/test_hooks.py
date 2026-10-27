@@ -175,6 +175,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                     "labels": [{"span": {"line": 1, "column": 1}}]}
         metric = diagnostic("eslint(complexity)", "too complex")
         other = diagnostic("typescript-eslint(no-explicit-any)", "no any")
+        size = diagnostic("eslint(max-lines)", "file too long")
         for diagnostics, returncode in (([metric], 0), ([metric, other], 2)):
             with self.subTest(rules=[d["code"] for d in diagnostics]):
                 result = self.lint_with_fake_linters(
@@ -184,6 +185,10 @@ class NativeHookPayloadTests(unittest.TestCase):
                     self.assertIn("too complex", json.loads(result.stdout)["hookSpecificOutput"]["systemMessage"])
                 else:
                     self.assertIn("too complex", result.stderr)
+        blocked_size = self.lint_with_fake_linters(
+            [], f"print(json.dumps({{'diagnostics': {[size]!r}}}))\nsys.exit(1)\n")
+        self.assertEqual(blocked_size.returncode, 2, blocked_size.stderr)
+        self.assertIn("file too long", blocked_size.stderr)
 
     def test_agent_model_runs_builders_on_sonnet_and_denies_fork(self):
         with tempfile.TemporaryDirectory() as directory:

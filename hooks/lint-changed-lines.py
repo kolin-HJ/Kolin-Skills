@@ -18,7 +18,7 @@ COSMETIC = {
 }
 MID_EDIT_RULES = {"no-unused-vars", "jsx-no-undef"}
 METRIC_RULES = {
-    "complexity", "max-depth", "max-lines", "max-lines-per-function", "max-statements",
+    "complexity", "max-depth", "max-lines-per-function", "max-statements",
     "max-nested-callbacks", "max-params", "cognitive-complexity",
 }
 OXLINT_IGNORED_FILE = "No files found to lint"
