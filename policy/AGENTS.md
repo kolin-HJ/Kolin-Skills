@@ -39,7 +39,7 @@ Reversible work proceeds without asking: reading, edits, gates, local runs, revi
 
 ## How agents earn trust
 
-The codebase is the agents' memory. Agents extend what exists, so a bad pattern spreads like a virus until it is the pattern. Every nit, annoyance and agent mistake you see becomes a constraint in the strongest layer that can hold it (`principle-encode-lessons-in-structure`). Repeat until an agent with little context can one-shot a quality PR:
+The codebase is the agents' memory. Agents extend what exists, so a bad pattern spreads like a virus until it is the pattern. A nit or mistake seen twice becomes a constraint in the strongest layer that can hold it (`principle-encode-lessons-in-structure`). Repeat until an agent with little context can one-shot a quality PR:
 
 1. Code that makes the bad state impossible: a type, one paved path, an import boundary, a library that shrinks the design space, or our own primitives with deliberate APIs.
 2. A gate (a lint rule, a type check, an invariant test) with one case it flags and one it passes. Baseline existing violations so the count can only fall.
