@@ -23,9 +23,12 @@ MIN_ITEM_TOKENS = 100
 MIN_NOTICE_TOKENS = 500
 SESSION_DAYS = 14
 PR_DAYS = 30
-PR_FIELDS = "number,title,body,baseRefName,headRefName,mergedAt,statusCheckRollup,state"
+PR_FIELDS = "number,title,body,createdAt,baseRefName,headRefName,mergedAt,statusCheckRollup,state"
 PR_REF = re.compile(r"([^/\s]+/[^#\s]+)#(\d+)")
 BODY_REF = re.compile(r"#(\d+)\b")
+RED = {"FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "STARTUP_FAILURE", "ACTION_REQUIRED"}
+PENDING = {"PENDING", "EXPECTED"}
+NOT_A_PR = "Could not resolve to a PullRequest"
 TRUNKS = {"main", "master", "sandbox", "staging"}
 FAMILY = re.compile(r"opus|sonnet|haiku")
 LONG_RUN_CALLS = 200
@@ -225,7 +228,7 @@ def result_text(content):
 
 
 def session_stats(path):
-    messages, calls, outcomes, spawns = {}, {}, {}, {}
+    messages, calls, outcomes, spawns, audits = {}, {}, {}, {}, False
     hooks, urls, compactions, first = collections.Counter(), set(), 0, None
     for record in records(path):
         kind = record.get("type")
@@ -241,6 +244,7 @@ def session_stats(path):
             for block in message["content"] if isinstance(message.get("content"), list) else []:
                 if block.get("type") == "tool_use":
                     calls[block["id"]] = block["name"]
+                    audits = audits or (block["name"] == "Bash" and "context-audit --pr" in json.dumps(block.get("input")))
                     if block["name"] in ("Agent", "Task") and (block.get("input") or {}).get("model"):
                         spawns[block["id"]] = block["input"]["model"]
         elif kind == "user" and isinstance(record["message"].get("content"), list):
@@ -257,7 +261,7 @@ def session_stats(path):
         "model": models.most_common(1)[0][0] if models else "unknown",
         "tokens": sum(context + output for _, context, output in messages.values()),
         "peak": max((context for _, context, _ in messages.values()), default=0),
-        "calls": len(calls), "compactions": compactions, "hooks": hooks, "urls": urls, "first": first, "spawns": spawns,
+        "calls": len(calls), "compactions": compactions, "hooks": hooks, "urls": urls, "first": first, "spawns": spawns, "audits": audits,
         "tools": [(name, outcomes.get(tool_id) is False) for tool_id, name in calls.items()],
     }
 
@@ -282,8 +286,8 @@ def family(model):
 
 
 def mentions(path, needles):
-    text = path.read_text(errors="ignore")
-    return any(needle in text for needle in needles)
+    pattern = "|".join(re.escape(needle) for needle in needles)
+    return re.search(f"(?:{pattern})(?![\\w-])", path.read_text(errors="ignore")) is not None
 
 
 def median(values):
@@ -302,6 +306,8 @@ def print_sessions(days, needles=()):
         if needles and (owner not in sessions if is_agent else not mentions(path, needles)):
             continue
         stats = session_stats(path)
+        if needles and not is_agent and (stats["audits"] or not stats["calls"]):
+            continue
         side = "subagent" if is_agent else "main"
         label = agent_meta(path).get("agentType", "unknown") if is_agent else "main"
         runs[(label, stats["model"])].append(stats)
@@ -361,26 +367,37 @@ def run_gh(*args):
 
 def gh(*args):
     result = run_gh(*args)
+    if result.returncode and NOT_A_PR in result.stderr:
+        return None
     if result.returncode:
         sys.exit(f"context-audit: gh {' '.join(args)} failed: {result.stderr.strip()}")
     return json.loads(result.stdout)
 
 
 def pull(repo, number):
-    result = run_gh("pr", "view", str(number), "-R", repo, "--json", PR_FIELDS)
-    return json.loads(result.stdout) if result.returncode == 0 else None
+    return gh("pr", "view", str(number), "-R", repo, "--json", PR_FIELDS)
+
+
+def red_checks(rollup, merged):
+    red = set()
+    for check in rollup:
+        state = check.get("state")
+        status = check.get("status") or (None if state is None else "IN_PROGRESS" if state in PENDING else "COMPLETED")
+        if status is None or (check.get("startedAt") or check.get("createdAt") or "") >= merged:
+            continue
+        if (check.get("conclusion") or state) in RED or status != "COMPLETED" or (check.get("completedAt") or "") > merged:
+            red.add(check.get("name") or check["context"])
+    return sorted(red)
 
 
 def pr_flags(repo, pr, trunks):
     flags, merged = [], pr["mergedAt"]
     if merged:
-        unfinished = sorted({check["name"] for check in pr["statusCheckRollup"]
-                             if check.get("status") and check["startedAt"] < merged
-                             and (check.get("conclusion") == "FAILURE" or check["status"] != "COMPLETED" or check["completedAt"] > merged)})
+        unfinished = red_checks(pr["statusCheckRollup"], merged)
         if unfinished:
             flags.append(f"merged while a check failed or had not finished: {', '.join(unfinished)}")
         earlier = [] if pr["baseRefName"] in trunks else gh("pr", "list", "-R", repo, "--head", pr["baseRefName"], "--state", "merged", "--json", "mergedAt")
-        if any(other["mergedAt"] < merged for other in earlier):
+        if any(pr["createdAt"] < other["mergedAt"] < merged for other in earlier):
             flags.append(f"merged into {pr['baseRefName']}, which another PR had already merged")
     if re.search("reland|revert", pr["title"], re.I):
         flags.append("title says reland or revert")
