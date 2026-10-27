@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import os
+import pathlib
+import re
+import sys
+
+KINDS = {"read": (5, 800), "edit": (7, 1200), "write": (12, 2500)}
+SKIP = {".git", "node_modules", "dist", ".next", "__pycache__", ".venv", "coverage", "vendor"}
+SOURCE = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rs"}
+TEST = re.compile(r"(\.test\.|\.spec\.|(^|/)tests?/|_test\.(py|go)$|(^|/)test_[^/]+\.py$)")
+SPEC = re.compile(r"""(?:from|import|require)\s*\(?\s*['"]([^'"]+)['"]""")
+EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py"]
+INDEXES = ["index.ts", "index.tsx", "index.js", "index.py"]
+PLAN = pathlib.Path(".pstack/feature-budgets.json")
+HEADER = ("feature-budget: {n} features (report-only). "
+          "Over budget fails review; over 2x stops the wave (foundation, Where Kolin steps in)")
+REVIEW = "over — fails review"
+WAVE = "2x — wave stops until Kolin approves a new budget (foundation, Where Kolin steps in)"
+
+
+def relative(path, root):
+    return path.resolve().relative_to(root.resolve()).as_posix()
+
+
+def lines_of(path):
+    return len(path.read_text(encoding="utf-8", errors="ignore").splitlines())
+
+
+def walk(root):
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [name for name in dirnames if name not in SKIP]
+        for name in filenames:
+            path = pathlib.Path(dirpath) / name
+            if path.suffix in SOURCE:
+                yield path
+
+
+def feature_folder(rel):
+    parts = pathlib.PurePosixPath(rel).parts
+    if "features" not in parts:
+        return None, None
+    i = parts.index("features")
+    if i + 1 >= len(parts):
+        return None, None
+    return str(pathlib.PurePosixPath(*parts[: i + 2])), parts[i + 1]
+
+
+def resolve(importer, spec, files):
+    if not spec.startswith("."):
+        return None
+    base = importer.parent
+    for part in spec.split("/"):
+        if part == "..":
+            base = base.parent
+        elif part not in (".", ""):
+            base = base / part
+    candidates = [base, *(base.with_suffix(ext) for ext in EXTENSIONS),
+                  *(base / name for name in INDEXES)]
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved in files:
+            return resolved
+    return None
+
+
+def package_name(spec):
+    parts = spec.split("/")
+    if spec.startswith("@") and len(parts) > 1:
+        return parts[1]
+    return parts[0]
+
+
+def is_wrapper(path, specs):
+    relative_specs = [item for item in specs if item.startswith(".")]
+    third = [item for item in specs if not item.startswith((".", "/"))]
+    names = {package_name(item) for item in third}
+    if relative_specs or len(names) != 1:
+        return False
+    pkg = next(iter(names)).lower().replace("_", "-")
+    stem = path.stem.lower().replace("_", "-")
+    return pkg in stem or stem in pkg
+
+
+def load_plan(root):
+    path = root / PLAN
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def budget(name, folder, plan):
+    entry = plan.get(folder) or plan.get(name) or {}
+    if not isinstance(entry, dict):
+        entry = {}
+    if "files" in entry and "lines" in entry:
+        return int(entry["files"]), int(entry["lines"]), "plan"
+    kind = entry.get("kind", "read")
+    if kind not in KINDS:
+        kind = "read"
+    files, lines = KINDS[kind]
+    return files, lines, kind
+
+
+def status(files, lines, budget_files, budget_lines):
+    if files > 2 * budget_files or lines > 2 * budget_lines:
+        return WAVE
+    if files > budget_files or lines > budget_lines:
+        return REVIEW
+    return "ok"
+
+
+def incoming(files):
+    texts = {path: path.read_text(encoding="utf-8", errors="ignore") for path in files}
+    specs_by = {path: SPEC.findall(texts[path]) for path in files}
+    counts = {path: 0 for path in files}
+    for importer, specs in specs_by.items():
+        for spec in specs:
+            target = resolve(importer, spec, files)
+            if target is not None and target != importer:
+                counts[target] += 1
+    return counts, specs_by
+
+
+def report(root):
+    root = pathlib.Path(root)
+    files = {path.resolve() for path in walk(root)}
+    features = {}
+    for path in files:
+        rel = relative(path, root)
+        folder, name = feature_folder(rel)
+        if folder is None or TEST.search(rel):
+            continue
+        features.setdefault(folder, {"name": name, "files": []})["files"].append(path)
+    plan = load_plan(root)
+    counts, specs_by = incoming(files)
+    rows = [HEADER.format(n=len(features))]
+    for folder in sorted(features):
+        item = features[folder]
+        paths = item["files"]
+        file_count = len(paths)
+        line_count = sum(lines_of(path) for path in paths)
+        budget_files, budget_lines, source = budget(item["name"], folder, plan)
+        rows.append(
+            f"{item['name']}  files={file_count} lines={line_count} "
+            f"budget={budget_files}/{budget_lines} ({source})  "
+            f"{status(file_count, line_count, budget_files, budget_lines)}"
+        )
+        for path in sorted(paths, key=lambda candidate: relative(candidate, root)):
+            n = lines_of(path)
+            if n >= 40 or counts.get(path, 0) != 1:
+                continue
+            if is_wrapper(path, specs_by.get(path, [])):
+                continue
+            rows.append(f"  fragment: {relative(path, root)} {n} lines, 1 importer")
+    return "\n".join(rows) + "\n"
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Report per-feature file and line counts against the plan budget. "
+                    "Report-only: never fails the gate. Over budget fails review; over 2x stops the wave "
+                    "(foundation, Where Kolin steps in)."
+    )
+    parser.add_argument("root", nargs="?", default=".")
+    args = parser.parse_args()
+    sys.stdout.write(report(args.root))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

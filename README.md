@@ -252,8 +252,9 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, then applies. Runs at each Claude Code and Codex session start, and prints `kolin-skills: stale setup` when it cannot update |
 | `kolin-skills upstream` | Installs third-party skills at pinned commits. `--bump` moves the pins |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
-| `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, tools, tests, comments. In a worktree it skips home drift |
+| `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, tools, tests, comments. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts |
+| `feature-budget` | Counts files and lines under `features/<name>/` against the plan (defaults: read 5/800, edit 7/1,200, write 12/2,500, tests excluded). Lists under-40-line single-importer files except a library wrapper. Report-only in `kolin-skills check`. Over budget fails review; over twice the budget stops the wave (`foundation`, "Where Kolin steps in") |
 
 </details>
 
