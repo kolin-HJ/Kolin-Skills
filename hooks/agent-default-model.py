@@ -5,10 +5,6 @@ import sys
 
 UNPINNED_BUILTINS = {"Explore", "claude-code-guide", "general-purpose"}
 EDITING_BUILTINS = {"general-purpose", "claude"}
-FORK_REASON = (
-    "fork inherits Opus and the parent's whole context. Spawn poteto-agent (or the repo's implementer) "
-    "to build, or Explore, Plan or senior-reviewer to read, with a six-part brief."
-)
 ISOLATION_REASON = (
     "isolation: worktree makes the harness refuse the builder's gate commands. "
     "Create the worktree with `git worktree add <path> -b <branch> <base>`, name the path in the brief, "
@@ -69,8 +65,6 @@ def effective_model(tool_input, text):
 
 
 def decide(agent, tool_input, text):
-    if agent == "fork":
-        return "deny", FORK_REASON, None
     if tool_input.get("isolation") == "worktree" and edit_capable(agent, text):
         return "deny", ISOLATION_REASON, None
     passed = tool_input.get("model")

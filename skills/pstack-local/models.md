@@ -31,7 +31,7 @@ swarm workers: default
 mechanical lane worker (recipe given): haiku-worker
 architect runners: opus, opus, sonnet
 interrogate reviewers: opus, opus, sonnet
-fork: not used; the hook denies it (it inherits Opus and the parent's whole context)
+fork: inherits Opus and the parent's whole context; use it when that context is the point
 ```
 
 Edit-capable agents run Sonnet. `hooks/agent-default-model.py` denies an Opus request on one and names `Plan`; a silent rewrite to Sonnet ran 180 "Opus" interrogate seats on Sonnet in 14 days. It also runs `senior-reviewer` on Opus when a repo copy pins a lower model and no `model` is passed. Env `KOLIN_OPUS_BUILDERS=1` lets Kolin allow Opus builders. An Opus judgment seat runs as a read-only agent: `Plan`, `Explore` or `senior-reviewer`. The judgment seats are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
@@ -46,7 +46,7 @@ Plan, build and review are separate seats:
 
 | Seat | Runs as | Model | Does |
 |---|---|---|---|
-| Orchestrator | the main session | Opus | Value case, plan, Kolin's asks, six-part briefs, `.pstack/status.md`, reads every delegated hunk. `hooks/edit-guard.py` blocks its first edit until `.pstack/status.md` has a `Value:` line, and its 3rd edited file unless status.md has `orchestrator-builds: <reason>` |
+| Orchestrator | the main session | Opus | Plan, Kolin's asks, briefs, reads every delegated hunk. Builds small work itself |
 | Builder | `poteto-agent`, or the repo's implementer | Sonnet 5.5, medium (hook default when the agent pins no model and can edit) | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
 | Sweeper | `haiku-worker` | Haiku 5.5, medium | Recipe work: renames, codemods, fixtures, searches the brief spells out |
 | Searcher | `Explore` | Sonnet (hook default) | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
@@ -61,12 +61,12 @@ Every turn re-reads the whole context, so a tool call costs about the context's 
 - **New task, new session.** A long session re-reads all of its old context on each turn.
 - **Read once.** The orchestrator reads ranges (`rg -n`, `sed -n a,b`), not whole files, and passes the `file:line` anchors, the neighbor it chose and the plan sections and skills by path in the brief, so the builder and the reviewer do not explore again. A hook injects the six policy principle leaves into `poteto-agent` only; a repo implementer's brief names them.
 - **Batch.** Put independent reads and searches in one turn. Use `rg -g '*.ts'`, not an unquoted zsh glob.
-- **Edit** per `agents/poteto-agent.md` (Spend); the main session edits only with Edit or Write (policy, Harness).
+- **Edit** per `agents/poteto-agent.md` (Spend).
 - **Gate once.** The builder runs targeted tests and the repo's known-trap check (for example `fallow:audit`) while it builds, and the full gate once at the end. Run the repo's known-trap check only through its script (for example `npm run fallow:audit`), never as raw `npx` with hand-typed flags. The builder owns the pre-review gate. The orchestrator runs the repo gate once, after the review fixes.
 - **Background and parallel.** Spawn the builder in the background, and start the app stack (database, dev server) while it builds. Run the reviewer and the verification skill in parallel, and tell the reviewer the verification is running.
 - **Watchers.** Stop a `Monitor` when its target changes. Cancel a fallback `ScheduleWakeup` once the agent it guards has reported. Run the last gate in the foreground, so the turn ends with the report and not with "waiting".
 - **Sleep before load.** When a gate stalls or tests time out, read `pmset -g log | grep -E ' (Sleep|Wake|DarkWake) '` and the transcript's "computer was asleep" errors before blaming load; `heavy-slot.py` holds `caffeinate -i` for each heavy job, and `hooks/keep-awake.py` holds `caffeinate -i -t 3600` from each prompt or Agent spawn, so a long reviewer turn no longer lets the Mac idle-sleep. Then check `uptime`, and stop your own dev server and browser.
-- **Review fixes go to the builder.** Send the reviewer's findings back to the builder with `SendMessage`, then rerun the repo's known-trap check. An orchestrator that fixes findings itself skips the builder's gate. `hooks/fix-rounds.py` denies a third `SendMessage` to one agent: spawn a fresh builder whose brief carries the original brief, every later directive and the open findings. A message that answers the builder's question or hands it the next unit is not a fix round: add `fix-rounds: <agent id> <reason>` to `.pstack/status.md`.
+- **Review fixes go to the builder.** Send the reviewer's findings back to the builder with `SendMessage`, then rerun the repo's known-trap check. When a builder has drifted after two rounds, spawn a fresh one whose brief carries the original brief and the open findings.
 - **One unit per builder.** A unit is one feature end to end and about 25 source files at most; cut a larger feature by user-facing slice, never by layer. Split a brief that names more, so each builder ends in one report before it compacts. A browser proof of more than 3 screens is its own unit.
 - **Plan panels.** A plan gets at most two review rounds of three reviewers, and each architect runner returns a design of about 150 lines at most. Change a plan doc with Edit, never a full rewrite.
 - **Worktrees.** Never spawn an edit-capable agent with `isolation: "worktree"`: the harness then refuses its gate commands, and `hooks/agent-default-model.py` denies it. Create the worktree with `git worktree add <path> -b <branch> <base>` and name the path in the brief.

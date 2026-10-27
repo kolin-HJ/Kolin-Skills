@@ -54,17 +54,6 @@
           }
         ]
       }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 '{{REPO}}/skills/pstack-local/scripts/mode-reminder'",
-            "timeout": 10
-          }
-        ]
-      }
     ]
   }
 }

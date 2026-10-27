@@ -14,7 +14,7 @@ SECTIONS = (
     ("Summary", "<What ships, for whom, and what changes for them, in two to four sentences. "
                 "A release lists each merged PR in one line; PRs that cancel each other share one line.>"),
     ("Review this", "- [ ] <file:line: the decision or risky hunk to double check, and why>"),
-    ("Blast Radius", "<What this touches outside the diff (policy, Before a PR ships), or \"None.\">"),
+    ("Blast Radius", "<What this touches outside the diff (policy, Pull requests), or \"None.\">"),
     ("Verification", "- Ran: `<command>` <result>\n- Not run: <check>, because <why>"),
 )
 SKELETON = "Value: <kind> — <one sentence>\n\n" + "".join(

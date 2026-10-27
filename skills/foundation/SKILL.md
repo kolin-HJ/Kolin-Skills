@@ -41,10 +41,10 @@ When to bring him in is your judgment call. Signals that point toward asking: a 
 | 4b Build | One builder per feature, end to end, copying the exemplar; one check that proves each unit | `poteto-mode` playbooks, `principle-sequence-verifiable-units` | Unit passes the local gate |
 | 5 Review | A fresh read-only reviewer that did not build the unit, at most two rounds. At each wave end, a fresh agent reads one finished feature cold (Layout, feature read) | `senior-reviewer`, `interrogate` by risk | PASS, and every feature inside its budget |
 | 6 Verify | Proof on the real artifact: the repo's verification skill, staging first, parity against the base | `principle-prove-it-works`, the verification skill | Evidence pasted |
-| 7 Release | PR in the policy format, then Kolin merges | policy "Before a PR ships" | **Kolin's yes** |
+| 7 Release | PR in the policy format, then Kolin merges | policy "Pull requests" | **Kolin's yes** |
 | 8 Learn | A mistake seen twice, or once for security, data-loss, or irreversible classes, becomes a check | `correct` | Rule, test or type merged |
 
-After a release, `bin/context-audit --pr <repo>#<n>` measures it. Each finding moves up the layers of the global policy's "How agents earn trust".
+After a release, `bin/context-audit --pr <repo>#<n>` measures it. A finding that costs real time twice may become a gate (policy, "Instruction files").
 
 When Kolin asks for one PR for a large change, keep it one PR, with one commit per verified unit and a review map in the PR body (unit, commits, files, the check that proves it).
 
@@ -63,7 +63,7 @@ He checks these himself. Everything else is reversible and proceeds.
 - Schema changes and migrations, each with a backup step.
 - Messages to people and other external writes.
 
-Ask once: one bundled question, recommended option first, with the work already prepared so his yes is the last step. Between those points, report only a real result, a real decision or a block (policy, Delegation).
+Ask once: one bundled question, recommended option first, with the work already prepared so his yes is the last step. Between those points, report only a real result, a real decision or a block.
 
 ## Quality bars (definition of done for every unit)
 
