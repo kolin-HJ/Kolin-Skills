@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import os
+import posixpath
 import re
 import shlex
 import subprocess
 import sys
+from urllib.parse import unquote
 
 SKIP_FLAG = "--no-" + "verify"
 SEPARATORS = {";", "&&", "||", "|", "&", "|&", "(", ")", "`"}
@@ -12,6 +14,10 @@ SHELLS = {"bash", "sh", "zsh", "dash"}
 GIT_OPTS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
 HOOK_SUBCOMMANDS = {"commit", "push", "merge", "rebase", "am", "cherry-pick", "revert"}
 MERGE_WORDS = re.compile(r"merge|automerge|auto_merge|enablePullRequestAutoMerge", re.I)
+PROTECTED_REF = re.compile(r"(git/refs/heads/(main|master|staging|sandbox)$|branches/(main|master|staging|sandbox)(/|$))", re.I)
+REF_MUTATIONS = re.compile(r"\b(updateRefs?|deleteRef|createCommitOnBranch)\b")
+API_FIELD_FLAGS = {"-f", "-F", "--field", "--raw-field", "--input"}
+COMMENT_HIDES_CODE = re.compile(r"[;&|`$()<>'\"\\\r]")
 HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 API_OPTS_WITH_VALUE = {"-H", "--header", "-q", "--jq", "-t", "--template", "--hostname", "--cache", "-p", "--preview"}
 HOOK_DIRS = (r"\.claude/hooks", r"\.git/hooks", r"\.git/config", r"\.githooks", r"\.husky", r"lefthook\.ya?ml")
@@ -66,11 +72,28 @@ def split_heredocs(text):
     return "\n".join(kept), bodies
 
 
+def strip_comment(line):
+    i, quote, prev = 0, None, " "
+    while i < len(line):
+        c = line[i]
+        if c == "\\" and quote != "'":
+            prev, i = "x", i + 2
+            continue
+        if quote:
+            quote = None if c == quote else quote
+        elif c in "'\"":
+            quote = c
+        elif c == "#" and prev in " \t;&|()<>`" and not COMMENT_HIDES_CODE.search(line[i:]):
+            return line[:i]
+        prev, i = c, i + 1
+    return line
+
+
 def lex(line):
-    lexer = shlex.shlex(line, posix=True, punctuation_chars=";&|()<>`")
+    lexer = shlex.shlex(strip_comment(line), posix=True, punctuation_chars=";&|()<>`")
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
-    lexer.commenters = "#"
+    lexer.commenters = ""
     return list(lexer)
 
 
@@ -244,13 +267,11 @@ def skips_hooks(words, raw):
     return False
 
 
-def api_merges(words, raw):
+def api_call(words):
     words = strip_prefix(words)
     if len(words) < 2 or program(words[0]) != "gh" or words[1] != "api":
-        return False
+        return None
     args = words[2:]
-    if not any(MERGE_WORDS.search(a) for a in args):
-        return False
     method, writes, endpoint, i = "GET", False, None, 0
     while i < len(args):
         arg = args[i]
@@ -261,18 +282,50 @@ def api_merges(words, raw):
         if arg in API_OPTS_WITH_VALUE:
             i += 2
             continue
+        if arg in API_FIELD_FLAGS:
+            writes = True
+            i += 2
+            continue
         if arg.startswith("--method="):
             method = arg.split("=", 1)[1].upper()
         elif arg.startswith("-X"):
             method = arg[2:].upper()
-        elif arg in ("-f", "-F", "--field", "--raw-field", "--input") or re.match(r"^(-[fF].|--(raw-)?field=|--input=)", arg):
+        elif re.match(r"^(-[fF].|--(raw-)?field=|--input=)", arg):
             writes = True
         elif not arg.startswith("-") and endpoint is None:
             endpoint = arg
         i += 1
-    if method != "GET" or writes:
+    return args, method != "GET" or writes, endpoint or ""
+
+
+def api_merges(words, raw):
+    call = api_call(words)
+    if call is None:
+        return False
+    args, writes, endpoint = call
+    if not any(MERGE_WORDS.search(a) for a in args):
+        return False
+    return writes or endpoint.strip("/").endswith(("merge", "merges")) or "graphql" in endpoint
+
+
+def api_path(endpoint):
+    decoded = None
+    while decoded != endpoint:
+        decoded, endpoint = endpoint, unquote(endpoint)
+    return posixpath.normpath(re.sub(r"/+", "/", re.split(r"[?#]", endpoint)[0]))
+
+
+def api_ref_writes(words, raw):
+    call = api_call(words)
+    if call is None:
+        return False
+    args, writes, endpoint = call
+    path = api_path(endpoint)
+    if writes and PROTECTED_REF.search(path):
         return True
-    return bool(endpoint and (endpoint.strip("/").endswith(("merge", "merges")) or "graphql" in endpoint))
+    if path.endswith("graphql") and any(a == "--input" or a.startswith("--input=") or "=@" in a for a in args):
+        return True
+    return any(REF_MUTATIONS.search(a) for a in args)
 
 
 def pr_merges(words, raw):
@@ -342,7 +395,8 @@ def main():
         sys.exit(0 if FILE_HOOK_PATH.search(sys.stdin.read()) else 1)
     if sys.argv[1] == "file-install":
         sys.exit(0 if file_in_install(sys.stdin.read().strip(), sys.argv[2]) else 3)
-    checks = {"skip-hooks": skips_hooks, "api-merge": api_merges, "pr-merge": pr_merges, "d4": d4_violation}
+    checks = {"skip-hooks": skips_hooks, "api-merge": api_merges, "api-ref": api_ref_writes, "pr-merge": pr_merges,
+              "d4": d4_violation}
     check = install_guard(sys.argv[2] if len(sys.argv) > 2 else None) if sys.argv[1] == "install" else checks[sys.argv[1]]
     try:
         found = scan(sys.stdin.read(), check)

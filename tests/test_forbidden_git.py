@@ -13,6 +13,9 @@ GH = "g" + "h"
 NV = "--no-" + "verify"
 
 SKIP_BLOCKED = [
+    "echo $'a\\' #b'; " + GIT + " commit " + NV + " -m x",
+    "echo ${x:- #}; " + GIT + " commit " + NV + " -m x",
+    "echo a\r#b; " + GIT + " commit " + NV + " -m x",
     GIT + " commit " + NV + " -m x",
     "cd repo && " + GIT + " commit -m x " + NV,
     "FOO=1 " + GIT + " commit -am x " + NV,
@@ -97,6 +100,37 @@ API_BLOCKED = [
     'echo "$(' + GH + ' pr merge 5)"',
     'echo "`' + GH + ' pr merge 5`"',
 ]
+REF_API_BLOCKED = [
+    GH + " api -X PATCH repos/o/r/git/refs/heads/staging -f sha=abc -F force=true",
+    GH + " api --method DELETE repos/o/r/git/refs/heads/main",
+    GH + " api repos/o/r/git/refs/heads/sandbox -f sha=abc",
+    GH + " api https://api.github.com/repos/o/r/git/refs/heads/Master --method=PATCH --input body.json",
+    GH + " api graphql -f query='mutation { updateRef(input:{}) { clientMutationId } }'",
+    GH + " api graphql -f query='mutation { updateRefs(input:{}) { clientMutationId } }'",
+    GH + " api graphql -f query='mutation { deleteRef(input:{}) { clientMutationId } }'",
+    GH + " api graphql -f query='mutation { createCommitOnBranch(input:{}) { clientMutationId } }'",
+    GH + " api -X PATCH -f sha=abc -f force=true repos/o/r/git/refs/heads/main",
+    GH + " api --input body.json repos/o/r/git/refs/heads/main",
+    GH + " api -X DELETE repos/o/r/git/refs/heads%2Fmain",
+    GH + " api -X DELETE repos/o/r/git/refs/heads/x/../%6Dain",
+    GH + " api -X DELETE repos/o/r//git/refs/heads//staging/",
+    GH + " api repos/o/r/git/refs/heads/main#x -XPATCH -f sha=x",
+    GH + " api graphql#x -F query=@q.graphql",
+    GH + " api graphql --input q.json",
+    GH + " api graphql -F query=@q.graphql",
+    GH + " api -X POST repos/o/r/branches/main/rename -f new_name=old",
+    GH + " api -X DELETE repos/o/r/branches/staging/protection",
+]
+REF_API_ALLOWED = [
+    GH + " api repos/o/r/git/refs -f ref=refs/heads/staging -f sha=abc",
+    GH + " api repos/o/r/git/ref/heads/main --jq .object.sha",
+    GH + " api repos/o/r/git/refs/heads/staging",
+    GH + " api -X PATCH repos/o/r/git/refs/heads/feature -f sha=abc",
+    GH + " api graphql -f query='mutation { createRef(input:{}) { clientMutationId } }'",
+    GH + " api graphql -f query='query { viewer { login } }'",
+    GH + " api repos/o/r/branches/main/protection",
+    GH + " api -X POST repos/o/r/branches/feature/rename -f new_name=other",
+]
 PR_MERGE_MENTIONS_ALLOWED = [
     GIT + ' grep -nE "' + GH + ' pr merge|baseRefName" -- \':!tests\'',
     "rg '" + GH + " pr merge' hooks/ | head",
@@ -144,6 +178,7 @@ PUSH_AND_MERGE_BLOCKED = [
     "echo x && " + GIT + " push origin HEAD:main",
     GIT + " push origin staging",
     GIT + " push origin HEAD:refs/heads/sandbox",
+    GIT + " push origin HEAD:heads/staging",
     GIT + " push -u origin master",
     GIT + ' push origin "$(' + GIT + ' branch --show-current)" --force',
     GIT + " push origin 'HEAD:main'",
@@ -251,6 +286,12 @@ class ForbiddenGitHookTests(unittest.TestCase):
             result = subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
                                     capture_output=True, cwd=directory, timeout=20)
             self.assertEqual(result.returncode, 2)
+
+    def test_api_writes_to_a_protected_ref_are_blocked(self):
+        self.check(REF_API_BLOCKED, 2)
+
+    def test_creating_a_ref_through_the_api_and_reading_refs_are_allowed(self):
+        self.check(REF_API_ALLOWED, 0)
 
     def test_skipping_the_local_gate_or_editing_hook_files_is_blocked(self):
         self.check(GATE_SKIP_BLOCKED, 2)
