@@ -303,7 +303,7 @@ class NativeHookPayloadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             transcript = pathlib.Path(directory) / "session.jsonl"
             transcript.write_text("")
-            payload = {"prompt": "Fix the grid filter.", "transcript_path": str(transcript)}
+            payload = {"prompt": "Fix the grid filter.", "transcript_path": str(transcript), "cwd": directory}
             first = invoke(MODE_HOOK, payload, directory)
             reminder = json.loads(first.stdout)["hookSpecificOutput"]["additionalContext"]
             self.assertIn("poteto-mode/SKILL.md", reminder)
