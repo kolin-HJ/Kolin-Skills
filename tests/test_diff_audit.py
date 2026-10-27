@@ -45,6 +45,7 @@ class DiffAuditTests(unittest.TestCase):
             "swallowed-error": ("src/price.ts", "export function price(n: number) {\n"
                                 "  try { return n * 2; } catch {}\n}\n"),
             "comment": ("src/price.ts", "export function price(n: number) {\n  // double it\n  return n * 2;\n}\n"),
+            "debug-leftover": ("src/price.ts", "export function price(n: number) {\n  debugger;\n  return n * 2;\n}\n"),
             "dependency": ("package.json", '{\n  "dependencies": {\n    "left-pad": "^1.3.0"\n  }\n}\n'),
         }
         for kind, (relative, text) in cases.items():
@@ -57,8 +58,14 @@ class DiffAuditTests(unittest.TestCase):
                 self.assertIn(f"block {kind}: {relative}", result.stdout)
                 self.assertEqual(self.audit("--allow", kind).returncode, 0)
 
+    def test_a_console_log_blocks_in_a_ui_component(self):
+        self.write("src/Price.tsx", "export function Price() {\n  console.log(1);\n  return null;\n}\n")
+        result = self.audit()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("block debug-leftover: src/Price.tsx:2", result.stdout)
+
     def test_a_clean_change_passes_and_lists_each_addition_for_the_value_check(self):
-        self.write("src/tax.ts", "export function tax(n: number) {\n  return n / 10;\n}\n")
+        self.write("src/tax.ts", "export function tax(n: number) {\n  console.log(n);\n  return n / 10;\n}\n")
         self.write("src/price.ts", "// eslint-disable-next-line no-console -- logs the audit trail\n"
                    "export function price(n: number) {\n  return n * 2;\n}\n")
         self.write("src/tax.test.ts", "it('reads a fixture', () => {\n  expect(readFileSync(fixture, 'utf8')).toBe('a');\n});\n")
@@ -67,7 +74,7 @@ class DiffAuditTests(unittest.TestCase):
         self.assertIn("new file: src/tax.ts", result.stdout)
         self.assertIn("new symbol: tax (src/tax.ts)", result.stdout)
         self.assertIn("new test: src/tax.test.ts:1", result.stdout)
-        self.assertIn("net lines: +7 -0", result.stdout)
+        self.assertIn("net lines: +8 -0", result.stdout)
         self.assertNotIn("block", result.stdout)
 
 
