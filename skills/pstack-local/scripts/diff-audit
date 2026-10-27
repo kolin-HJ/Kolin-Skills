@@ -22,6 +22,10 @@ HATCH = re.compile(r"\bas any\b|:\s*any\b|<any>|\bany\[\]|@ts-ignore|@ts-nocheck
 DIRECTIVE = re.compile(r"eslint-disable|oxlint-disable|@ts-expect-error|\bnoqa\b")
 SWALLOW = re.compile(r"catch\s*(\([^)]*\))?\s*\{\s*\}|\.catch\(\s*\(\s*\w*\s*\)\s*=>\s*(\{\s*\}|undefined|null)\s*\)"
                      r"|except(\s+[\w.]+(\s+as\s+\w+)?)?\s*:\s*pass\b")
+DEBUG = re.compile(r"^\s*debugger\s*;?\s*$")
+UI_LOG = re.compile(r"\bconsole\.(log|debug)\(")
+JS = re.compile(r"\.(ts|tsx|js|jsx|mjs|cjs)$")
+UI = re.compile(r"\.(tsx|jsx)$")
 EXCEPT = re.compile(r"^\s*except\b.*:\s*$")
 COMMENT = re.compile(r"^\s*(//|/\*|\*(\s|/|$))")
 SYMBOL = re.compile(r"^(export\s+)?(default\s+)?(async\s+)?(function\*?|class|interface|type|enum|def|const|let)\s+(\w+)")
@@ -115,6 +119,8 @@ def audit(files, base):
                 directive = DIRECTIVE.search(line)
                 if HATCH.search(line) or (directive and " -- " not in line):
                     blocks.append(("escape-hatch", where))
+                if not is_test and ((JS.search(path) and DEBUG.match(line)) or (UI.search(path) and UI_LOG.search(line))):
+                    blocks.append(("debug-leftover", where))
                 if SWALLOW.search(line) or (line.strip() == "pass" and EXCEPT.match(previous)):
                     blocks.append(("swallowed-error", where))
                 hash_comment = HASH_COMMENT.search(path) and line.lstrip().startswith("#") and not line.startswith("#!")
