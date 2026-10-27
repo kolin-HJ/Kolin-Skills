@@ -37,137 +37,14 @@ class HeavyJobsGuardTests(unittest.TestCase):
         self.assertIn(".kolin-skills/bin/heavy-slot.py", prefix)
         self.assertNotIn("git", prefix.lower())
 
-    def test_shell_file_edits_are_denied_unless_the_target_is_scratch(self):
-        blocked = [
-            "sed -i 's/a/b/' src/app.ts",
-            "sed -n -i.bak 's/a/b/;s/c/d/' src/app.ts",
-            "perl -pi -e 's/a/b/' src/app.ts",
-            "cat > notes.md",
-            "cat >> notes.md <<'EOF'\nhello\nEOF",
-            "echo hi | tee out.txt",
-            "python3 - <<'EOF'\nimport pathlib\npathlib.Path('src/a.ts').write_text('x')\nEOF",
-            "python3 - <<'EOF'\nopen(target, 'w').write('x')\nEOF",
-            "node -e \"require('fs').writeFileSync('src/a.js', 'x')\"",
-            "sed -i 's/a/b/' /tmp/../etc/hosts",
-            "cat <<EOF > notes.md\nhi\nEOF",
-            "echo hi > src/x",
-            "printf 'x' > file",
-            "python3 - <<'EOF'\nfrom pathlib import Path\nPath(target).write_text('x')\nEOF",
-            "node -e \"require('fs').writeFileSync(process.argv[1], 'x')\"",
-        ]
-        allowed = [
-            "sed -n 's/a/b/p' src/app.ts",
-            "sed -i 's/a/b/' /tmp/work.txt",
-            "perl -pi -e 's/a/b/' $TMPDIR/work.txt",
-            "cat > .pstack/status.md <<'EOF'\nok\nEOF",
-            "echo hi | tee -a /private/tmp/out.txt",
-            "python3 - <<'EOF'\nimport pathlib\npathlib.Path('/tmp/a.txt').write_text('x')\nEOF",
-            "python3 - <<'EOF'\nprint(open('src/a.ts').read())\nEOF",
-            "echo 'run sed -i on it'",
-            "cat README.md",
-            "python3 - <<'EOF'\nimport sys\nsys.stdout.write('x')\nEOF",
-            "node -e \"process.stdout.write('x')\"",
-            "python3 - <<'EOF'\nopen('/tmp/out', 'w').write(open('src/a.ts').read())\nEOF",
-            "perl -MList::Util=sum -e 'print sum(1,2)' src/a.ts",
-            "echo hi > /dev/null 2>&1",
-            "echo hi >&2",
-            "echo x > /tmp/a.txt",
-            "printf x > .pstack/a.txt",
-            "cat <<EOF > /tmp/x\nhi\nEOF",
-        ]
-        for command in blocked:
-            with self.subTest(blocked=command):
-                result = invoke(BASH_GUARD, {"command": command})
-                self.assertEqual(result.returncode, 2, result.stdout)
-                self.assertIn("Edit or Write tool", result.stderr)
-        for command in allowed:
-            with self.subTest(allowed=command):
-                result = invoke(BASH_GUARD, {"command": command})
-                self.assertEqual((result.returncode, result.stderr), (0, ""))
-
-    def test_shell_append_is_allowed_outside_any_git_work_tree_and_denied_inside(self):
-        parent = pathlib.Path.home() / ".kolin-skills" / "guard-tests"
-        parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.TemporaryDirectory(dir=parent) as plain, tempfile.TemporaryDirectory(dir=parent) as repo:
-            subprocess.run(["git", "init", "-q", repo], check=True)
-            pathlib.Path(plain, "linked.md").symlink_to(pathlib.Path(repo, "tracked.md"))
-            allowed = [
-                f"echo '- [x](x.md)' >> {plain}/MEMORY.md",
-                f"echo x >> {plain}/new/dir/MEMORY.md",
-            ]
-            blocked = [
-                f"echo '- [x](x.md)' >> {repo}/MEMORY.md",
-                f"cd {repo} && printf '- x' >> MEMORY.md",
-                f"echo x >> {repo}/new/dir/MEMORY.md",
-                f"echo x >> {plain}/linked.md",
-                f"cd {pathlib.Path(repo).parent} && echo x >> {pathlib.Path(repo).name}/a.md",
-                f"cd {pathlib.Path(repo).parent} && sed -i 's/a/b/' {pathlib.Path(repo).name}/a.md",
-            ]
-            for command in allowed:
-                with self.subTest(allowed=command):
-                    result = invoke(BASH_GUARD, {"command": command})
-                    self.assertEqual((result.returncode, result.stderr), (0, ""))
-            for command in blocked:
-                with self.subTest(blocked=command):
-                    result = invoke(BASH_GUARD, {"command": command})
-                    self.assertEqual(result.returncode, 2, result.stdout)
-
-    def test_scratch_context_follows_cd_and_scratch_variables(self):
-        blocked = [
-            f"cd /tmp && cd {REPO} && cat > a.ts <<'EOF'\nx\nEOF",
-            "X=$(pwd); cat > $X/a.ts <<'EOF'\nx\nEOF",
-            "cd src && python3 - <<'EOF'\nopen(\"a.ts\",\"w\")\nEOF",
-            "cat > ../.scratch/x <<'EOF'\nx\nEOF",
-            "cd /tmp/x && cd - && cat > a.ts <<'EOF'\nx\nEOF",
-            "cd /tmp/x && cd -P /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
-            "cd /tmp/x && cd -- /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
-            "cd /tmp/x && cat > `echo /Users/x/repo/a.ts` <<'EOF'\nx\nEOF",
-            "cd /tmp/x && pushd /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
-            "cd /tmp/x && (cd /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF\n)",
-            "cd /tmp/x && { cd /Users/x/repo; cat > a.ts <<'EOF'\nx\nEOF\n}",
-            "cd /tmp/x && FOO=1 cd /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
-            "cd /tmp/x && builtin cd /Users/x/repo && cat > a.ts <<'EOF'\nx\nEOF",
-            "B=$(mktemp -d); export B=/Users/x/repo; cat > $B/a.ts <<'EOF'\nx\nEOF",
-            "B=$(mktemp -d); for B in /Users/x/repo; do cat > $B/a.ts <<'EOF'\nx\nEOF\ndone",
-            "B=$(mktemp -d); read B <<< /Users/x/repo; cat > $B/a.ts <<'EOF'\nx\nEOF",
-            "if cat > src/a.ts <<'EOF'\nx\nEOF\nthen true; fi",
-            "if false; then true; elif cat > src/a.ts <<'EOF'\nx\nEOF\nthen true; fi",
-            "while cat > src/a.ts <<'EOF'\nx\nEOF\ndo break; done",
-            "until cat > src/a.ts <<'EOF'\nx\nEOF\ndo break; done",
-            "time cat > src/a.ts <<'EOF'\nx\nEOF",
-            "cd /tmp/nope; cat > src/a.ts <<'EOF'\nx\nEOF",
-            "cd /tmp/x & cat > a.ts <<'EOF'\nx\nEOF",
-            "cd /tmp/x && python3 - <<'EOF'\nimport os\nos.chdir('/Users/x/repo')\nopen('a.ts','w')\nEOF",
-        ]
-        allowed = [
-            "cd /tmp/sp && cat > hook_orig.sql <<'EOF'\nselect 1;\nEOF",
-            "B=$(mktemp -d)/body.md; cat > $B <<'EOF'\nbody\nEOF",
-            "D=$(mktemp -d /tmp/f8rev.XXXX) && cat > \"$D/notes.md\" <<'EOF'\nx\nEOF",
-            "T=$(mktemp -d); cd $T && printf x > out.txt",
-            "cd /Users/x/repo/.scratch/supabase-audit && cat > pr-realtime.md <<'EOF'\nx\nEOF",
-            "cat > .scratch/probe.sh <<'EOF'\nx\nEOF",
-            "cd /tmp/ksaudit && python3 - <<'EOF'\nopen(\"mine.py\",\"w\").write(\"x\")\nEOF",
-        ]
-        for command in blocked:
-            with self.subTest(blocked=command):
-                result = invoke(BASH_GUARD, {"command": command})
-                self.assertEqual(result.returncode, 2, result.stdout)
-                self.assertIn("Edit or Write tool", result.stderr)
-        for command in allowed:
-            with self.subTest(allowed=command):
+    def test_shell_file_edits_pass_on_the_main_thread(self):
+        for command in ["sed -i 's/a/b/' src/app.ts", "cat > notes.md <<'EOF'\nhi\nEOF", "echo hi > src/x"]:
+            with self.subTest(command=command):
                 result = invoke(BASH_GUARD, {"command": command})
                 self.assertEqual((result.returncode, result.stderr), (0, ""))
 
     def syntax_check(self, command):
         return subprocess.run(["bash", "-n"], input=command, text=True, capture_output=True).returncode
-
-    def test_shell_edit_is_blocked_on_the_main_thread_and_passes_in_a_subagent(self):
-        command = "sed -i 's/a/b/' src/app.ts"
-        main = invoke(BASH_GUARD, {"command": command})
-        self.assertEqual(main.returncode, 2)
-        self.assertIn("bypass-mode", main.stderr)
-        subagent = invoke(BASH_GUARD, {"command": command}, agent_id="a1", agent_type="poteto-agent")
-        self.assertEqual((subagent.returncode, subagent.stderr), (0, ""))
 
     def test_git_push_takes_a_slot_and_gate_filters_are_dropped(self):
         prefix_pattern = re.compile(r"^python3 \S+heavy-slot\.py \$\$ \d+\n")

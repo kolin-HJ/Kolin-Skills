@@ -45,25 +45,23 @@ Put the full brief in each subagent's prompt, because a subagent has none of you
 
 ## Where Kolin's rules win
 
-The global policy (`policy/AGENTS.md`) lists the rules that override pstack (Approvals, Overrides of pstack). It also outranks the repo's `AGENTS.md`, which adds project facts. Both win every conflict with pstack. This adapter adds only how those rules land on pstack's own steps:
+The global policy (`policy/AGENTS.md`) lists the rules that override pstack. It also outranks the repo's `AGENTS.md`, which adds project facts. Both win every conflict with pstack. This adapter adds only how those rules land on pstack's own steps:
 
 - **Autonomy and Opening a PR** act without asking in pstack. Here a commit, push or PR on a work branch needs no ask; a merge or deploy does (policy, Approvals). Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask. `autopilot-full` is not used.
 - **External writes** (chat, tickets) wait for a yes unless the repo's `AGENTS.md` allows them.
-- **PR title and body** use the repo's template. Where the repo has none, start from `scripts/pr-body <base>` (policy, Before a PR ships) in place of pstack's Why, Scope and Tradeoffs.
+- **PR title and body** use the repo's template. Where the repo has none, start from `scripts/pr-body <base>` (policy, Pull requests) in place of pstack's Why, Scope and Tradeoffs.
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Tests and proof. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
-- **Feature, Bug fix and Refactoring** start with the AGENTS.md value case. **Opening a PR** runs `scripts/diff-audit <base>` first.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a gate directive with `-- <reason>`.
 - **Builder brief.** poteto-mode says to put its path in every `poteto-agent` prompt. Here the builder gets the principle leaves from `hooks/builder-context.py` and does not read poteto-mode.
-- **Fix rounds.** poteto-mode gives each fix round a fresh subagent. Here up to two rounds go back to the builder (policy, Delegation; `models.md` Spend), then a fresh builder.
 - **Reply style.** Keep pstack's Writing the reply rules. State the principles that changed a decision in one line, not a section.
 
 ## Own skills
 
 `foundation` is the root; every other skill inherits its flow, check points and bars. The grouped index lives in the Kolin-Skills README.
 
-`full-stop` and `full-send` are the in-session approval when Kolin invokes them: full stop covers a ready PR; full send adds the merge of that one PR. `scripts/mode-reminder` flags either phrase.
+`full-stop` and `full-send` are the in-session approval when Kolin invokes them: full stop covers a ready PR; full send adds the merge of that one PR.
 
-Read `thermo-nuclear-code-quality-review` for the diff pass in the policy's Quality work, or when the user asks for a harsh structure review.
+Read `thermo-nuclear-code-quality-review` when the user asks for a harsh structure review.
 
 ## Verify the setup
 

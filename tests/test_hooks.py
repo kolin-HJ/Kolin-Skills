@@ -13,7 +13,6 @@ from unittest import mock
 REPO = pathlib.Path(__file__).resolve().parent.parent
 LINT_HOOK = REPO / "hooks/lint-changed-lines.py"
 ENV_HOOK = REPO / "hooks/block-env-reads.py"
-MODE_HOOK = REPO / "skills/pstack-local/scripts/mode-reminder"
 BASH_GUARD = REPO / "hooks/bash-guard.py"
 SLOT = REPO / "hooks/heavy-slot.py"
 MODEL_HOOK = REPO / "hooks/agent-default-model.py"
@@ -190,7 +189,7 @@ class NativeHookPayloadTests(unittest.TestCase):
         self.assertEqual(blocked_size.returncode, 2, blocked_size.stderr)
         self.assertIn("file too long", blocked_size.stderr)
 
-    def test_agent_model_runs_builders_on_sonnet_and_denies_fork(self):
+    def test_agent_model_runs_builders_on_sonnet_and_leaves_fork_alone(self):
         with tempfile.TemporaryDirectory() as directory:
             agents = pathlib.Path(directory) / ".claude/agents"
             agents.mkdir(parents=True)
@@ -217,7 +216,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                 ({"subagent_type": "senior-reviewer", "model": "sonnet"}, {}, None),
                 ({"subagent_type": "Plan", "model": "opus"}, {}, None),
                 ({}, {}, sonnet),
-                ({"subagent_type": "fork"}, {}, ("deny", None)),
+                ({"subagent_type": "fork"}, {}, None),
                 ({"subagent_type": "Explore", "model": "opus"}, {}, None),
                 ({"subagent_type": "Explore"}, {}, sonnet),
                 ({"subagent_type": "read-only-opus", "model": "opus"}, {}, None),
@@ -290,73 +289,6 @@ class NativeHookPayloadTests(unittest.TestCase):
             for tool_input in [{"file_path": f"{directory}/.env.example"}, {"pattern": "env", "path": "src"}]:
                 with self.subTest(tool_input=tool_input):
                     self.assertEqual(invoke(ENV_HOOK, {"tool_input": tool_input}, directory).returncode, 0)
-
-    def test_mode_reminder_routes_full_send_and_full_stop(self):
-        with tempfile.TemporaryDirectory() as directory:
-            for prompt, skill in [
-                ("Fix the grid filter. Full send.", "full-send"),
-                ("full stop on PR 812", "full-stop"),
-                ("/full-send 812", "full-send"),
-            ]:
-                with self.subTest(prompt=prompt):
-                    result = invoke(MODE_HOOK, {"prompt": prompt}, directory)
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
-                    self.assertIn(f"~/.agents/skills/{skill}/SKILL.md", context)
-            notice = invoke(MODE_HOOK, {"prompt": "<task-notification>\n<status>completed</status>"}, directory)
-            self.assertEqual((notice.returncode, notice.stdout), (0, ""))
-            plain = invoke(MODE_HOOK, {"prompt": "Fix the grid filter."}, directory)
-            context = json.loads(plain.stdout)["hookSpecificOutput"]["additionalContext"]
-            self.assertNotIn("full-send", context)
-            self.assertNotIn("full-stop", context)
-
-    def test_mode_reminder_flags_a_stale_status_file(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = pathlib.Path(os.path.realpath(directory))
-            subprocess.run(["git", "init", "-q", str(root)], check=True)
-            status = root / ".pstack/status.md"
-            status.parent.mkdir()
-            status.write_text("Value: feature\n")
-            nested = root / "src"
-            nested.mkdir()
-            stale = "`.pstack/status.md` was last updated 90 minutes ago."
-
-            def context():
-                result = invoke(MODE_HOOK, {"prompt": "Where are we?", "cwd": str(nested)}, directory)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                return json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
-
-            ninety_minutes_ago = time.time() - 90 * 60
-            os.utime(status, (ninety_minutes_ago, ninety_minutes_ago))
-            self.assertIn(stale, context())
-            os.utime(status)
-            self.assertNotIn("status.md", context())
-            status.unlink()
-            self.assertNotIn("status.md", context())
-            nowhere = invoke(MODE_HOOK, {"prompt": "Where are we?"}, directory)
-            self.assertEqual(nowhere.returncode, 0, nowhere.stderr)
-            self.assertIn("poteto-mode/SKILL.md", json.loads(nowhere.stdout)["hookSpecificOutput"]["additionalContext"])
-
-    def test_mode_reminder_names_the_skills_once_per_session(self):
-        with tempfile.TemporaryDirectory() as directory:
-            transcript = pathlib.Path(directory) / "session.jsonl"
-            transcript.write_text("")
-            payload = {"prompt": "Fix the grid filter.", "transcript_path": str(transcript), "cwd": directory}
-            first = invoke(MODE_HOOK, payload, directory)
-            reminder = json.loads(first.stdout)["hookSpecificOutput"]["additionalContext"]
-            self.assertIn("poteto-mode/SKILL.md", reminder)
-            attachment = {"type": "attachment", "attachment": {"type": "hook_additional_context", "content": [reminder]}}
-            transcript.write_text(json.dumps(attachment) + "\n")
-            later = invoke(MODE_HOOK, payload, directory)
-            self.assertEqual((later.returncode, later.stdout), (0, ""))
-            routed = invoke(MODE_HOOK, {**payload, "prompt": "full send"}, directory)
-            context = json.loads(routed.stdout)["hookSpecificOutput"]["additionalContext"]
-            self.assertIn("full-send/SKILL.md", context)
-            self.assertNotIn("poteto-mode/SKILL.md", context)
-            with transcript.open("a") as handle:
-                handle.write(json.dumps({"type": "system", "subtype": "compact_boundary"}, separators=(",", ":")) + "\n")
-            compacted = invoke(MODE_HOOK, payload, directory)
-            self.assertIn("poteto-mode/SKILL.md", json.loads(compacted.stdout)["hookSpecificOutput"]["additionalContext"])
 
     def test_bash_guard_blocks_sleep_polling_in_the_foreground_only(self):
         with tempfile.TemporaryDirectory() as directory:

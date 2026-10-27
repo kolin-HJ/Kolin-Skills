@@ -50,7 +50,7 @@ flowchart TB
 
 ## How it works
 
-Every task follows one flow. In Claude Code and Codex, each prompt reminds the agent to write a value case first. In Claude Code, a hook blocks the first edit until it exists.
+Every task follows one flow.
 
 ```mermaid
 flowchart LR
@@ -72,8 +72,7 @@ The models are the Claude Code seats. Codex runs both subagents on its default m
 |---|---|
 | Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge | Protected branches change only through a PR you merge. An agent may create a missing one with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
 | Reading a `.env` file | Secrets stay out of the context |
-| First edit before a value case | No outcome, no code |
-| Sleep loops, edits through the shell, filtered gate output (a trailing filter is stripped; one that cannot be stripped safely is blocked) | Agents see the real output and use the real tools |
+| Sleep loops, filtered gate output (a trailing filter is stripped; one that cannot be stripped safely is blocked) | Agents see the real output and use the real tools |
 
 Claude Code runs every guard. Codex runs the git and `.env` guards. Cursor runs only the lint hook, and Grok runs no hooks.
 
@@ -266,16 +265,13 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 |---|---|---|
 | `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks protected-branch pushes and merges, force push, `--no-verify`, auto-merge, edits to hook files |
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
-| `hooks/edit-guard.py` | Claude Code | Blocks the first edit until `.pstack/status.md` has a value case, and an orchestrator that builds instead of delegating |
-| `hooks/agent-default-model.py` | Claude Code | Blocks `fork` subagents and editing subagents spawned with `isolation: "worktree"`. Denies Opus on an editing subagent and names `Plan`. Runs `senior-reviewer` on Opus when a repo copy pins lower |
+| `hooks/agent-default-model.py` | Claude Code | Blocks editing subagents spawned with `isolation: "worktree"`. Denies Opus on an editing subagent and names `Plan`. Runs `senior-reviewer` on Opus when a repo copy pins lower |
 | `hooks/builder-context.py` | Claude Code | Loads the six principle leaves into each `poteto-agent` at start. `kolin-skills check` fails when a leaf is missing or the text exceeds the 10,000-character hook limit |
-| `hooks/fix-rounds.py` | Claude Code | Blocks a 3rd `SendMessage` to one agent, so a 3rd fix round goes to a fresh builder. `fix-rounds: <to> <reason>` in `.pstack/status.md` lifts it |
-| `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks polling loops, Docker databases, long curl retries and main-session shell edits (a subagent may edit with the shell), strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
+| `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks polling loops, Docker databases and long curl retries, strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
 | `hooks/context-budget.py` | Claude Code | In a subagent, warns at 200,000 context tokens to wrap up and blocks at 260,000 until it reports |
 | `hooks/mcp-access.py` | Claude Code | When an MCP tool fails with an access error, tells the agent this account lacks the connector, to stop calling it and to use the CLI |
 | `hooks/lint-changed-lines.py` | All but Grok | Lints the JS and TS lines the agent just changed |
 | `hooks/compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through compaction |
-| `skills/pstack-local/scripts/mode-reminder` | Claude Code, Codex | Read the method, write a value case: in Claude Code on the first prompt and after each compaction, in Codex on each prompt. Flags "full stop", "full send" and a `.pstack/status.md` older than an hour |
 
 </details>
 

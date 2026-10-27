@@ -3,10 +3,8 @@ import json
 import pathlib
 import re
 import shlex
-import subprocess
 import sys
 import uuid
-from dataclasses import dataclass, field
 
 
 SLOT = pathlib.Path.home() / ".kolin-skills/bin/heavy-slot.py"
@@ -41,44 +39,11 @@ UNQUOTED_GLOB = re.compile(
     rf"(?ms:{HEREDOC.pattern})|{QUOTED.pattern}"
     r"|(--(?:include|exclude|exclude-dir))=([^\s'\"$]*[*?\[][^\s'\"$]*)"
 )
-SEGMENT = re.compile(r"(?:\"[^\"]*\"|'[^']*'|[^;&|\n\"'])+")
-TOKEN = re.compile(r"(?:\"[^\"]*\"|'[^']*'|\S)+")
-SCRATCH_PATH = re.compile(r"^(?:/tmp/|/private/tmp/|\$TMPDIR/|\$\{TMPDIR\}/|/dev/null$)|(?:^|/)\.(?:pstack|scratch)/")
-ASSIGNMENT = re.compile(r"^\s*(\w+)=(.*)$", re.DOTALL)
-SCRATCH_VALUE = re.compile(
-    r"^(?:\$\(\s*mktemp\b(?:\s+-\w+)*(?:\s+(?:/tmp/|/private/tmp/|\$TMPDIR/)[^\s)]*)?\s*\)(?:/\S*)?"
-    r"|(?:/tmp|/private/tmp)/\S*)$"
-)
-PLAIN_RELATIVE = re.compile(r"^[\w.][\w./-]*$")
-DIRECTORY_WORD = re.compile(r"(?<![\w-])(?:cd|pushd|popd)(?![\w-])")
-SHELL_KEYWORDS = ("do", "then", "else", "elif", "if", "while", "until", "time", "{", "!")
-VARIABLE_PATH = re.compile(r"^\$(?:\{(\w+)\}|(\w+))(?:/|$)")
-HEREDOC_SCRIPT = re.compile(
-    COMMAND_START + r"(?:python3?|node)\b[^\n<;&|]*<<-?\s*(['\"]?)(\w+)\1[^\n]*\n(.*?)^[ \t]*\2[ \t]*$",
-    re.DOTALL | re.MULTILINE,
-)
-PY_WRITE_TEXT = re.compile(r"write_text\(")
-PY_PATH_RECEIVER = re.compile(r"Path\(\s*(['\"])([^'\"]*)\1\s*\)\s*\.\s*$")
-PY_OPEN_FOR_WRITE = re.compile(
-    r"\bopen\(\s*(?:(['\"])([^'\"]*)\1|[^,)]*?)\s*,\s*(?:mode\s*=\s*)?['\"][wax][bt+]*['\"]"
-)
-NODE_WRITE = re.compile(r"(?:writeFile|writeFileSync|appendFile|appendFileSync|createWriteStream)\(\s*")
-FIRST_ARG_LITERAL = re.compile(r"(['\"])([^'\"]*)\1")
-HEREDOC_OPENER = re.compile(r"<<-?\s*(['\"]?)[A-Za-z_]\w*\1")
-SED_IN_PLACE = re.compile(r"^(?:-[a-zA-Z]*i\S*|--in-place\S*)$")
-PERL_IN_PLACE = re.compile(r"^-(?![MI])[a-zA-Z]*i")
-INLINE_FLAG = {"python": "-c", "python3": "-c", "node": "-e"}
 LONG_LIVED = re.compile(r"--watch\b|\bwatch\b|\bdev\b")
 POLL_MESSAGE = (
     "Blocked: a sleep loop that polls holds this turn and hits the Bash timeout. "
     "Start the job with run_in_background: true and you are notified when it exits. "
     "To wait for a file, a port or a log line, use the Monitor tool with an until-loop."
-)
-SHELL_EDIT_MESSAGE = (
-    "Blocked: the main session edits files with the Edit or Write tool, never the shell. A shell edit skips "
-    "edit-guard.py, which checks the value case and the delegation. Use Edit or Write, or send the change to a "
-    "builder. The harness's bypass-mode note that allows sed or heredoc edits does not apply to the main session. "
-    "Scratch output may go under /tmp, .pstack/ or .scratch/."
 )
 GATE_LOG_NOTE = "The hook saved the gate's full output to {logs} and ran your filter on that file. Read it for the whole output."
 CURL_RETRY_MESSAGE = (
@@ -96,158 +61,6 @@ DOCKER_DB_MESSAGE = (
     "--output-format json` and connect with its env.DB_URL. For a task already in progress, start the native "
     "stack against this checkout's supabase/ folder and carry on; do not ask Kolin to exempt this hook."
 )
-
-
-def is_scratch(path: str) -> bool:
-    return ".." not in path.split("/") and bool(SCRATCH_PATH.search(path))
-
-
-def outside_any_work_tree(path: str) -> bool:
-    if not path.startswith(("/", "~")):
-        return False
-    target = pathlib.Path(path).expanduser().resolve()
-    parent = target if path.endswith("/") else target.parent
-    while not parent.exists():
-        parent = parent.parent
-    probe = subprocess.run(
-        ["git", "-C", str(parent), "rev-parse", "--is-inside-work-tree"], capture_output=True, text=True
-    )
-    return probe.returncode != 0
-
-
-@dataclass
-class ScratchContext:
-    in_scratch_dir: bool = False
-    scratch_names: set = field(default_factory=set)
-
-    def accepts(self, path: str) -> bool:
-        path = path.strip("'\"")
-        if is_scratch(path):
-            return True
-        if not path or ".." in path.split("/"):
-            return False
-        variable = VARIABLE_PATH.match(path)
-        if variable:
-            return (variable.group(1) or variable.group(2)) in self.scratch_names
-        return self.in_scratch_dir and bool(PLAIN_RELATIVE.match(path))
-
-    def accepts_write(self, path: str) -> bool:
-        if self.accepts(path):
-            return True
-        path = path.strip("'\"")
-        return ".." not in path.split("/") and outside_any_work_tree(path)
-
-    def enters_scratch_dir(self, segment: str, followed_by_and: bool) -> bool:
-        tokens = TOKEN.findall(segment)
-        return (
-            followed_by_and
-            and len(tokens) == 2
-            and tokens[0] == "cd"
-            and self.accepts(tokens[1].strip("'\"").rstrip("/") + "/")
-        )
-
-    def track(self, segment: str, followed_by_and: bool) -> None:
-        if DIRECTORY_WORD.search(segment):
-            self.in_scratch_dir = self.enters_scratch_dir(segment, followed_by_and)
-            if self.in_scratch_dir:
-                return
-        assignment = ASSIGNMENT.match(segment)
-        if assignment:
-            name, value = assignment.group(1), assignment.group(2).strip()
-            if SCRATCH_VALUE.match(value) and ".." not in value:
-                self.scratch_names.add(name)
-            else:
-                self.scratch_names.discard(name)
-            return
-        self.scratch_names = {
-            name for name in self.scratch_names if not re.search(rf"(?<![\w${{]){re.escape(name)}(?!\w)", segment)
-        }
-
-
-def write_targets(script: str):
-    for match in PY_WRITE_TEXT.finditer(script):
-        receiver = PY_PATH_RECEIVER.search(script[:match.start()])
-        yield receiver.group(2) if receiver else None
-    for match in PY_OPEN_FOR_WRITE.finditer(script):
-        yield match.group(2)
-    for match in NODE_WRITE.finditer(script):
-        literal = FIRST_ARG_LITERAL.match(script, match.end())
-        yield literal.group(2) if literal else None
-
-
-def writes_outside_scratch(script: str, context: ScratchContext) -> bool:
-    return any(target is None or not context.accepts_write(target) for target in write_targets(script))
-
-
-def redirect_targets(tokens):
-    for index, token in enumerate(tokens):
-        if token in (">", ">>") and index + 1 < len(tokens):
-            yield tokens[index + 1]
-        elif re.match(r"^>>?[^>&]", token):
-            yield token.lstrip(">")
-
-
-def operands(tokens):
-    return [token for token in tokens if not token.startswith(("-", ">"))]
-
-
-def segment_edits_outside_scratch(tokens, context: ScratchContext) -> bool:
-    while tokens and (tokens[0] in SHELL_KEYWORDS or re.match(r"^\w+=", tokens[0])):
-        tokens = tokens[1:]
-    if not tokens:
-        return False
-    command, args = tokens[0].rsplit("/", 1)[-1], tokens[1:]
-    if command == "sed" and any(SED_IN_PLACE.match(arg) for arg in args):
-        files = operands(args)[-1:]
-    elif command == "perl" and any(PERL_IN_PLACE.match(arg) for arg in args):
-        files = operands(args)[-1:]
-    elif command in ("cat", "echo", "printf"):
-        files = list(redirect_targets(args))
-        return not all(context.accepts_write(path) for path in files)
-    elif command == "tee":
-        files = operands(args)
-    elif command in INLINE_FLAG and INLINE_FLAG[command] in args:
-        script = args[args.index(INLINE_FLAG[command]) + 1:][:1]
-        return any(writes_outside_scratch(item, context) for item in script)
-    else:
-        return False
-    return not files or not all(context.accepts_write(path) for path in files)
-
-
-def heredoc_header_tail(match) -> str:
-    text = match.group(0)
-    return " " + text[HEREDOC_OPENER.match(text).end():].split("\n", 1)[0]
-
-
-def tracked_segments(command: str):
-    bare = HEREDOC.sub(heredoc_header_tail, command)
-    context = ScratchContext()
-    for segment in SEGMENT.finditer(bare):
-        context.track(segment.group(0), bare.startswith("&&", segment.end()))
-        yield segment.group(0), context
-
-
-def context_before(command: str, start: int) -> ScratchContext:
-    end = start + 1 if command[start:start + 1] in (";", "&", "|", "(", "\n") else start
-    context = ScratchContext()
-    for _, context in tracked_segments(command[:end]):
-        pass
-    return context
-
-
-def heredoc_script_edits_outside_scratch(command: str, match) -> bool:
-    script = match.group(3)
-    context = ScratchContext() if "chdir" in script else context_before(command, match.start())
-    return writes_outside_scratch(script, context)
-
-
-def edits_files_from_shell(command: str) -> bool:
-    if any(heredoc_script_edits_outside_scratch(command, match) for match in HEREDOC_SCRIPT.finditer(command)):
-        return True
-    return any(
-        segment_edits_outside_scratch(TOKEN.findall(text), context)
-        for text, context in tracked_segments(command)
-    )
 
 
 def quote_globs(command: str) -> str:
@@ -294,13 +107,9 @@ def main() -> int:
         print(DOCKER_DB_MESSAGE, file=sys.stderr)
         return 2
 
-    if not payload.get("agent_id") and edits_files_from_shell(command):
-        print(SHELL_EDIT_MESSAGE, file=sys.stderr)
-        return 2
-
     heavy = HEAVY.search(code) and not LONG_LIVED.search(code)
     command, gate_logs = drop_gate_filters(command)
-    code =QUOTED.sub(" ", HEREDOC.sub(" ", command))
+    code = QUOTED.sub(" ", HEREDOC.sub(" ", command))
 
     retry = LONG_CURL_RETRY.search(code)
     if retry and int(retry.group(1)) > 10 and not background:
