@@ -371,14 +371,15 @@ def pull(repo, number):
     return json.loads(result.stdout) if result.returncode == 0 else None
 
 
-def pr_flags(repo, pr):
+def pr_flags(repo, pr, trunks):
     flags, merged = [], pr["mergedAt"]
     if merged:
         unfinished = sorted({check["name"] for check in pr["statusCheckRollup"]
-                             if check.get("status") and (check.get("conclusion") == "FAILURE" or check["status"] != "COMPLETED" or check["completedAt"] > merged)})
+                             if check.get("status") and check["startedAt"] < merged
+                             and (check.get("conclusion") == "FAILURE" or check["status"] != "COMPLETED" or check["completedAt"] > merged)})
         if unfinished:
             flags.append(f"merged while a check failed or had not finished: {', '.join(unfinished)}")
-        earlier = gh("pr", "list", "-R", repo, "--head", pr["baseRefName"], "--state", "merged", "--json", "mergedAt")
+        earlier = [] if pr["baseRefName"] in trunks else gh("pr", "list", "-R", repo, "--head", pr["baseRefName"], "--state", "merged", "--json", "mergedAt")
         if any(other["mergedAt"] < merged for other in earlier):
             flags.append(f"merged into {pr['baseRefName']}, which another PR had already merged")
     if re.search("reland|revert", pr["title"], re.I):
@@ -391,6 +392,7 @@ def github_section(repo, number):
     if root is None:
         sys.exit(f"context-audit: gh could not read {repo}#{number}")
     print(f"GitHub: {repo}#{number} and the PRs its body references")
+    trunks = TRUNKS | {gh("repo", "view", repo, "--json", "defaultBranchRef")["defaultBranchRef"]["name"]}
     prs = [root]
     for ref in sorted({int(found) for found in BODY_REF.findall(root["body"] or "")} - {number}):
         found = pull(repo, ref)
@@ -400,9 +402,9 @@ def github_section(repo, number):
             print(f"  #{ref} is not a pull request")
     for pr in prs:
         print(f"  #{pr['number']} {pr['state'].lower()} {pr['baseRefName']} <- {pr['headRefName']}: {pr['title']}")
-        for flag in pr_flags(repo, pr):
+        for flag in pr_flags(repo, pr, trunks):
             print(f"    FLAG #{pr['number']} {flag}")
-    branches = {pr["headRefName"] for pr in prs} - TRUNKS
+    branches = {pr["headRefName"] for pr in prs} - trunks
     return tuple(f"https://github.com/{repo}/pull/{pr['number']}" for pr in prs) + tuple(branches)
 
 

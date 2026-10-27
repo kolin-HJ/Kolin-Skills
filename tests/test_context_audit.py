@@ -148,8 +148,8 @@ class ContextAuditTests(unittest.TestCase):
         self.assertEqual(self.spawn_fixture(["claude-sonnet-5-5"]), [])
 
     def gh_fixture(self):
-        def check(name, status="COMPLETED", conclusion="SUCCESS", done="2026-10-20T09:00:00Z"):
-            return {"name": name, "status": status, "conclusion": conclusion, "completedAt": done}
+        def check(name, status="COMPLETED", conclusion="SUCCESS", done="2026-10-20T09:00:00Z", started="2026-10-20T08:00:00Z"):
+            return {"name": name, "status": status, "conclusion": conclusion, "startedAt": started, "completedAt": done}
 
         def pr(number, title, head, base, merged, checks, body=""):
             return {"number": number, "title": title, "body": body, "headRefName": head, "baseRefName": base, "mergedAt": merged, "state": "MERGED", "statusCheckRollup": checks}
@@ -157,17 +157,23 @@ class ContextAuditTests(unittest.TestCase):
         fixtures = self.home / "gh"
         fixtures.mkdir()
         files = {
-            "pr-10": pr(10, "Release: reland of foo", "release/x", "main", "2026-10-20T10:00:00Z", [check("build")], "Includes #11 #12 #13 #99 and #10"),
+            "pr-10": pr(10, "Release: reland of foo", "release/x", "main", "2026-10-20T10:00:00Z", [check("build")], "Includes #11 #12 #13 #14 #15 #16 #99 and #10"),
             "pr-11": pr(11, "Fix a", "feat/a", "release/x", "2026-10-20T10:00:00Z", [check("build", conclusion="FAILURE")]),
             "pr-12": pr(12, "Revert b", "feat/b", "feat/c", "2026-10-20T11:00:00Z", [check("build")]),
             "pr-13": pr(13, "Fix d", "feat/d", "release/x", "2026-10-20T10:00:00Z", [check("test", status="IN_PROGRESS", conclusion="", done="0001-01-01T00:00:00Z")]),
+            "pr-14": pr(14, "Fix e", "feat/e", "staging", "2026-10-20T11:00:00Z", [check("build")]),
+            "pr-15": pr(15, "Fix f", "feat/f", "trunk", "2026-10-20T11:00:00Z", [check("build")]),
+            "pr-16": pr(16, "Fix g", "feat/g", "release/x", "2026-10-20T10:00:00Z", [check("build", conclusion="FAILURE", started="2026-10-20T12:00:00Z")]),
+            "repo": {"defaultBranchRef": {"name": "trunk"}},
             "head-main": [], "head-release_x": [], "head-feat_c": [{"mergedAt": "2026-10-20T10:30:00Z"}],
+            "head-staging": [{"mergedAt": "2026-10-20T10:30:00Z"}], "head-trunk": [{"mergedAt": "2026-10-20T10:30:00Z"}],
         }
         for name, data in files.items():
             (fixtures / f"{name}.json").write_text(json.dumps(data))
         gh = self.home / "bin/gh"
         gh.parent.mkdir()
         gh.write_text('''#!/bin/sh
+if [ "$1" = repo ]; then exec cat "$GH_FIXTURES/repo.json"; fi
 if [ "$2" = view ]; then exec cat "$GH_FIXTURES/pr-$3.json"; fi
 while [ $# -gt 0 ]; do [ "$1" = --head ] && base=$2; shift; done
 exec cat "$GH_FIXTURES/head-$(echo "$base" | tr / _).json"
