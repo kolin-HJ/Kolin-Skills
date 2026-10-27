@@ -14,7 +14,7 @@ Run `how` on each area, fanned out with `swarm` when the repo is large. Measure,
 | Area | Measure |
 |---|---|
 | Instruction file | One root `AGENTS.md`, under about 200 lines, routing through `poteto-mode`; no `CLAUDE.md` copy |
-| Gates | Formatter, type-aware linter, strict type check, dead-code check, tests, and one check command. Local hooks (pre-commit, pre-push, `verify` evidence) if there is no CI. With CI, each job's command also runs in a local hook; a check only CI runs is a gap (a CI-only `bundle-budget` let a red build reach `staging` twice in one release) |
+| Gates | Formatter, type-aware linter, strict type check, dead-code check, tests, and one check command. Local hooks (pre-commit, pre-push, `verify` evidence) if there is no CI. With CI, each job's command also runs in the local check command; a check only CI runs is a gap (a CI-only `bundle-budget` let a red build reach `staging` twice in one release) |
 | Ratchets | A baseline file with target 0 per rule; counts per rule today |
 | Typing | `any`, casts, non-null assertions, untyped JS files |
 | Shape | Files over the line limit, long functions, deep nesting, duplicates (jscpd), single-caller helpers, functions with a CRAP score of 10 or more (complexity joined with coverage, `unclebob/crapper`; a flat `switch` or lookup table is exempt; without the tool, mark it missing and propose it) |
@@ -44,7 +44,9 @@ Stop here and send the report unless the user already asked you to close the gap
 - Before the first step, send the decision bundle and wait for its answers, including scope Kolin may cut (UI, CI). Do not prototype an option he has not picked. List the open PRs (`gh pr list`) and fold or avoid any that touch the same files.
 - Gates first: add the missing gate, seed it at today's count, prove it flags one case and passes one.
 - Then drive counts down, a codemod first (`principle-build-the-lever`), then small lanes. Each step is one verified commit-sized change on a branch; commit and push it under the policy's Approvals rule.
-- A split cuts at a seam: the new module owns one concept and takes a few inputs. A hook or component that takes 10 or more inputs only moves lines; it does not close a file-length gap. Record the file as open instead.- Each repeated mistake found becomes a rule through `correct`.
+- A split cuts at a seam: the new module owns one concept and takes a few inputs. A hook or component that takes 10 or more inputs only moves lines; it does not close a file-length gap. Record the file as open instead.
+- Gap PRs merge into a `gaps/<date>` branch, never into the integration branch ahead of feature work. They ship as their own release after Kolin reads each PR's value case. With `delete_branch_on_merge` off, retarget a stacked gap PR before its base merges.
+- Each repeated mistake found becomes a rule through `correct`.
 - After each step and before the next one starts, rerun the audit rows the step touched and update the report: counts before and after, the next step. Never defer the re-audit to a final wave.
 - After each step, write the resume point to `.pstack/status.md`, so a session limit loses no work.
 
