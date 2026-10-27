@@ -5,11 +5,13 @@ import datetime
 import fcntl
 import json
 import re
+import signal
 import os
 import pathlib
 import shutil
 import subprocess
 import sys
+import time
 
 
 def on_disk_case(path):
@@ -579,8 +581,19 @@ STACKS_DIR = HOME / ".supabase/stacks"
 FRESH_TRANSCRIPT_HOURS = 2
 
 
+STOP_WAIT_SECONDS = 15
+
+
+def process_commands(*selector):
+    return subprocess.run(["ps", *(selector or ["-axww"]), "-o", "command="], capture_output=True, text=True).stdout
+
+
+def postgres_running(directory):
+    return f".postgres-wrapped -D {directory}/" in process_commands()
+
+
 def running_stacks():
-    commands = subprocess.run(["ps", "-axww", "-o", "command="], capture_output=True, text=True).stdout
+    commands = process_commands()
     stacks = []
     for directory in sorted(STACKS_DIR.iterdir()) if STACKS_DIR.is_dir() else []:
         if f".postgres-wrapped -D {directory}/data" not in commands:
@@ -589,12 +602,12 @@ def running_stacks():
         if state.get("runtime") != "native":
             continue
         started = json.loads((directory / "owner.json").read_text())["startedAt"]
-        stacks.append({"root": state["identity"]["projectRoot"], "started": datetime.datetime.fromisoformat(started.replace("Z", "+00:00"))})
+        stacks.append({"id": directory.name, "pid": json.loads((directory / "owner.json").read_text())["pid"], "root": state["identity"]["projectRoot"], "started": datetime.datetime.fromisoformat(started.replace("Z", "+00:00"))})
     return stacks
 
 
 def hours_since_transcript(root):
-    name = root.replace("/", "-").replace(".", "-")
+    name = re.sub(r"[^A-Za-z0-9]", "-", root)
     config_dirs = {pathlib.Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude")), HOME / ".claude", HOME / ".claude_personal"}
     writes = [path.stat().st_mtime for config in config_dirs for path in (config / "projects" / name).rglob("*") if path.is_file()]
     return (datetime.datetime.now().timestamp() - max(writes)) / 3600 if writes else None
@@ -606,9 +619,35 @@ def is_idle(stack, idle_hours):
     return started_hours > idle_hours and quiet
 
 
-def supabase_for(root):
-    local = pathlib.Path(root) / "node_modules/.bin/supabase"
-    return str(local) if local.is_file() else shutil.which("supabase")
+def signal_owner(stack):
+    if "supabase" not in process_commands("-p", str(stack["pid"])):
+        return False
+    os.kill(stack["pid"], signal.SIGTERM)
+    return True
+
+
+def stop_stacks(targets):
+    signalled = [stack for stack in targets if signal_owner(stack)]
+    deadline = time.monotonic() + STOP_WAIT_SECONDS
+    while time.monotonic() < deadline and any(postgres_running(STACKS_DIR / stack["id"]) for stack in signalled):
+        time.sleep(0.5)
+    for stack in targets:
+        if stack not in signalled:
+            print(f"  {stack['root']}: owner pid {stack['pid']} is not a supabase process")
+        else:
+            print(f"  {stack['root']}: {'still running' if postgres_running(STACKS_DIR / stack['id']) else 'stopped'}")
+    return all(stack in signalled and not postgres_running(STACKS_DIR / stack["id"]) for stack in targets)
+
+
+def busy_roots(roots):
+    listing = subprocess.run(["lsof", "-a", "-d", "cwd", "-F", "cn"], capture_output=True, text=True).stdout
+    busy, command = set(), ""
+    for line in listing.splitlines():
+        if line.startswith("c"):
+            command = line[1:]
+        elif line.startswith("n") and not command.startswith(("supabase", "postgres", ".postgres")):
+            busy.update(root for root in roots if line[1:] == root or line[1:].startswith(root + "/"))
+    return busy
 
 
 def stacks(stop, idle_hours, notice):
@@ -622,21 +661,17 @@ def stacks(stop, idle_hours, notice):
             message = f"{len(idle)} idle local Supabase stacks hold shared-memory segments (macOS allows 32). Run: kolin-skills stacks --stop"
             print(json.dumps({"systemMessage": message}))
         return 0
-    failed = False
+    busy = busy_roots({stack["root"] for stack in idle}) if stop and idle else set()
     for stack in found:
         transcript = "none" if stack["transcript_hours"] is None else f"{stack['transcript_hours']:.1f}h ago"
         print(f"{'idle' if stack['idle'] else 'keep'}  {stack['root']}  started {stack['started'].astimezone():%Y-%m-%d %H:%M}  transcript {transcript}")
-        if stop and stack["idle"]:
-            binary = supabase_for(stack["root"]) if pathlib.Path(stack["root"]).is_dir() else None
-            if binary is None:
-                print("  no CLI")
-                failed = True
-                continue
-            result = subprocess.run([binary, "stop"], cwd=stack["root"], capture_output=True, text=True)
-            print(f"  stop exit {result.returncode}")
-            failed = failed or result.returncode != 0
     print(f"{len(found)} running, {len(idle)} idle")
-    return 1 if failed else 0
+    if not stop:
+        return 0
+    for stack in idle:
+        if stack["root"] in busy:
+            print(f"  skipped: a process works in {stack['root']}")
+    return 0 if stop_stacks([stack for stack in idle if stack["root"] not in busy]) else 1
 
 
 def main():
@@ -655,7 +690,7 @@ def main():
     upstream_parser.add_argument("--bump", action="store_true", help="move each vendor pin to its newest upstream commit and print what changed")
     stacks_parser = commands.add_parser("stacks", help="list running native Supabase stacks; --stop stops the idle ones")
     stacks_parser.add_argument("--stop", action="store_true", help="run supabase stop for idle stacks")
-    stacks_parser.add_argument("--idle-hours", type=float, default=6, help="a stack is idle after this many hours with no recent transcript write")
+    stacks_parser.add_argument("--idle-hours", type=float, default=6, help="a stack is idle only after it has run this many hours; the 2-hour transcript window stays fixed")
     stacks_parser.add_argument("--notice", action="store_true", help="session-start hook: one JSON line when idle stacks exist, else nothing")
     commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets and tests")
     commands.add_parser("install", help="first run on a machine: upstream, apply, check")
