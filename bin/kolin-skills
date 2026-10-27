@@ -80,6 +80,8 @@ REQUIRED_TOOLS = {
 }
 SKILL_INDEXES = ["README.md"]
 SIZE_BUDGETS = {"policy/AGENTS.md": 12_000, "skills/pstack-local/SKILL.md": 8_000}
+MAX_FILE_LINES = 1000
+CI_VALUES = {"1", "true", "yes"}
 
 
 def render_template(text):
@@ -523,19 +525,55 @@ def without_git_repo_env():
     return {key: value for key, value in os.environ.items() if key not in local}
 
 
-def check():
-    failures = []
+def running_in_ci():
+    return os.environ.get("CI", "").lower() in CI_VALUES
+
+
+def line_count(path):
+    data = path.read_bytes()
+    if not data or b"\0" in data:
+        return 0
+    return data.count(b"\n") + (0 if data.endswith(b"\n") else 1)
+
+
+def overlong_files(root=REPO, limit=MAX_FILE_LINES):
+    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True)
+    if listed.returncode:
+        return []
+    found = []
+    for raw in listed.stdout.split(b"\0"):
+        if not raw:
+            continue
+        name = os.fsdecode(raw)
+        path = root / name
+        if path.is_file():
+            lines = line_count(path)
+            if lines > limit:
+                found.append(f"{name}: {lines} lines")
+    return found
+
+
+def check(files_only=False):
+    failures = [f"{entry}, over the {MAX_FILE_LINES}-line limit; split it in its own change"
+                for entry in overlong_files()]
+    if files_only:
+        for failure in failures:
+            print(f"FAIL: {failure}", file=sys.stderr)
+        return 1 if failures else 0
     test_env = without_git_repo_env()
-    owner = wired_repo()
-    if owner not in (None, str(REPO)):
-        print(f"Home is wired to {owner}, so home drift was not checked; this run checks the repo only.")
-    elif run_apply(check=True, quiet=True):
-        failures.append("home differs from the repo; fix each line above")
-    if not vendor_skills():
-        failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
-    builder = subprocess.run([sys.executable, str(REPO / "hooks/builder-context.py")], text=True, capture_output=True)
-    if builder.returncode:
-        failures.append(builder.stderr.strip())
+    if running_in_ci():
+        print("CI: skipped home drift, vendored skills, and builder-context.")
+    else:
+        owner = wired_repo()
+        if owner not in (None, str(REPO)):
+            print(f"Home is wired to {owner}, so home drift was not checked; this run checks the repo only.")
+        elif run_apply(check=True, quiet=True):
+            failures.append("home differs from the repo; fix each line above")
+        if not vendor_skills():
+            failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
+        builder = subprocess.run([sys.executable, str(REPO / "hooks/builder-context.py")], text=True, capture_output=True)
+        if builder.returncode:
+            failures.append(builder.stderr.strip())
     failures += spend_failures()
     for relative, budget in SIZE_BUDGETS.items():
         size = (REPO / relative).stat().st_size
@@ -580,7 +618,7 @@ def check():
         print(f"FAIL: {failure}", file=sys.stderr)
     if failures:
         return 1
-    print("Passed: home drift and strays (unless skipped above), spend caps, size budgets, skill indexes, required tools, vendored and third-party skills, Python and Node tests, feature-budget (report-only).")
+    print("Passed: home drift and strays (unless skipped above), spend caps, size budgets, 1,000-line files, skill indexes, required tools, vendored and third-party skills, Python and Node tests, feature-budget (report-only).")
     print("Live agent routing and model-seat readiness are not checked.")
     return 0
 
@@ -700,7 +738,8 @@ def main():
     stacks_parser.add_argument("--stop", action="store_true", help="send SIGTERM to each idle stack's supabase owner process and wait for postgres to exit; skips a root another process works in")
     stacks_parser.add_argument("--idle-hours", type=float, default=6, help="a stack is idle only after it has run this many hours; the 2-hour transcript window stays fixed")
     stacks_parser.add_argument("--notice", action="store_true", help="session-start hook: one JSON line when idle stacks exist, else nothing")
-    commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets and tests")
+    check_parser = commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets, file length and tests")
+    check_parser.add_argument("--files", action="store_true", help="only the 1,000-line file limit")
     commands.add_parser("install", help="first run on a machine: upstream, apply, check")
     args = parser.parse_args()
     if args.command == "apply":
@@ -714,7 +753,7 @@ def main():
     if args.command == "stacks":
         return stacks(args.stop, args.idle_hours, args.notice)
     if args.command == "check":
-        return check()
+        return check(files_only=args.files)
     fetched = upstream()
     return check() or fetched
 

@@ -86,7 +86,9 @@ class HeavyJobsGuardTests(unittest.TestCase):
                 self.assertEqual((result.returncode, result.stderr), (0, ""))
 
     def test_shell_append_is_allowed_outside_any_git_work_tree_and_denied_inside(self):
-        with tempfile.TemporaryDirectory() as plain, tempfile.TemporaryDirectory() as repo:
+        parent = pathlib.Path.home() / ".kolin-skills" / "guard-tests"
+        parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=parent) as plain, tempfile.TemporaryDirectory(dir=parent) as repo:
             subprocess.run(["git", "init", "-q", repo], check=True)
             pathlib.Path(plain, "linked.md").symlink_to(pathlib.Path(repo, "tracked.md"))
             allowed = [
