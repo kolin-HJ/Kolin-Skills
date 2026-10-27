@@ -23,10 +23,13 @@ class ApplyTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.home)
 
-    def run_cli(self, *args, path_prefix=None):
-        env = {**os.environ, "HOME": str(self.home)}
+    def run_cli(self, *args, path_prefix=None, extra_env=None):
+        env = {key: value for key, value in os.environ.items() if key != "CI"}
+        env["HOME"] = str(self.home)
         if path_prefix:
             env["PATH"] = f"{path_prefix}{os.pathsep}{env['PATH']}"
+        if extra_env:
+            env.update(extra_env)
         return subprocess.run(
             [sys.executable, str(self.repo / "bin/kolin-skills"), *args],
             env=env, text=True, capture_output=True, timeout=60,
@@ -212,6 +215,17 @@ class ApplyTests(unittest.TestCase):
         self.assertNotIn("stale setup", result.stdout)
         self.assertEqual(self.git(self.repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip(), "main")
         self.assertEqual((self.home / ".claude/skills/pushed-skill/SKILL.md").read_text(), "---\nname: pushed-skill\ndescription: x\n---\nx\n")
+
+    def test_check_in_ci_skips_home_vendor_and_builder_context(self):
+        shutil.rmtree(self.repo / "tests")
+        (self.repo / "tests").mkdir()
+        (self.repo / "tests/test_ok.py").write_text(
+            "import unittest\nclass Ok(unittest.TestCase):\n    def test_ok(self):\n        self.assertEqual(1, 1)\n"
+        )
+        result = self.run_cli("check", extra_env={"CI": "true"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("CI: skipped home drift, vendored skills, and builder-context.", result.stdout)
+        self.assertNotIn("home differs", result.stderr)
 
     def test_check_in_a_second_checkout_checks_the_repo_not_home(self):
         self.assertEqual(self.run_cli("apply").returncode, 0)

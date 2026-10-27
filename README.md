@@ -11,6 +11,7 @@ Claude Code, Codex, Cursor and Grok follow the same rules, skills and guardrails
 ![Cursor](https://img.shields.io/badge/Cursor-000000)
 ![Grok](https://img.shields.io/badge/Grok-555555)
 ![Gate](https://img.shields.io/badge/gate-local_pre--push-blue)
+![check](https://github.com/kolin-HJ/Kolin-Skills/actions/workflows/check.yml/badge.svg)
 
 [What](#what-it-is) · [Why](#why-use-it) · [How it works](#how-it-works) · [Install](#install) · [Quality](#what-quality-means) · [Daily use](#working-with-it) · [Skills](#skills)
 
@@ -35,7 +36,7 @@ flowchart TB
 | 🧰 **Skills** | Playbooks that load when your request matches: fix a bug, audit a repo, polish a UI |
 | 🤖 **Subagents** | A builder, a reviewer and a sweeper. The builder never reviews its own code |
 | 🛡️ **Guardrails** | Hooks that block a risky action before it runs |
-| ✅ **Gate** | `kolin-skills check`, run before every push |
+| ✅ **Gate** | `kolin-skills check`, run on pre-commit (file length), pre-push, and Linux CI |
 
 ## Why use it
 
@@ -231,7 +232,7 @@ agents/                      subagents; senior-reviewer.md holds the review bar
 hooks/                       guards and lint, run in place from the repo
 claude/                      managed settings keys, status line, output style (ste-visual)
 codex/, cursor/              hook config and the Cursor policy rule
-.githooks/                   pre-push runs check; post-merge, post-checkout, post-rewrite run apply
+.githooks/                   pre-commit runs check --files; pre-push runs check; post-merge, post-checkout, post-rewrite run apply
 upstream/                    pstack and cursor-team-kit (vendor.json), npx skills (skills.json)
 tests/                       installer, hook and repo-rule tests, run by check
 ```
@@ -252,7 +253,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, then applies. Runs at each Claude Code and Codex session start, and prints `kolin-skills: stale setup` when it cannot update |
 | `kolin-skills upstream` | Installs third-party skills at pinned commits. `--bump` moves the pins |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
-| `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, tools, tests, comments. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift |
+| `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home, vendor and builder-context |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts |
 | `feature-budget` | Counts files and lines under `features/<name>/` against the plan (defaults: read 5/800, edit 7/1,200, write 12/2,500, tests excluded). Lists under-40-line single-importer files except a library wrapper. Report-only in `kolin-skills check`. Over budget fails review; over twice the budget stops the wave (`foundation`, "Where Kolin steps in") |
 
