@@ -63,6 +63,11 @@
             "type": "command",
             "command": "python3 '{{REPO}}/bin/context-audit' --notice",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/bin/kolin-skills' stacks --notice",
+            "timeout": 5
           }
         ]
       }

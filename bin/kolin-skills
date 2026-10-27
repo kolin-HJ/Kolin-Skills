@@ -575,6 +575,70 @@ def check():
     return 0
 
 
+STACKS_DIR = HOME / ".supabase/stacks"
+FRESH_TRANSCRIPT_HOURS = 2
+
+
+def running_stacks():
+    commands = subprocess.run(["ps", "-axww", "-o", "command="], capture_output=True, text=True).stdout
+    stacks = []
+    for directory in sorted(STACKS_DIR.iterdir()) if STACKS_DIR.is_dir() else []:
+        if f".postgres-wrapped -D {directory}/data" not in commands:
+            continue
+        state = json.loads((directory / "state.json").read_text())
+        if state.get("runtime") != "native":
+            continue
+        started = json.loads((directory / "owner.json").read_text())["startedAt"]
+        stacks.append({"root": state["identity"]["projectRoot"], "started": datetime.datetime.fromisoformat(started.replace("Z", "+00:00"))})
+    return stacks
+
+
+def hours_since_transcript(root):
+    name = root.replace("/", "-").replace(".", "-")
+    config_dirs = {pathlib.Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude")), HOME / ".claude", HOME / ".claude_personal"}
+    writes = [path.stat().st_mtime for config in config_dirs for path in (config / "projects" / name).rglob("*") if path.is_file()]
+    return (datetime.datetime.now().timestamp() - max(writes)) / 3600 if writes else None
+
+
+def is_idle(stack, idle_hours):
+    started_hours = (datetime.datetime.now(datetime.timezone.utc) - stack["started"]).total_seconds() / 3600
+    quiet = stack["transcript_hours"] is None or stack["transcript_hours"] > FRESH_TRANSCRIPT_HOURS
+    return started_hours > idle_hours and quiet
+
+
+def supabase_for(root):
+    local = pathlib.Path(root) / "node_modules/.bin/supabase"
+    return str(local) if local.is_file() else shutil.which("supabase")
+
+
+def stacks(stop, idle_hours, notice):
+    found = running_stacks()
+    for stack in found:
+        stack["transcript_hours"] = hours_since_transcript(stack["root"])
+        stack["idle"] = is_idle(stack, idle_hours)
+    idle = [stack for stack in found if stack["idle"]]
+    if notice:
+        if idle:
+            message = f"{len(idle)} idle local Supabase stacks hold shared-memory segments (macOS allows 32). Run: kolin-skills stacks --stop"
+            print(json.dumps({"systemMessage": message}))
+        return 0
+    failed = False
+    for stack in found:
+        transcript = "none" if stack["transcript_hours"] is None else f"{stack['transcript_hours']:.1f}h ago"
+        print(f"{'idle' if stack['idle'] else 'keep'}  {stack['root']}  started {stack['started'].astimezone():%Y-%m-%d %H:%M}  transcript {transcript}")
+        if stop and stack["idle"]:
+            binary = supabase_for(stack["root"]) if pathlib.Path(stack["root"]).is_dir() else None
+            if binary is None:
+                print("  no CLI")
+                failed = True
+                continue
+            result = subprocess.run([binary, "stop"], cwd=stack["root"], capture_output=True, text=True)
+            print(f"  stop exit {result.returncode}")
+            failed = failed or result.returncode != 0
+    print(f"{len(found)} running, {len(idle)} idle")
+    return 1 if failed else 0
+
+
 def main():
     parser = argparse.ArgumentParser(prog="kolin-skills", description="Make every agent harness on this machine match the Kolin-Skills repo.")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -589,6 +653,10 @@ def main():
     import_parser.add_argument("path")
     upstream_parser = commands.add_parser("upstream", help="check out vendored pstack and cursor-team-kit at their pins, add missing third-party skills, then apply")
     upstream_parser.add_argument("--bump", action="store_true", help="move each vendor pin to its newest upstream commit and print what changed")
+    stacks_parser = commands.add_parser("stacks", help="list running native Supabase stacks; --stop stops the idle ones")
+    stacks_parser.add_argument("--stop", action="store_true", help="run supabase stop for idle stacks")
+    stacks_parser.add_argument("--idle-hours", type=float, default=6, help="a stack is idle after this many hours with no recent transcript write")
+    stacks_parser.add_argument("--notice", action="store_true", help="session-start hook: one JSON line when idle stacks exist, else nothing")
     commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets and tests")
     commands.add_parser("install", help="first run on a machine: upstream, apply, check")
     args = parser.parse_args()
@@ -600,6 +668,8 @@ def main():
         return import_into_repo(args.path)
     if args.command == "upstream":
         return upstream(args.bump)
+    if args.command == "stacks":
+        return stacks(args.stop, args.idle_hours, args.notice)
     if args.command == "check":
         return check()
     fetched = upstream()
