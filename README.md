@@ -92,6 +92,29 @@ python3 ~/Kolin-Skills/bin/kolin-skills install
 
 With Node older than 22.20, `install` skips the third-party skills and says so. Offline, it links what it has and exits 1.
 
+### Rewire onto current main
+
+An old install keeps its old hooks until home is wired to a checkout on current `main`. Those hooks can block commands that current `main` allows: without `jq` the git guard blocks every shell command, and an old lint hook blocked metric findings that now only report. Do not change hook behavior to work around that. Rewire.
+
+`apply` writes into `$HOME`. Use the account the agents on that machine use. Invoke the CLI from the checkout on current `main`, not `kolin-skills` on `PATH`, which may still be the old symlink. A worktree is the wrong checkout; `pull` only updates the wired clone, and only when it is clean `main`.
+
+```sh
+cd ~/Kolin-Skills
+git fetch origin
+git switch main
+git merge --ff-only origin/main
+python3 "$PWD/bin/kolin-skills" apply --adopt
+python3 "$PWD/bin/kolin-skills" check
+```
+
+`--adopt` is required when `~/.kolin-skills/state.json` names a different checkout. Skip it when this checkout already owns home. `install` is only the first run on a machine (it also fetches third-party skills).
+
+Confirm:
+
+1. `jq -r .repo ~/.kolin-skills/state.json` is this checkout's absolute path.
+2. `git -C "$(jq -r .repo ~/.kolin-skills/state.json)" rev-parse HEAD origin/main` prints the same SHA twice.
+3. `check` prints `Passed:`.
+
 ## What quality means
 
 > **The most value for the least code**, at the same bar for correctness, tests and proof.
