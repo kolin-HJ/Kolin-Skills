@@ -18,7 +18,7 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 | `Task` with `subagent_type: generalPurpose` | Claude Code: the Agent tool with `general-purpose`. Codex: a spawned agent. |
 | `subagent_type: "poteto-agent"` | A code-writing delegate: `poteto-agent`, the builder seat. A read-only helper: `Explore`. A repo's own named implementer is a project fact; use it only for that repo's code. |
 | `subagent_type: "comment-sicko"` (was `Comment Sicko`) | `comment-sicko`, pstack's own agent, linked by `apply` |
-| `readonly: true` | `Explore`, or a reviewer agent without Edit and Write. |
+| `readonly: true`, or any seat `models.md` runs on Opus | `Plan` with the seat's model: read-only, keeps MCP. `Explore` for a search. Not `general-purpose`: it can edit, so `hooks/agent-default-model.py` denies Opus on it. |
 | `environment: "cloud"`, `cloud_base_branch` | A local worktree from `git worktree add <path> -b <branch> <base>`, named in the brief. Not `isolation: "worktree"` (models.md, Worktrees). |
 | `model: <slug>` | The role line in `models.md` next to this file. |
 | `~/.cursor/rules/pstack-models.mdc`, `/setup-pstack` | `models.md` next to this file. Never write `~/.claude/rules/pstack-models.md`. |

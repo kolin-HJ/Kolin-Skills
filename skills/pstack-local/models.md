@@ -34,7 +34,7 @@ interrogate reviewers: opus, opus, sonnet
 fork: not used; the hook denies it (it inherits Opus and the parent's whole context)
 ```
 
-Edit-capable agents run Sonnet. `hooks/agent-default-model.py` rewrites an Opus request on one. Env `KOLIN_OPUS_BUILDERS=1` lets Kolin allow it. An Opus judgment seat runs as a read-only agent: `Plan`, `Explore` or `senior-reviewer`. The judgment seats are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
+Edit-capable agents run Sonnet. `hooks/agent-default-model.py` denies an Opus request on one and names `Plan`; a silent rewrite to Sonnet ran 180 "Opus" interrogate seats on Sonnet in 14 days. It also runs `senior-reviewer` on Opus when a repo copy pins a lower model and no `model` is passed. Env `KOLIN_OPUS_BUILDERS=1` lets Kolin allow Opus builders. An Opus judgment seat runs as a read-only agent: `Plan`, `Explore` or `senior-reviewer`. The judgment seats are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
 
 Interrogate gives each reviewer one lens:
 

@@ -241,7 +241,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks protected-branch pushes and merges, force push, `--no-verify`, auto-merge, edits to hook files |
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
 | `hooks/edit-guard.py` | Claude Code | Blocks the first edit until `.pstack/status.md` has a value case, and an orchestrator that builds instead of delegating |
-| `hooks/agent-default-model.py` | Claude Code | Blocks `fork` subagents and editing subagents spawned with `isolation: "worktree"`. Moves an Opus builder to Sonnet |
+| `hooks/agent-default-model.py` | Claude Code | Blocks `fork` subagents and editing subagents spawned with `isolation: "worktree"`. Denies Opus on an editing subagent and names `Plan`. Runs `senior-reviewer` on Opus when a repo copy pins lower |
 | `hooks/builder-context.py` | Claude Code | Loads the six principle leaves into each `poteto-agent` at start. `kolin-skills check` fails when a leaf is missing or the text exceeds the 10,000-character hook limit |
 | `hooks/fix-rounds.py` | Claude Code | Blocks a 3rd `SendMessage` to one agent, so a 3rd fix round goes to a fresh builder. `fix-rounds: <to> <reason>` in `.pstack/status.md` lifts it |
 | `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks polling loops, Docker databases, long curl retries and main-session shell edits (a subagent may edit with the shell), strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
