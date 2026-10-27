@@ -45,7 +45,7 @@ flowchart TB
 | A rule in a prompt is only a request | A hook blocks the action, and the gate fails the push |
 | The agent reviews its own code | A fresh reviewer reads every diff |
 | "Done" means it compiles | "Done" means proven on the real app |
-| The same mistake comes back | Each mistake becomes a lint rule, a test or a type |
+| The same mistake comes back | A mistake seen twice, or once for security, data-loss, or irreversible classes, becomes a lint rule, a test or a type |
 
 ## How it works
 
@@ -100,6 +100,7 @@ With Node older than 22.20, `install` skips the third-party skills and says so. 
 |---|---|
 | 🎯 **Earns its place** | Every file, test and dependency answers "what breaks if this goes?" |
 | ✂️ **Small** | The smallest change that fixes the root cause. Files near 400 lines, never over 1,000 |
+| 📁 **Feature-first** | One folder per feature, one shape for every feature, a file and line budget per feature |
 | 🏠 **One home** | One concept lives in one module. Extend the owner, no parallel helper |
 | 🔒 **Typed** | Strict mode. No `any`, no cast, no non-null assertion |
 | 🧪 **Tested** | Each behavior a caller relies on. The test fails first, then fails again on a one-line mutation |

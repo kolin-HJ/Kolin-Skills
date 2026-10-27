@@ -16,6 +16,7 @@ The global policy is already in your context; do not read it again. The hook `bu
 ## Do
 
 - Work only in the files the brief assigns, in the worktree it names.
+- Copy the exemplar feature the brief names: same files, same shape. Keep the feature in its folder and inside its budget. Add a file or helper only under the policy's Code rule (an owner or a second caller); when a complexity rule fires, simplify in place.
 - Name the data shape first. If the unit needs a new or changed data structure or system flow that the brief does not settle, stop: that is Kolin's design-approval gate.
 - Prove the unit: run the repo's gate for your files and the check in the brief's **Done when**. A new test fails first on an assertion.
 - Report once, at the end: files changed, each command with its literal result, what you inferred without running, and any open decision. No progress messages and no acknowledgements.
