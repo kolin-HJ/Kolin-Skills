@@ -379,14 +379,20 @@ def pull(repo, number):
 
 
 def red_checks(rollup, merged):
-    red = set()
+    latest = {}
     for check in rollup:
+        started = check.get("startedAt") or check.get("createdAt") or ""
+        name = check.get("name") or check["context"]
+        if started < merged and started >= latest.get(name, ("", None))[0]:
+            latest[name] = (started, check)
+    red = []
+    for name, (_, check) in latest.items():
         state = check.get("state")
         status = check.get("status") or (None if state is None else "IN_PROGRESS" if state in PENDING else "COMPLETED")
-        if status is None or (check.get("startedAt") or check.get("createdAt") or "") >= merged:
+        if status is None:
             continue
         if (check.get("conclusion") or state) in RED or status != "COMPLETED" or (check.get("completedAt") or "") > merged:
-            red.add(check.get("name") or check["context"])
+            red.append(name)
     return sorted(red)
 
 
@@ -397,7 +403,7 @@ def pr_flags(repo, pr, trunks):
         if unfinished:
             flags.append(f"merged while a check failed or had not finished: {', '.join(unfinished)}")
         earlier = [] if pr["baseRefName"] in trunks else gh("pr", "list", "-R", repo, "--head", pr["baseRefName"], "--state", "merged", "--json", "mergedAt")
-        if any(pr["createdAt"] < other["mergedAt"] < merged for other in earlier):
+        if any(other["mergedAt"] < merged for other in earlier):
             flags.append(f"merged into {pr['baseRefName']}, which another PR had already merged")
     if re.search("reland|revert", pr["title"], re.I):
         flags.append("title says reland or revert")

@@ -157,7 +157,7 @@ class ContextAuditTests(unittest.TestCase):
         fixtures = self.home / "gh"
         fixtures.mkdir()
         files = {
-            "pr-10": pr(10, "Release: reland of foo", "release/x", "main", "2026-10-20T10:00:00Z", [check("build")], "Includes #11 #12 #13 #14 #15 #16 #17 #18 #19 #99 and #10"),
+            "pr-10": pr(10, "Release: reland of foo", "release/x", "main", "2026-10-20T10:00:00Z", [check("build")], "Includes #11 #12 #13 #14 #15 #16 #17 #18 #19 #20 #99 and #10"),
             "pr-11": pr(11, "Fix a", "feat/a", "release/x", "2026-10-20T10:00:00Z", [check("build", conclusion="FAILURE")]),
             "pr-12": pr(12, "Revert b", "feat/b", "feat/c", "2026-10-20T11:00:00Z", [check("build")]),
             "pr-13": pr(13, "Fix d", "feat/d", "release/x", "2026-10-20T10:00:00Z", [check("test", status="IN_PROGRESS", conclusion="", done="0001-01-01T00:00:00Z")]),
@@ -167,6 +167,7 @@ class ContextAuditTests(unittest.TestCase):
             "pr-17": pr(17, "Fix h", "feat/h", "release/x", "2026-10-20T10:00:00Z", [{"context": "ci/x", "state": "ERROR", "createdAt": "2026-10-20T08:00:00Z"}]),
             "pr-18": pr(18, "Fix i", "feat/i", "release/x", "2026-10-20T10:00:00Z", [check("lint", conclusion="TIMED_OUT")]),
             "pr-19": pr(19, "Fix j", "feat/j", "feat/old", "2026-10-20T10:00:00Z", [check("build")]),
+            "pr-20": pr(20, "Fix k", "feat/k", "release/x", "2026-10-20T10:00:00Z", [check("verify", conclusion="CANCELLED"), check("verify", started="2026-10-20T08:30:00Z")]),
             "head-feat_old": [{"mergedAt": "2026-10-20T06:00:00Z"}],
             "repo": {"defaultBranchRef": {"name": "trunk"}},
             "head-main": [], "head-release_x": [], "head-feat_c": [{"mergedAt": "2026-10-20T10:30:00Z"}],
@@ -220,6 +221,7 @@ exec cat "$GH_FIXTURES/head-$(echo "$base" | tr / _).json"
             "    FLAG #13 merged while a check failed or had not finished: test",
             "    FLAG #17 merged while a check failed or had not finished: ci/x",
             "    FLAG #18 merged while a check failed or had not finished: lint",
+            "    FLAG #19 merged into feat/old, which another PR had already merged",
         ])
         self.assertIn("  #99 is not a pull request", output)
         found = output.split("Sessions found: session, date, tokens, subagents, compactions\n")[1].split("\n\n")[0].splitlines()
