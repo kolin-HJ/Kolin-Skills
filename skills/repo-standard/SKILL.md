@@ -51,6 +51,10 @@ src/
 
 Desktop and phone both clean and professional, tables become cards on phones, tokens only, Kolin's library picks and inspiration: `references/ui-bar.md`.
 
+## PR Verification
+
+Policy (Pull requests) owns the rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the `Ran:` / `Not run:` lines into an existing template. `pr-body` already prints this shape. CI body-lint (`loop-refactor-to-pstack` `assets/workflow/check-pr-proof.mjs`) is the ratchet when recent PRs skip that shape.
+
 ## Audit a repo
 
 Read only. Measure, do not guess, and record each row's command and count.
@@ -70,6 +74,7 @@ Read only. Measure, do not guess, and record each row's command and count.
 | Approval text | Repo instruction text (`AGENTS.md`, repo skills) that requires an ask before a reversible step on a work branch (commit, push, opening a PR) conflicts with the global policy's Approvals. Flag it with `file:line` and rewrite it to match. It cost waits of 9 to 67 minutes in two repos |
 | Agent roles | A repo agent that shares a global agent's name (`senior-reviewer`, `poteto-agent`) and pins a lower model than `skills/pstack-local/models.md` gives that role. Flag it |
 | Verification | A verification skill with a CLI and feature maps; parity against staging or the base |
+| PR Verification | Template `.github/PULL_REQUEST_TEMPLATE.md` (or GitHub's other template paths) has `## Verification` with `Ran:` / `Not run: <check>, because <why>`. No template is met if `pr-body` emits that shape. Measure the template with `rg`; count recent `gh pr list --json body` that miss it. CI body-lint (`check-pr-proof.mjs` or equivalent) is the ratchet when they miss; a template without lint is enough when they match |
 | UI (if any) | Raw tables, raw hex colors, screens without 390 and 1440 px checks, tap targets |
 | Runtime | One pinned version everywhere |
 
