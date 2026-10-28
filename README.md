@@ -32,7 +32,7 @@ flowchart TB
 
 | Part | What it gives you |
 |---|---|
-| 📜 **Policy** | One rule book: when to ask, the quality bar, tests, PR format, writing style |
+| 📜 **Policy** | A short rule book: only what a model gets wrong untold — approvals, code preferences, security, done, PR format |
 | 🧰 **Skills** | Playbooks that load when your request matches: fix a bug, audit a repo, polish a UI |
 | 🤖 **Subagents** | A builder, a reviewer and a sweeper. The builder never reviews its own code |
 | 🛡️ **Guardrails** | Hooks that block a risky action before it runs |
@@ -50,15 +50,15 @@ flowchart TB
 
 ## How it works
 
-Every task follows one flow.
+Most tasks run in the main session. A large task with independent units adds builders.
 
 ```mermaid
 flowchart LR
-  ask([🙋 You ask]) --> value[📝 Value case]
-  value --> plan[🗺️ Plan<br/>Opus]
-  plan --> build[🔨 Build<br/>Sonnet]
-  build --> review[🔍 Review<br/>fresh Opus]
-  review -- findings --> build
+  ask([🙋 You ask]) --> work[🔨 Work<br/>main session]
+  work -. large, independent units .-> build[🔨 Builders<br/>Sonnet]
+  build -.-> work
+  work --> review[🔍 Review<br/>fresh Opus]
+  review -- findings --> work
   review --> gate[✅ Gate<br/>pre-push]
   gate --> pr[📬 PR]
   pr --> merge([👍 You merge])
@@ -160,7 +160,6 @@ Each skill starts in one of three ways:
 
 | | How it starts |
 |---|---|
-| 🔁 **Always** | The agent reads it at the start of each engineering task |
 | 💬 **On match** | The agent loads it when your request matches its description |
 | ⌨️ **You only** | Only you can start it, by phrase or slash command. In Claude Code, the agent cannot start it by itself |
 
@@ -168,9 +167,9 @@ Each skill starts in one of three ways:
 
 | Skill | Starts | What it does |
 |---|---|---|
-| `foundation` | 🔁 | The root: the flow, your approval points, the quality bars and the UI bar |
-| `pstack-local` | 🔁 | Maps pstack onto each tool: model seats, `diff-audit`, `pr-body` |
-| `poteto-mode` (pstack) | 🔁 | The method: playbooks for feature, bug fix, refactor, review and shipping |
+| `foundation` | 💬 | Large work: the flow, the extra approval points, the quality bars, layout budgets and the UI bar |
+| `pstack-local` | 💬 | Maps pstack onto each tool when a pstack skill runs: model seats, `diff-audit`, `pr-body` |
+| `poteto-mode` (pstack) | ⌨️ | Playbooks for feature, bug fix, refactor, review and shipping, when you ask for them |
 
 **Process**
 
@@ -203,7 +202,7 @@ Each skill starts in one of three ways:
 
 | Agent | Model | Spawned when |
 |---|---|---|
-| `poteto-agent` | Sonnet | A playbook step needs code built, one unit per agent |
+| `poteto-agent` | Sonnet | A large, independent unit of code can run in parallel with other work |
 | `senior-reviewer` | Opus | A non-trivial diff is ready, before a commit or PR |
 | `haiku-worker` | Haiku | A mechanical sweep: a rename, a codemod, a read-only search |
 
@@ -212,7 +211,7 @@ Each skill starts in one of three ways:
 
 | Source | Skills | Starts |
 |---|---|---|
-| [pstack](https://github.com/cursor/plugins) | `how`, `architect`, `interrogate`, `swarm`, `arena`, `tdd`, `unslop`, `technical-writing`, `no-comments`, `correct` and the `principle-*` skills | The agent reads each one when a playbook step names it. You can type `/poteto-mode`, `/how` and the rest |
+| [pstack](https://github.com/cursor/plugins) | `how`, `architect`, `interrogate`, `swarm`, `arena`, `tdd`, `unslop`, `technical-writing`, `no-comments`, `correct` and the `principle-*` skills | The agent reads one when a task or playbook needs it. You can type `/poteto-mode`, `/how` and the rest |
 | cursor-team-kit | `deslop`, `control-ui`, `control-cli` | 💬 To clean AI slop out of code, or to drive a UI or CLI |
 | cursor-team-kit | `thermo-nuclear-code-quality-review` | The agent reads it for the diff pass before review, or when you ask for a harsh structure review |
 | `npx skills` | `find-skills` | ⌨️ |
@@ -254,7 +253,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, then applies. Runs at each Claude Code and Codex session start, and prints `kolin-skills: stale setup` when it cannot update |
 | `kolin-skills upstream` | Installs third-party skills at pinned commits. `--bump` moves the pins |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
-| `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home, vendor and builder-context |
+| `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts |
 | `feature-budget` | Counts files and lines under `features/<name>/` against the plan (defaults: read 5/800, edit 7/1,200, write 12/2,500, tests excluded). Lists under-40-line single-importer files except a library wrapper. Report-only in `kolin-skills check`. Over budget fails review; over twice the budget stops the wave (`foundation`, "Where Kolin steps in") |
 
@@ -268,7 +267,6 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks protected-branch pushes and merges, force push, `--no-verify`, auto-merge, edits to hook files |
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
 | `hooks/agent-default-model.py` | Claude Code | Blocks editing subagents spawned with `isolation: "worktree"`. Denies Opus on an editing subagent and names `Plan`. Runs `senior-reviewer` on Opus when a repo copy pins lower |
-| `hooks/builder-context.py` | Claude Code | Loads the six principle leaves into each `poteto-agent` at start. `kolin-skills check` fails when a leaf is missing or the text exceeds the 10,000-character hook limit |
 | `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks polling loops, Docker databases and long curl retries, strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
 | `hooks/context-budget.py` | Claude Code | In a subagent, warns at 200,000 context tokens to wrap up and blocks at 260,000 until it reports |
 | `hooks/mcp-access.py` | Claude Code | When an MCP tool fails with an access error, tells the agent this account lacks the connector, to stop calling it and to use the CLI |

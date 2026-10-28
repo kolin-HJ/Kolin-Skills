@@ -203,7 +203,7 @@ After each wave, tell the user in a few plain sentences: what landed on the bran
 - `references/parity.md`: the parity method, its CLI contract, driven recipes and tradeoffs.
 - `assets/commit-unit.sh`: the per-unit commit helper. It adds the `Unit:` trailer and marks the unit `committed`.
 - `assets/wave-table.mjs`: prints the PR body's wave table from `units.tsv` and the branch's commits.
-- `assets/check-subagents.sh`: checks each agent definition's model pin, and that `poteto-agent` names the `builder-context.py` hook, which gives it the six principle leaves.
+- `assets/check-subagents.sh`: checks each agent definition's model pin.
 - `assets/parity-pair/`: the lockstep pair runner, its verdict module and tests.
 - `assets/bracket-parity.sh`: the slower three-run fallback.
 - `assets/node-gates/`: the JS and TS reference gates, gate tools, ratchet and trust curve, with tests. Adapt the paths before use.

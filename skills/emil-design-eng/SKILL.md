@@ -1,6 +1,6 @@
 ---
 name: emil-design-eng
-description: Polish and motion craft for web UI (easing, timing, springs, enter and exit, gestures, transforms, clip-path, reduced motion), from Emil Kowalski. Use when building or reviewing a UI component, animation, transition, popover, drawer, toast, button press or desktop hover state, or when asked to make it feel polished. Serves the UI bar in foundation. Not for stress data (break-ui) or phone layout (mobile-native).
+description: Polish and motion craft for web UI (easing, timing, springs, enter and exit, gestures, transforms, clip-path, reduced motion), from Emil Kowalski. Use when building or reviewing a UI component, animation, transition, popover, drawer, toast, button press or desktop hover state, or when asked to make it feel polished. Not for stress data (break-ui) or phone layout (mobile-native).
 ---
 
 # Design Engineering

@@ -562,7 +562,7 @@ def check(files_only=False):
         return 1 if failures else 0
     test_env = without_git_repo_env()
     if running_in_ci():
-        print("CI: skipped home drift, vendored skills, and builder-context.")
+        print("CI: skipped home drift and vendored skills.")
     else:
         owner = wired_repo()
         if owner not in (None, str(REPO)):
@@ -571,9 +571,6 @@ def check(files_only=False):
             failures.append("home differs from the repo; fix each line above")
         if not vendor_skills():
             failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
-        builder = subprocess.run([sys.executable, str(REPO / "hooks/builder-context.py")], text=True, capture_output=True)
-        if builder.returncode:
-            failures.append(builder.stderr.strip())
     failures += spend_failures()
     for relative, budget in SIZE_BUDGETS.items():
         size = (REPO / relative).stat().st_size

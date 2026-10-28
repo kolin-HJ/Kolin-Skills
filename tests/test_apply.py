@@ -224,7 +224,7 @@ class ApplyTests(unittest.TestCase):
         )
         result = self.run_cli("check", extra_env={"CI": "true"})
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("CI: skipped home drift, vendored skills, and builder-context.", result.stdout)
+        self.assertIn("CI: skipped home drift and vendored skills.", result.stdout)
         self.assertNotIn("home differs", result.stderr)
 
     def test_check_in_a_second_checkout_checks_the_repo_not_home(self):

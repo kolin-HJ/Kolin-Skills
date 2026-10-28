@@ -17,7 +17,6 @@ You may not:
 - Push to `staging` or `main`, deploy, run releases, or run workflows.
 - Change DB schema or migrations, env vars or secrets, or data in a shared account (an ERP, a live dashboard). Do not add new dependencies.
 ## Rules
-- Apply poteto-mode: read `~/.agents/skills/poteto-mode/SKILL.md` with `~/.agents/skills/pstack-local/SKILL.md`. Read the principle skills it cites before you use them.
 - Respect every guard hook: the global ones in `~/.claude/settings.json` and `~/.codex/hooks.json`, and the repo's own (named in its AGENTS.md). If one blocks a command, stop that path. Do not rephrase, split, alias, encode, or script around it. Do not type a blocked command in pieces.
 - Tests fail first. For a bug or behavior change, add one focused test, run it, and see it fail. Then fix and see it pass. If no cheap test target exists, write down why and use the most direct observed check.
 - Surgical diffs. Change only what the goal needs. Review loops grow a PR one cheap-looking fix at a time. Fix a finding only when the intended case is wrong (blocker) or callers will hit a real bug inside the intent (should). Another path, a rare case, an extra guard or test, extra compatibility or a small performance cost is a nit: decline it with a one-line reason and list it under `Follow-ups:`. Prefer the fix that deletes or narrows code.
@@ -30,7 +29,7 @@ You may not:
 1. **Orient.** Read the task, the issue or PR, and the repo's AGENTS.md or CLAUDE.md. Find the base branch: use `staging` if it exists, otherwise the repo default. Find the repo's gate: its pre-commit and pre-push hooks and its one check command.
 2. **Branch.** Work on a feature branch. If you take over someone else's PR, keep their commits or credit them with a `Co-authored-by:` line.
 3. **Prove the failure.** Reproduce the bug or write the failing test. Record the command and the failing output.
-4. **Value case, then change.** Write the value case (`policy/AGENTS.md`, the global policy, Method). Make the smallest change it names. Add nothing it rules out.
+4. **Smallest change.** Name the outcome and the smallest change that reaches it. Make that change and nothing else.
 5. **Prove the fix.** Run the same reproduction or test and see it pass. Run the repo's check command and every check its hooks run (lint, typecheck, tests, build). For UI or runtime behavior, run the app and observe the change. Capture the result.
 6. **Open the PR.** Use `gh pr create --draft --base <base>`. If the repo has a PR template or a PR body check (named in its AGENTS.md), fill it and put the evidence in its Verification section. Otherwise use the PR body order in `policy/AGENTS.md`. `## Verification` holds the commands, exit codes and key output, before and after, and `## Blast Radius` says how to revert.
 7. **Mark ready.** When the local evidence is complete, run `gh pr ready <N>`.

@@ -1,11 +1,11 @@
 ---
 name: foundation
-description: Kolin's portable engineering foundation for any repo — the north star (code agents can manage unsupervised and people can read), the agent-first lens, the flow from idea to plan, architecture, build, review, verify and release, the points where Kolin checks things himself, quality bars, feature-first layout and per-feature budgets, guardrails, lint and ratchet rules, componentization, strict typing and the UI bar. Use at the start of any feature, refactor, plan, brief, review or architecture work in any repo, and whenever you set up gates, write a builder brief or decide what needs Kolin's approval.
+description: Kolin's engineering standard for multi-phase work and repo structure — the flow from plan to release, quality bars, feature-first layout and per-feature budgets, gates, ratchets and the UI bar. Use when planning a multi-phase feature, rebuild or port, when setting up gates, budgets or layout in a repo, or when Kolin asks for the standard. Not needed for a bug fix, a small feature, a review or a question.
 ---
 
 # Foundation
 
-The root skill. Every other skill inherits from it: process playbooks (pstack, `loop-refactor-to-pstack`, `gap-audit`), principles (`principle-*`) and utilities. It fits any repo and names no project. Project rules go in that repo's `AGENTS.md` or its own project skill, never here. The global policy (`policy/AGENTS.md`, linked as `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`) owns approvals, code rules, tests, briefs and PR format. This file adds the flow and the bars, and does not repeat the policy.
+Reference for large work. `gap-audit` and `loop-refactor-to-pstack` build on it. It fits any repo and names no project. Project rules go in that repo's `AGENTS.md` or its own project skill, never here. The global policy (`policy/AGENTS.md`, linked as `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`) owns approvals, code rules, tests, briefs and PR format. This file adds the flow and the bars, and does not repeat the policy.
 
 ## North star
 
@@ -44,24 +44,17 @@ When to bring him in is your judgment call. Signals that point toward asking: a 
 | 7 Release | PR in the policy format, then Kolin merges | policy "Pull requests" | **Kolin's yes** |
 | 8 Learn | A mistake seen twice, or once for security, data-loss, or irreversible classes, becomes a check | `correct` | Rule, test or type merged |
 
-After a release, `bin/context-audit --pr <repo>#<n>` measures it. A finding that costs real time twice may become a gate (policy, "Instruction files").
+After a release, `bin/context-audit --pr <repo>#<n>` measures it. A finding that costs real time twice may become a gate (policy, "Adding rules").
 
 When Kolin asks for one PR for a large change, keep it one PR, with one commit per verified unit and a review map in the PR body (unit, commits, files, the check that proves it).
 
 ## Where Kolin steps in
 
-He checks these himself. Everything else is reversible and proceeds.
+The policy's Approvals list always applies. Large work adds three check points:
 
 - A multi-phase plan (Phase 0), before its build starts. Work of one or a few units proceeds on the value case.
 - The exemplar feature (step 4a), before builders fan out. Its layout becomes every feature's layout, so a wrong shape here is copied everywhere.
 - A feature over twice its budget (Layout): the wave stops until Kolin approves a new budget.
-- **Data structures and system flows (design-approval gate).** Before you add or change a data structure (types, tables, schemas, payloads, state machines) or a system flow (who calls whom, in what order, through which queue or job), show Kolin the proposed layout: the shapes, relations, the flow and a short reason. Ask: "Here is how we will lay this out. Does this make sense? Is this what you had in mind?" Wait for his approval before you implement it.
-- Merges, and any change to `main`, `master`, `staging` or `sandbox` (policy, Approvals). Deploys and production releases.
-- Money: billing, pricing, purchases, spend caps.
-- Secrets and credentials: creating, rotating or sharing them.
-- App Store and marketplace submissions.
-- Schema changes and migrations, each with a backup step.
-- Messages to people and other external writes.
 
 Ask once: one bundled question, recommended option first, with the work already prepared so his yes is the last step. Between those points, report only a real result, a real decision or a block.
 
@@ -69,9 +62,9 @@ Ask once: one bundled question, recommended option first, with the work already 
 
 Each bar is a command with output and fix text, so an agent knows it is done without asking. Metric bars report and never block (Guardrails).
 
-- Readable: a feature lives in one folder inside its budget (Layout); files aim for 400 lines and split only before the policy's 1,000, at a seam that owns one concept; functions about 60 lines, nesting 3 levels, one name per concept. A new file or helper needs the policy's owner or second caller (policy, Code); a metric is never the reason. When a complexity cap fires, simplify the logic (a table, a `switch`, a state model) in place.
+- Readable: a feature lives in one folder inside its budget (Layout); files aim for 400 lines and split only before 1,000, at a seam that owns one concept; functions about 60 lines, nesting 3 levels, one name per concept. A new file or helper needs the policy's owner or second caller (policy, Code); a metric is never the reason. When a complexity cap fires, simplify the logic (a table, a `switch`, a state model) in place.
 - Typed: strict mode; no `any`, cast, non-null assertion or `as unknown as`. The count only falls.
-- Tested: every behavior a caller relies on (policy, Tests and proof), fast (under 60 s per module), no sleeps. External APIs replay recorded contract fixtures (for example MSW in Vitest); no live accounts in tests.
+- Tested: every behavior a caller relies on (policy, Done), fast (under 60 s per module), no sleeps. External APIs replay recorded contract fixtures (for example MSW in Vitest); no live accounts in tests.
 - Small scope: the unit changes only what its brief names. Out-of-scope code is deleted (tag the last commit first), never parked.
 - One home: a concept lives in one module. Extend the owner; no parallel helper.
 - Componentized: one shared component per UI pattern and one wrapper per third-party library, so a later switch changes one place.
@@ -96,7 +89,7 @@ src/
 ## Guardrails, lint and ratchets
 
 - A bad pattern seen twice, or once for security, data-loss, or irreversible classes, becomes a lint rule, test or check, seeded at today's count in a ratchet and driven to zero (`correct`). A rule message names the fix and the file to use instead.
-- Every gate names the bug it prevents, and gate tooling stays small next to the code it guards (about a quarter of the app's lines at most). Metric gates report; they never block an edit, commit or push, because agents pass a blocking metric by cutting code into fragments. Metric gates are cyclomatic and cognitive complexity, CRAP, mutation score, and the lint rules `max-depth`, `max-lines-per-function`, `max-statements`, `max-params` and `max-nested-callbacks`. The one size rule that blocks, where the repo's pre-commit or pre-push enforces it, is the policy's 1,000-line file limit, never at edit. Turning off an existing blocking metric gate is its own PR, with Kolin's yes in the PR body.
+- Every gate names the bug it prevents, and gate tooling stays small next to the code it guards (about a quarter of the app's lines at most). Metric gates report; they never block an edit, commit or push, because agents pass a blocking metric by cutting code into fragments. Metric gates are cyclomatic and cognitive complexity, CRAP, mutation score, and the lint rules `max-depth`, `max-lines-per-function`, `max-statements`, `max-params` and `max-nested-callbacks`. The one size rule that blocks, where the repo's pre-commit or pre-push enforces it, is the 1,000-line file limit, never at edit. Turning off an existing blocking metric gate is its own PR, with Kolin's yes in the PR body.
 - Strict TypeScript where the repo uses TS; a type-aware linter (OXC: oxlint and oxfmt) and the newest TypeScript the tools support.
 - Errors in plain TypeScript, with no effects library unless the user asks: a `Result` union, tagged error kinds that each carry a fix hint, an exhaustive `switch` on the kind, one retry owner, one rate limiter and a timeout per external connection, a write to an outside system that is safe to retry (an idempotency key or an upsert, `principle-make-operations-idempotent`), dependencies passed as one typed argument.
 - One pinned runtime version (for example one Node LTS) in every repo, the box and the host.

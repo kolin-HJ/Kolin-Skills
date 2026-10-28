@@ -1,6 +1,6 @@
 ---
 name: mobile-native
-description: Fix the small CSS and meta-tag tells that make a web app feel like a website on a phone: sticky hover, tap flash, 100vh, input zoom, laggy taps, overscroll, notch, status bar. Use when building or reviewing a phone layout, PWA, bottom sheet, carousel, full-screen screen or touch interaction, or when it "works in Chrome but feels wrong on my phone". Serves the UI bar in foundation. Motion craft is emil-design-eng.
+description: Fix the small CSS and meta-tag tells that make a web app feel like a website on a phone: sticky hover, tap flash, 100vh, input zoom, laggy taps, overscroll, notch, status bar. Use when building or reviewing a phone layout, PWA, bottom sheet, carousel, full-screen screen or touch interaction, or when it "works in Chrome but feels wrong on my phone". Motion craft is emil-design-eng.
 ---
 
 # Feeling Native On Mobile

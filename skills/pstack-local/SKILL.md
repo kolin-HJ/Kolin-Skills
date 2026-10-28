@@ -25,7 +25,7 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 | `AskQuestion` | `AskUserQuestion` |
 | todolist | The harness's todo or task list. If there is none, a checklist in the reply. |
 | Cursor `/loop` | Claude Code `/loop`, with `ScheduleWakeup` or `Monitor`. Codex: keep working in the turn. |
-| Cursor built-in `create-skill` | `anthropic-skills:skill-creator`. A repo skill goes where AGENTS.md Instruction files says. A global skill goes in Kolin-Skills `skills/<name>/`; if a tool wrote it into home, run `kolin-skills import <path>`. |
+| Cursor built-in `create-skill` | `anthropic-skills:skill-creator`. A repo skill goes where AGENTS.md Adding rules says. A global skill goes in Kolin-Skills `skills/<name>/`; if a tool wrote it into home, run `kolin-skills import <path>`. |
 | `/deslop`, `control-ui`, `control-cli` from `cursor-team-kit` | Vendored and linked with the same names. For proof, use the repo's own verification skill (its CLI and feature map) first; if the repo has none, build one with `create-verification-skill` rather than scripting a one-off. The chrome-devtools MCP is for ad-hoc inspection. |
 | `.cursor/skills/<name>/` output, or any project-local skill a pstack skill writes | `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. |
 | `create-formal-verification-skill` tools | Install the verifier per repo at a pinned version (TLC: Java 11+ and `tla2tools.jar`. Kani: `cargo install --locked kani-verifier`, then `cargo kani setup`). A spec or harness has no comments. |
@@ -50,14 +50,14 @@ The global policy (`policy/AGENTS.md`) lists the rules that override pstack. It 
 - **Autonomy and Opening a PR** act without asking in pstack. Here a commit, push or PR on a work branch needs no ask; a merge or deploy does (policy, Approvals). Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask. `autopilot-full` is not used.
 - **External writes** (chat, tickets) wait for a yes unless the repo's `AGENTS.md` allows them.
 - **PR title and body** use the repo's template. Where the repo has none, start from `scripts/pr-body <base>` (policy, Pull requests) in place of pstack's Why, Scope and Tradeoffs.
-- **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Tests and proof. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
+- **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Done. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a gate directive with `-- <reason>`.
-- **Builder brief.** poteto-mode says to put its path in every `poteto-agent` prompt. Here the builder gets the principle leaves from `hooks/builder-context.py` and does not read poteto-mode.
+- **Builder brief.** poteto-mode says to put its path in every `poteto-agent` prompt. Here the brief names the files, the done check and any principle leaf the unit needs, and the builder does not read poteto-mode.
 - **Reply style.** Keep pstack's Writing the reply rules. State the principles that changed a decision in one line, not a section.
 
 ## Own skills
 
-`foundation` is the root; every other skill inherits its flow, check points and bars. The grouped index lives in the Kolin-Skills README.
+`foundation` holds the flow, check points and bars for large work. The grouped index lives in the Kolin-Skills README.
 
 `full-stop` and `full-send` are the in-session approval when Kolin invokes them: full stop covers a ready PR; full send adds the merge of that one PR.
 
