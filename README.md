@@ -179,6 +179,8 @@ Each skill starts in one of three ways:
 | `gap-audit` | 💬 | "Audit this repo", "bring it up to standard" | Ranks a repo's gaps against `foundation`, then closes them in small verified steps |
 | `full-stop` | ⌨️ | "full stop" or `/full-stop` | Takes one task to a PR that is ready to merge. You merge |
 | `full-send` | ⌨️ | "full send" or `/full-send` | Does all of `full-stop`, then merges that one PR after a 7-item merge gate. It never deploys |
+| `council` | ⌨️ | "council" or `/council` | Gets a review from three models on three providers, in rounds, until they agree. Scores go in the PR body |
+| `modernize` | 💬 | "Modernize this PR", "take over #42" | Decides if an old PR should still land (modernize, rework or close), then updates it and keeps the authors' credit |
 | `loop-refactor-to-pstack` | ⌨️ | `/loop-refactor-to-pstack` | Refactors a whole repo to the standard over many sessions on one branch |
 
 **UI craft**
@@ -277,4 +279,4 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 
 ## Credits
 
-The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. `emil-design-eng` follows Emil Kowalski's UI craft.
+The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. `emil-design-eng` follows Emil Kowalski's UI craft. `council`, `modernize` and the babysit and review-scope rules in `full-stop` adapt Theo Browne's [tstack](https://github.com/t3dotgg/tstack).
