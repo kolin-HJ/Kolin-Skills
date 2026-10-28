@@ -1,6 +1,6 @@
 ---
 name: pstack-local
-description: Use whenever poteto-mode or any other pstack skill (how, why, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, statechart, the principle-* skills) runs in Claude Code, Codex, Grok or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
+description: Use whenever poteto-mode or any other pstack skill (how, why, teach, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, statechart, the principle-* skills) runs, or when the user asks to explain, how something works, or to walk through a change, in Claude Code, Codex, Grok or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
 ---
 
 # pstack on this machine
@@ -31,6 +31,7 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 | `.cursor/skills/<name>/` output, or any project-local skill a pstack skill writes | `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. |
 | `create-formal-verification-skill` tools | Install the verifier per repo at a pinned version (TLC: Java 11+ and `tla2tools.jar`. Kani: `cargo install --locked kani-verifier`, then `cargo kani setup`). A spec or harness has no comments. |
 | `statechart` | TLA+ model → chart. |
+| explain / how / "walk me through" / walkthrough | Read `teach`. Keep `/how` as pstack's how skill; teach runs it. |
 | `/visualize` (ketchup) | A Mermaid diagram in the reply, or a chart that a script renders. |
 | `agent-transcripts/`, `~/.cursor/projects/` | Claude Code: `~/.claude/projects/<cwd with each / and . as ->/*.jsonl`. Codex: `~/.codex/sessions/`. Read only the current workspace's transcripts. |
 | `mcps/` discovery (why) | The MCP tools listed in this session. |
@@ -51,7 +52,7 @@ The global policy and the repo's `AGENTS.md` win every conflict with pstack. Thi
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Done. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a lint directive with `-- <reason>`.
 - **Builder brief.** poteto-mode says to put its path in every `poteto-agent` prompt. Here the brief names the files and the done check, quotes any principle the unit depends on, and the builder does not read poteto-mode.
-- **Reply style.** Keep pstack's Writing the reply rules. State the principles that changed a decision in one line, not a section.
+- **Reply style.** Keep pstack's Writing the reply rules. An explain, how, or walk-through follows `teach`: one sentence first, one diagram of at most 7 nodes or a short build-up with real names, at most 3 short beats, no table unless asked, offer an explainer page only on a yes. State the principles that changed a decision in one line, not a section.
 
 ## Own skills
 
