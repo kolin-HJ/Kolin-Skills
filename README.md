@@ -10,7 +10,7 @@ Claude Code, Codex, Cursor and Grok follow the same rules, skills and guardrails
 ![Codex](https://img.shields.io/badge/Codex-10a37f)
 ![Cursor](https://img.shields.io/badge/Cursor-000000)
 ![Grok](https://img.shields.io/badge/Grok-555555)
-![Gate](https://img.shields.io/badge/gate-local_pre--push-blue)
+![Gate](https://img.shields.io/badge/gate-pre--push_%2B_CI-blue)
 ![check](https://github.com/kolin-HJ/Kolin-Skills/actions/workflows/check.yml/badge.svg)
 
 [What](#what-it-is) · [Why](#why-use-it) · [How it works](#how-it-works) · [Install](#install) · [Quality](#what-quality-means) · [Daily use](#working-with-it) · [Skills](#skills)
@@ -33,7 +33,7 @@ flowchart TB
 | Part | What it gives you |
 |---|---|
 | 📜 **Policy** | A short rule book: only what a model gets wrong untold — approvals, code preferences, security, done, PR format |
-| 🧰 **Skills** | Playbooks that load when your request matches: fix a bug, audit a repo, polish a UI |
+| 🧰 **Skills** | Knowledge and workflows that load when your request matches or you call them: audit a repo, polish a UI, take a PR to merge |
 | 🤖 **Subagents** | A builder, a reviewer and a sweeper. The builder never reviews its own code |
 | 🛡️ **Guardrails** | Hooks that block a risky action before it runs |
 | ✅ **Gate** | `kolin-skills check`, run on pre-commit (file length), pre-push, and Linux CI |
@@ -45,8 +45,8 @@ flowchart TB
 | Each tool has its own rules file | One rule book in every tool |
 | A rule in a prompt is only a request | A hook blocks the action, and the gate fails the push |
 | The agent reviews its own code | A fresh reviewer reads every diff |
-| "Done" means it compiles | "Done" means proven on the real app |
-| The same mistake comes back | A mistake seen twice, or once for security, data-loss, or irreversible classes, becomes a lint rule, a test or a type |
+| "Done" means it compiles | "Done" means proven on the real artifact |
+| The same mistake comes back | A mistake that costs time twice, or once for security, data loss or an irreversible action, becomes a lint rule, a test or a type |
 
 ## How it works
 
@@ -64,7 +64,7 @@ flowchart LR
   pr --> merge([👍 You merge])
 ```
 
-The models are the Claude Code seats. Codex runs both subagents on its default model.
+In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all three subagents on its default model.
 
 **Guardrails block. They do not ask.** The blocked agent gets the reason and the fix.
 
@@ -72,9 +72,9 @@ The models are the Claude Code seats. Codex runs both subagents on its default m
 |---|---|
 | Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge | Protected branches change only through a PR you merge. An agent may create a missing one with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
 | Reading a `.env` file | Secrets stay out of the context |
-| Sleep loops, filtered gate output (a trailing filter is stripped; one that cannot be stripped safely is blocked) | Agents see the real output and use the real tools |
+| Foreground sleep loops, long curl retries, Docker databases | Agents use background jobs, Monitor and the native Supabase CLI instead |
 
-Claude Code runs every guard. Codex runs the git and `.env` guards. Cursor runs only the lint hook, and Grok runs no hooks.
+Claude Code runs every guard. Codex runs the git guard, the `.env` guard (shell commands only), the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
 
 ## Install
 
@@ -119,17 +119,6 @@ Confirm:
 
 > **The most value for the least code**, at the same bar for correctness, tests and proof.
 
-| Bar | Check |
-|---|---|
-| 🎯 **Earns its place** | Every file, test and dependency answers "what breaks if this goes?" |
-| ✂️ **Small** | The smallest change that fixes the root cause. Files near 400 lines, never over 1,000 |
-| 📁 **Feature-first** | One folder per feature, one shape for every feature, a file and line budget per feature |
-| 🏠 **One home** | One concept lives in one module. Extend the owner, no parallel helper |
-| 🔒 **Typed** | Strict mode. No `any`, no cast, no non-null assertion |
-| 🧪 **Tested** | Each behavior a caller relies on. The test fails first, then fails again on a one-line mutation |
-| 👀 **Reviewed** | By an agent that did not write the code |
-| 📸 **Proven** | Run on the real app, with the output pasted |
-
 Each lesson goes into the strongest layer that can hold it:
 
 ```
@@ -156,7 +145,7 @@ You can also call any skill by name, such as `/gap-audit`.
 
 ## Skills
 
-Each skill starts in one of three ways:
+Each skill starts in one of two ways:
 
 | | How it starts |
 |---|---|
@@ -168,7 +157,7 @@ Each skill starts in one of three ways:
 | Skill | Starts | What it does |
 |---|---|---|
 | `foundation` | 💬 | Large work: the flow, the extra approval points, the quality bars, layout budgets and the UI bar |
-| `pstack-local` | 💬 | Maps pstack onto each tool when a pstack skill runs: model seats, `diff-audit`, `pr-body` |
+| `pstack-local` | 💬 | Maps pstack onto each tool when a pstack skill runs: tools, paths and model roles |
 | `poteto-mode` (pstack) | ⌨️ | Playbooks for feature, bug fix, refactor, review and shipping, when you ask for them |
 
 **Process**
@@ -177,7 +166,7 @@ Each skill starts in one of three ways:
 |---|---|---|---|
 | `gap-audit` | 💬 | "Audit this repo", "bring it up to standard" | Ranks a repo's gaps against `foundation`, then closes them in small verified steps |
 | `full-stop` | ⌨️ | "full stop" or `/full-stop` | Takes one task to a PR that is ready to merge. You merge |
-| `full-send` | ⌨️ | "full send" or `/full-send` | Does all of `full-stop`, then merges that one PR after a 7-item merge gate. It never deploys |
+| `full-send` | ⌨️ | "full send" or `/full-send` | Does all of `full-stop`, then merges that one PR after a 4-item merge checklist. It never deploys |
 | `council` | ⌨️ | "council" or `/council` | Gets a review from three models on three providers, in rounds, until they agree. Scores go in the PR body |
 | `modernize` | 💬 | "Modernize this PR", "take over #42" | Decides if an old PR should still land (modernize, rework or close), then updates it and keeps the authors' credit |
 | `loop-refactor-to-pstack` | ⌨️ | `/loop-refactor-to-pstack` | Refactors a whole repo to the standard over many sessions on one branch |
@@ -186,7 +175,7 @@ Each skill starts in one of three ways:
 
 | Skill | Starts | Say | What it does |
 |---|---|---|---|
-| `break-ui` | 💬 | "Stress-test this table" | Feeds worst-case data to a UI and reports what broke |
+| `break-ui` | 💬 | "Stress-test this table" | Feeds worst-case data to a UI, fixes the clear breaks and reports the rest |
 | `emil-design-eng` | 💬 | "Make this drawer feel polished" | Motion and polish: easing, springs, transitions, gestures |
 | `mobile-native` | 💬 | "It feels wrong on my phone" | Fixes the tells that make a web app feel like a website on a phone |
 
@@ -248,13 +237,16 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 
 | Command | What it does |
 |---|---|
-| `kolin-skills install` | First run on a machine: `upstream`, then `check` |
+| `kolin-skills install` | First run on a machine: `upstream`, `apply`, then `check` |
 | `kolin-skills apply` | Links the repo into home. `--check` reports drift only. `--adopt` moves home to this checkout. `--if-wired` runs only when home is wired here |
 | `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, then applies. Runs at each Claude Code and Codex session start, and prints `kolin-skills: stale setup` when it cannot update |
 | `kolin-skills upstream` | Installs third-party skills at pinned commits. `--bump` moves the pins |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
+| `kolin-skills stacks` | Lists running native Supabase stacks. `--stop` stops the idle ones. `--notice` runs at session start and prints only when idle stacks exist |
 | `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts |
+| `pr-body <base>` | Prints a PR body skeleton with the policy's sections and a diff table grouped into code, tests and docs |
+| `diff-audit <base>` | Flags reward hacks and slop in a diff (skipped tests, comments, new dependencies) and lists every addition for the value check |
 | `feature-budget` | Counts files and lines under `features/<name>/` against the plan (defaults: read 5/800, edit 7/1,200, write 12/2,500, tests excluded). Lists under-40-line single-importer files except a library wrapper. Report-only in `kolin-skills check`. Over budget fails review; over twice the budget stops the wave (`foundation`, "Where Kolin steps in") |
 
 </details>
@@ -272,6 +264,8 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `hooks/mcp-access.py` | Claude Code | When an MCP tool fails with an access error, tells the agent this account lacks the connector, to stop calling it and to use the CLI |
 | `hooks/lint-changed-lines.py` | All but Grok | Lints the JS and TS lines the agent just changed |
 | `hooks/compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through compaction |
+| `hooks/keep-awake.py` | Claude Code | Holds `caffeinate` from each prompt or subagent spawn, so a long turn does not let the Mac sleep |
+| `hooks/heavy-slot.py` | Claude Code (through `bash-guard`) | Gives heavy jobs one of 3 shared slots and keeps the Mac awake while each runs |
 
 </details>
 

@@ -55,9 +55,9 @@ def main() -> int:
         if (not OPERAND.match(name) or SAFE_SUFFIX.search(name)) and not embedded:
             continue
         print(
-            f"Blocked: `{token}` is a .env file. Secrets are off limits — use "
-            "`npx supabase status` for local service details, or the provider "
-            "dashboard for hosted values. Ask the user if you need a variable name.",
+            f"Blocked: `{token}` is a .env file, and agents do not read secrets. "
+            "For local database values run `supabase status -o env`; "
+            "for a variable name read `.env.example` or ask Kolin.",
             file=sys.stderr,
         )
         return 2

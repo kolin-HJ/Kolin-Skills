@@ -11,9 +11,9 @@ ACCESS_ERROR = re.compile(
     re.IGNORECASE,
 )
 NOTE = (
-    "The {server} connector in this Claude account ({account}) has no access for this project. Kolin uses several "
-    "accounts, and not every account has every connector set up. Do not call mcp__{server}__* again this session. "
-    "Use the service's CLI or the repo's scripts instead, and tell Kolin which account lacks the connector."
+    "The {server} connector has no access in this Claude account ({account}). "
+    "Do not call mcp__{server}__* again this session; use the service's CLI or the repo's scripts, "
+    "and tell Kolin which account lacks it."
 )
 
 

@@ -38,12 +38,8 @@ _Reload the tab to get the update._
 - If a change needs the user to act, say the action: "Press *Submit* to save it."
 - A date the user waits for gets the date: "The first one is Oct 25."
 - No intro, no outro, no "we're excited".
+- Never make up a change the PR does not state.
 
 ## After the notes
 
 In your reply after the notes block, not inside it, list for Kolin only the manual steps and checks the release body names: a backfill, a log to watch, a saved view or query that breaks. One line each. Leave this part out if there are none.
-
-## Don't
-
-- Post the notes anywhere. Kolin sends them.
-- Make up a change the PR does not state.

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 
-PR_BODY = pathlib.Path(__file__).resolve().parent.parent / "skills/pstack-local/scripts/pr-body"
+PR_BODY = pathlib.Path(__file__).resolve().parent.parent / "bin/pr-body"
 
 
 class PrBodyTests(unittest.TestCase):

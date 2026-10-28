@@ -119,17 +119,3 @@ Use `Intl.RelativeTimeFormat` and `Intl.DateTimeFormat`, not hand-built strings.
 | Every status at once | All enum values in one list (`active`, `invited`, `expired`, `suspended`); badge widths vary |
 | No permission | Disabled actions; does the row still lay out the same? |
 | The current user in the list | "You" labels, actions that shouldn't apply to yourself |
-
-## Environment
-
-Not data, but checked the same way: flip to the worst case, then change these.
-
-| Condition | Breaks |
-| --- | --- |
-| Container at 320px | Every overflow above, at once |
-| Narrow sidebar placement | Components designed full-width, reused in a 280px column |
-| 2560px wide | Lines too long to read, content stranded on one side |
-| Browser zoom 200% / large text setting | Fixed heights that clip growing text |
-| Dark mode | Hardcoded colors, invisible borders and logos |
-| `dir="rtl"` | Icons, chevrons, padding, and the order of trailing actions |
-| Touch device | Hover-only actions (the ••• that appears on hover) are unreachable |

@@ -2,8 +2,6 @@
 
 ## Spring Animations
 
-Springs feel more natural than duration-based animations because they simulate real physics. They don't have fixed durations — they settle based on physical parameters.
-
 ### When to use springs
 
 - Drag interactions with momentum

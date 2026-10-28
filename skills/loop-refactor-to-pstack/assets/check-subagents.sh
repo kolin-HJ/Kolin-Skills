@@ -10,7 +10,7 @@ dirs+=("$HOME/.claude/agents")
 
 failed=0
 check() {
-  local name="$1" must_read="$2" model="${3:-$builder_model}" effort="${4:-$builder_effort}"
+  local name="$1" model="${2:-$builder_model}" effort="${3:-$builder_effort}"
   local file=""
   for dir in "${dirs[@]}"; do
     if [ -f "$dir/$name.md" ]; then file="$dir/$name.md"; break; fi
@@ -26,9 +26,6 @@ check() {
   problems=""
   [ "$model" = any ] || [ "$got_model" = "$model" ] || problems="$problems model=${got_model:-unset} (want $model)"
   [ "$effort" = any ] || [ "$got_effort" = "$effort" ] || problems="$problems effort=${got_effort:-unset} (want $effort)"
-  if [ -n "$must_read" ] && ! grep -q "$must_read" "$file"; then
-    problems="$problems does not read $must_read"
-  fi
   if [ -n "$problems" ]; then
     echo "WRONG $name ($file):$problems"
     failed=1
@@ -37,11 +34,11 @@ check() {
   fi
 }
 
-check poteto-agent ""
-check senior-reviewer "" "${REVIEWER_MODEL:-claude-opus-5-5}" any
-check comment-sicko "" any any
-check haiku-worker "" "${WORKER_MODEL:-claude-haiku-5-5}"
-for extra in "$@"; do check "$extra" ""; done
+check poteto-agent
+check senior-reviewer "${REVIEWER_MODEL:-claude-opus-5-5}" any
+check comment-sicko any any
+check haiku-worker "${WORKER_MODEL:-claude-haiku-5-5}"
+for extra in "$@"; do check "$extra"; done
 
 if [ "$failed" -ne 0 ]; then
   echo "Fix each WRONG or MISSING definition's frontmatter with the user's yes, then rerun." >&2

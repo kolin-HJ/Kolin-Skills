@@ -34,13 +34,13 @@ Is the element entering or exiting?
 
 | Element                  | Duration      |
 | ------------------------ | ------------- |
-| Button press feedback    | 100-160ms     |
+| Button press feedback    | 100-160ms, `ease-out` |
 | Tooltips, small popovers | 125-200ms     |
 | Dropdowns, selects       | 150-250ms     |
-| Modals, drawers          | 200-500ms     |
+| Modals, drawers          | 200-300ms; drawers up to 500ms |
 | Marketing/explanatory    | Can be longer |
 
-**Rule: UI animations should stay under 300ms.** A 180ms dropdown feels more responsive than a 400ms one. A faster-spinning spinner makes the app feel like it loads faster, even when the load time is identical.
+**Rule: UI animations should stay under 300ms.**
 
 ### Perceived performance
 

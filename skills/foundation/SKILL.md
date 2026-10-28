@@ -1,52 +1,31 @@
 ---
 name: foundation
-description: Kolin's engineering standard for multi-phase work and repo structure — the flow from plan to release, quality bars, feature-first layout and per-feature budgets, gates, ratchets and the UI bar. Use when planning a multi-phase feature, rebuild or port, when setting up gates, budgets or layout in a repo, or when Kolin asks for the standard. Not needed for a bug fix, a small feature, a review or a question.
+description: Kolin's standard for large work — the flow from plan to release, his check points, feature-first layout and budgets, gates, ratchets and the UI bar. Use when planning a multi-phase feature, rebuild or port, or setting up gates, budgets or layout in a repo. Not for a bug fix, a small feature, a review or a question.
 ---
 
 # Foundation
 
-Reference for large work. `gap-audit` and `loop-refactor-to-pstack` build on it. It fits any repo and names no project. Project rules go in that repo's `AGENTS.md` or its own project skill, never here. The global policy (`policy/AGENTS.md`, linked as `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`) owns approvals, code rules, tests, briefs and PR format. This file adds the flow and the bars, and does not repeat the policy.
+Reference for large work. The policy owns approvals, code rules, tests and PR format; this adds the flow, check points and bars. A unit is one change that one builder finishes and one check proves.
 
 ## North star
 
-A codebase agents can be fully trusted to manage with no supervision, written so a person can read it. Agent-first is the lens for every choice: pick the option an agent with little context gets right on the first try. Readable code is the tiebreak: Kolin reviews by reading code, so a clever line that saves a file but costs a reader loses.
-
-The bar is a codebase an experienced engineer would have laid out: a reader opens one folder and understands one feature top to bottom, and every feature has the same shape. Gates guard this bar; they never replace it. Code that passes every gate and still needs ten files to explain one page fails it.
-
-Long-term quality always wins. Pick the clean, durable design that will still be right in a year, not the fastest patch. When short-term speed and long-term quality conflict, choose quality and say what it costs.
-
-## First principles before any code moves
-
-A short step, written before the first edit (`principle-redesign-from-first-principles`, `principle-foundational-thinking`):
-
-1. **Problem:** what is wrong or missing, for whom, in one sentence.
-2. **Constraints:** what must hold (behavior, data, budget, the repo's rules).
-3. **Options:** two or three real designs, including "change nothing".
-4. **Smallest right design:** the one that fixes the root cause with the least code and still holds in a year.
-
-## Think with Kolin
-
-On a big decision, lay out the options with their tradeoffs and one recommendation. Stress-test the reasoning before you present it: `sharpen` the question, `interrogate` the design, and restate his goal with `in-your-own-words` so a wrong reading shows early.
-
-When to bring him in is your judgment call. Signals that point toward asking: a new feature with data-structure questions, a request you can read two ways, and a change with wide codebase impact. You make the final call. The hard check points below are not judgment calls: they always need him.
+A codebase agents can manage without supervision, written so a person can read it. Pick the option an agent with little context gets right on the first try. Readable code breaks ties, because Kolin reviews by reading code. A reader opens one folder and understands one feature top to bottom, and every feature has the same shape. Gates guard this bar; they never replace it. When speed and long-term quality conflict, choose quality and say what it costs.
 
 ## The flow
 
-| Step | What happens | pstack owner | Exit |
-|---|---|---|---|
-| 1 Idea | Write the value case: the outcome, for whom, the cost of doing nothing, the smallest change | `figure-it-out` | Five-line value case |
-| 2 Plan (Phase 0) | Spec: scope, units, decisions with a recommended option, estimate. Docs only | `poteto-mode` playbook | Multi-phase work: **Kolin reviews the plan before any build**. Smaller work proceeds on the value case |
-| 3 Architecture | Sketch the types, signatures, feature-first module map (Layout), boundaries and state machines before any code; set each feature's file and line budget | `architect`, then `interrogate` | **Kolin approves data structures and system flows**, then ADR plus gate rules seeded at today's count |
-| 4a Paved path | New app or rebuild with several features: build the shared primitives and one exemplar feature in the final shape, before any fan-out. Skip for work inside an existing paved path | `poteto-mode` playbooks | **Kolin reads the exemplar** and says it reads well |
-| 4b Build | One builder per feature, end to end, copying the exemplar; one check that proves each unit | `poteto-mode` playbooks, `principle-sequence-verifiable-units` | Unit passes the local gate |
-| 5 Review | A fresh read-only reviewer that did not build the unit, at most two rounds. At each wave end, a fresh agent reads one finished feature cold (Layout, feature read) | `senior-reviewer`, `interrogate` by risk | PASS, and every feature inside its budget |
-| 6 Verify | Proof on the real artifact: the repo's verification skill, staging first, parity against the base | `principle-prove-it-works`, the verification skill | Evidence pasted |
-| 7 Release | PR in the policy format, then Kolin merges | policy "Pull requests" | **Kolin's yes** |
-| 8 Learn | A mistake seen twice, or once for security, data-loss, or irreversible classes, becomes a check | `correct` | Rule, test or type merged |
+| Step | What happens | Exit |
+|---|---|---|
+| 1 Idea | Write the value case: the outcome, for whom, the cost of doing nothing, the smallest change | Five-line value case |
+| 2 Plan (Phase 0) | Spec: scope, units, decisions with a recommended option, estimate. Docs only | Multi-phase work: **Kolin reviews the plan before any build**. Smaller work proceeds on the value case |
+| 3 Architecture | Sketch the types, signatures, feature-first module map (Layout), boundaries and state machines before any code; set each feature's file and line budget | **Kolin approves data structures and system flows**, then ADR plus gate rules seeded at today's count |
+| 4a Paved path | New app or rebuild with several features: build the shared primitives and one exemplar feature in the final shape, before any fan-out. Skip for work inside an existing paved path | **Kolin reads the exemplar** and says it reads well |
+| 4b Build | One builder per feature, end to end, copying the exemplar; one check that proves each unit | Unit passes the local gate |
+| 5 Review | A fresh read-only reviewer that did not build the unit, at most two rounds. At each wave end, a fresh agent reads one finished feature cold (Layout, feature read) | Ship, and every feature inside its budget |
+| 6 Verify | Proof on the real artifact: the repo's verification skill, staging first, parity against the base | Evidence pasted |
+| 7 Release | PR in the policy format, then Kolin merges | **Kolin's yes** |
+| 8 Learn | A mistake that meets the policy's Adding rules bar becomes a check | Rule, test or type merged |
 
-After a release, `bin/context-audit --pr <repo>#<n>` measures it. A finding that costs real time twice may become a gate (policy, "Adding rules").
-
-When Kolin asks for one PR for a large change, keep it one PR, with one commit per verified unit and a review map in the PR body (unit, commits, files, the check that proves it).
+After a release, `context-audit --pr <repo>#<n>` measures it. When Kolin asks for one PR for a large change, use one commit per verified unit and a review map in the PR body (unit, commits, files, the check that proves it).
 
 ## Where Kolin steps in
 
@@ -56,20 +35,18 @@ The policy's Approvals list always applies. Large work adds three check points:
 - The exemplar feature (step 4a), before builders fan out. Its layout becomes every feature's layout, so a wrong shape here is copied everywhere.
 - A feature over twice its budget (Layout): the wave stops until Kolin approves a new budget.
 
-Ask once: one bundled question, recommended option first, with the work already prepared so his yes is the last step. Between those points, report only a real result, a real decision or a block.
+Ask once: one bundled question, recommended option first, with the work prepared so his yes is the last step.
 
-## Quality bars (definition of done for every unit)
+## Quality bars
 
-Each bar is a command with output and fix text, so an agent knows it is done without asking. Metric bars report and never block (Guardrails).
+These add to the policy's Code and Done rules:
 
-- Readable: a feature lives in one folder inside its budget (Layout); files aim for 400 lines and split only before the policy's 1,000, at a seam that owns one concept; functions about 60 lines, nesting 3 levels, one name per concept. A new file or helper needs the policy's owner or second caller (policy, Code); a metric is never the reason. When a complexity cap fires, simplify the logic (a table, a `switch`, a state model) in place.
-- Typed: strict mode; no `any`, cast, non-null assertion or `as unknown as`. The count only falls.
-- Tested: every behavior a caller relies on (policy, Done), fast (under 60 s per module), no sleeps. External APIs replay recorded contract fixtures (for example MSW in Vitest); no live accounts in tests.
-- Small scope: the unit changes only what its brief names. Out-of-scope code is deleted (tag the last commit first), never parked.
-- One home: a concept lives in one module. Extend the owner; no parallel helper.
-- Componentized: one shared component per UI pattern and one wrapper per third-party library, so a later switch changes one place.
-- Earns its keep (value check): ask of every addition, "Does this give real value to the codebase? Is it a proper quality implementation, or did we bootstrap or work around the problem instead of fixing it at the root?" Remove anything that fails the check. Fix the root cause instead of adding a workaround (`principle-fix-root-causes`).
-- Concise: the least code that holds the bar (`principle-laziness-protocol`, `principle-subtract-before-you-add`).
+- **Readable:** a feature lives in one folder inside its budget (Layout). Files aim for 400 lines and split before the policy's 1,000 at a seam that owns one concept. When a complexity cap fires, simplify in place (a table, a `switch`, a state model); never split only to pass a metric.
+- **Typed:** strict mode, and the count of casts and `as unknown as` only falls.
+- **Value check:** of every addition, ask whether it fixes the problem at its root or works around it. Remove what fails.
+- **Tested fast:** under 60 s per module, no sleeps. External APIs replay recorded contract fixtures (for example MSW in Vitest); no live accounts in tests.
+- **Small scope:** the unit changes only what its brief names. Delete out-of-scope code; never park it.
+- **Componentized:** one shared component per UI pattern and one wrapper per third-party library, so a later switch changes one place.
 
 ## Layout
 
@@ -86,22 +63,17 @@ src/
 - Budget per feature, in source files and lines with tests excluded, set in the step 3 plan Kolin reviews (`.pstack/feature-budgets.json`). Defaults: a read-only page 5 files and 800 lines, an edit page 7 and 1,200, a core write flow 12 and 2,500. `bin/feature-budget` reports the counts (report-only in `kolin-skills check`). Over budget fails review; over twice the budget stops the wave until Kolin approves a new budget (`Where Kolin steps in`).
 - **Feature read.** A fresh agent opens one finished feature with no brief beyond its name, traces one request from the page to the data, and reports the files opened, the lines and every file under 40 lines with one importer (inline it), except a single library wrapper (Componentized: one wrapper per third-party lib).
 
-## Guardrails, lint and ratchets
+## Guardrails
 
-- A bad pattern seen twice, or once for security, data-loss, or irreversible classes, becomes a lint rule, test or check, seeded at today's count in a ratchet and driven to zero (`correct`). A rule message names the fix and the file to use instead.
-- Every gate names the bug it prevents, and gate tooling stays small next to the code it guards (about a quarter of the app's lines at most). Metric gates report; they never block an edit, commit or push, because agents pass a blocking metric by cutting code into fragments. Metric gates are cyclomatic and cognitive complexity, CRAP, mutation score, and the lint rules `max-depth`, `max-lines-per-function`, `max-statements`, `max-params` and `max-nested-callbacks`. The one size rule that blocks, where the repo's pre-commit or pre-push enforces it, is the policy's 1,000-line file limit, never at edit. Turning off an existing blocking metric gate is its own PR, with Kolin's yes in the PR body.
-- Strict TypeScript where the repo uses TS; a type-aware linter (OXC: oxlint and oxfmt) and the newest TypeScript the tools support.
-- Errors in plain TypeScript, with no effects library unless the user asks: a `Result` union, tagged error kinds that each carry a fix hint, an exhaustive `switch` on the kind, one retry owner, one rate limiter and a timeout per external connection, a write to an outside system that is safe to retry (an idempotency key or an upsert, `principle-make-operations-idempotent`), dependencies passed as one typed argument.
-- One pinned runtime version (for example one Node LTS) in every repo, the box and the host.
-- Gates run locally, never in paid CI: pre-commit (about 10 s), pre-push (a few minutes) and a `verify` command that writes evidence per commit SHA. Pushes to protected branches need that evidence. Where a repo has CI, each job's command also runs in the local check command (skipped when `CI` is set), so CI repeats a pass and never finds a new failure. Agents never skip a gate; `hooks/gate/block-forbidden-git.sh` blocks the skip flags.
-- Parity with the base or staging is a gate: routes, handlers and jobs match the baseline unless a delete was approved.
-- A rebuild, port or migration of a live feature starts with `.pstack/parity.md`, before any builder runs: one row per behavior a user relies on (`behavior | live file:line | smoke step | status`), from a read-only pass over the live code. Each builder brief carries its rows, and its "Done when" is their smoke steps passing. A review finding for a live behavior with no row adds the row and its smoke step in the same fix round. A cutover waits until every row passes or carries Kolin's approved cut.
-- Local databases run without Docker (`local-supabase`).
+- A new rule (policy, Adding rules) becomes a lint rule, test or check where it can. A ratchet starts at today's count and goes to zero. The rule message names the fix.
+- Every gate names the bug it prevents. Gate tooling stays under about a quarter of the app's lines.
+- Metric gates report and never block an edit, commit or push, because agents pass a blocking metric by cutting code into fragments. Metric gates are cyclomatic and cognitive complexity, CRAP, mutation score, `max-depth`, `max-lines-per-function`, `max-statements`, `max-params` and `max-nested-callbacks`. The one blocking size rule is the policy's 1,000-line limit, at pre-commit or pre-push. Turning off a blocking metric gate is its own PR with Kolin's yes.
+- Strict TypeScript and a type-aware linter (oxlint, oxfmt) where the repo uses TS.
+- Errors in plain TypeScript unless the user asks for an effects library: a `Result` union, tagged error kinds with a fix hint, an exhaustive `switch`, one retry owner, one rate limiter and a timeout per external connection, and outside writes that are safe to retry (an idempotency key or an upsert).
+- Gates run locally: pre-commit (about 10 s), pre-push (a few minutes) and a `verify` command. Where a repo has CI, each CI job's command also runs in the local check, so CI never finds a new failure.
+- A rebuild, port or migration of a live feature starts with `.pstack/parity.md` before any builder runs: one row per behavior a user relies on (`behavior | live file:line | smoke step | status`). Each brief carries its rows, and a cutover waits until every row passes or carries Kolin's approved cut.
 
 ## UI bar
 
 Desktop and phone both clean and professional, tables become cards on phones, tokens only, Kolin's library picks and inspiration: `references/ui-bar.md`.
 
-## Legacy repos
-
-To bring an existing repo up to this foundation, run `gap-audit` (`~/.agents/skills/gap-audit/SKILL.md`): audit, ranked gap report, small verified steps, re-audit until every ratchet reads zero. For a whole-repo program on one branch, use `loop-refactor-to-pstack`.

@@ -64,7 +64,6 @@ Every item on this list cost a failed parity run, a broken page or a hidden regr
 - **Moving the first phase of a two-phase effect into render removes the second phase's trigger.** If the second phase needs an imperative API (a grid ready callback), put that readiness in its trigger. Drive the deep link cold on the running app.
 - **Parity only covers what its recipes open.** A deep link (`?focus=`), an edit flow or a save path is invisible to read-only parity; add a recipe the first time a regression slips past, and expect the base branch to show its own latent bugs there.
 - **Live data checks must use the code's full union.** A hand-copied list that misses one value reports a false alarm; derive the list from the source file.
-- **Deleting a test can be blocked by the harness's permission check.** Stop, restore, and ask; proceed only on the user's explicit yes.
 
 ## Effect waves
 - **Count `yield*` against the old `await`s.** A missing `yield*` builds an Effect and drops it, so the call silently never runs. The language-service gate must be at error before the first caller wave, and the reviewer checks each converted body against HEAD.
@@ -84,16 +83,7 @@ Every item on this list cost a failed parity run, a broken page or a hidden regr
 - **Background fetches belong in route handlers, not server actions.** A server action joins the framework's router action queue, so a slow one delays navigation; a route handler fetched with an `AbortSignal` stays out of it and cancels on unmount.
 
 ## Trust and enforcement
-- **An exemption list kept in gate code is invisible to the ratchet.** Move every owner list, guard list, scope and threshold into `gate-policy.json`, then ratchet it.
-- **Ratcheting "lines may not disappear" misses loosening by addition.** An added `if: false`, `continue-on-error`, `|| true` or early `exit 0` keeps every old line. Count those as shrink-only entries.
-- **A deploy workflow that runs a subset of the check command is a hole,** and it is the one server-side gate a free plan allows. Make it run the same check command as the hooks.
-- **Read branch protection through the API.** A doc said protection needed a paid plan; the org already had one, and its ruleset covered only the default branch and required no status check.
-- **Workers that write git hooks or agent settings can be refused by the permission check.** Ask the user before the wave, and never have another agent do the refused write.
 - **A lane's count of its own tests can be wrong.** Count them yourself (`grep -c '^test('`) before quoting a number.
-- **A committed agent setting can be silently ignored.** `.gitignore` had `.claude/*` with only `skills/` un-ignored, so the new `.claude/settings.json` would never have been committed. Run `git check-ignore -v` on every new config file.
-- **A PR runs its own copy of the workflows.** Running the base branch's ratchet code stops a PR editing the ratchet, but not a PR deleting the ratchet steps. Only a required check or review closes that.
-- **A YAML-line filter must skip keys.** `\bpnpm\b` matched `node-version:`, `uses: pnpm/action-setup` and `cache: pnpm`, so every action bump needed the label. Count `run:` lines and shell continuation lines only.
-- **The ratchet is itself a gate,** so it needs tests that plant each loosening. An untested ratchet is the one place an agent can loosen everything at once.
 
 ## Learned on the design-audit program (2026-10-03)
 - **Typecheck and tests do not see the client bundle.** A shared module imported `schema` from the DB package and a `"use client"` component imported it; every gate passed and the page returned 500 in the running app. Gate it: walk the value imports of every client file and fail on a server leaf (DB package, cloud SDKs, `server-only`, Node built-ins).

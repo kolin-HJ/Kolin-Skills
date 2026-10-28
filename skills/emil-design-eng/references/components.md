@@ -1,7 +1,5 @@
 # Component building principles
 
-## Component Building Principles
-
 ### Buttons must feel responsive
 
 Add `transform: scale(0.97)` on `:active`. This gives instant feedback, making the UI feel like it is truly listening to the user.
@@ -16,7 +14,7 @@ Add `transform: scale(0.97)` on `:active`. This gives instant feedback, making t
 }
 ```
 
-This applies to any pressable element. The scale should be subtle (0.95-0.98).
+Press feedback lasts 100-160ms with `ease-out`. This applies to any pressable element. The scale should be subtle (0.95-0.98).
 
 ### Never animate from scale(0)
 
@@ -47,8 +45,6 @@ Popovers should scale in from their trigger, not from center. The default `trans
   transform-origin: var(--transform-origin);
 }
 ```
-
-Whether the user notices the difference individually does not matter. In the aggregate, unseen details become visible. They compound.
 
 ### Tooltips: skip delay on subsequent hovers
 

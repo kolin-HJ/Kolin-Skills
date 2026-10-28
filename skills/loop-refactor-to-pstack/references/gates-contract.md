@@ -10,7 +10,7 @@ Every stack needs these behaviors. The JS/TS reference implementations are in `a
 - `--check` (the default) fails on any finding above its baseline, and also on a stale entry: a count that is now lower than allowed. Stale entries fail so that a fix gets locked in.
 - `--json` prints `{ rows: [{ file, key, current, allowed }] }` for every file and key it knows. The shared tools read this.
 - `--update` only lowers or drops entries. It never raises or adds one, and it refuses with a message if a count rose.
-- `--init` or `--init-rule <id>` seeds from scratch. It is used once, by the coordinator, when a gate or rule is introduced.
+- `--init` or `--init-rule <id>` seeds from scratch. It is used once, by the orchestrator, when a gate or rule is introduced.
 - When its baseline file is missing, the gate treats the allowance as zero.
 
 ## The registry: `scripts/baselines.json`
