@@ -10,7 +10,7 @@ Treat "can you", "I want to" and "help me" as instructions, and carry the work t
 
 Reversible work proceeds without asking: reads, edits, local runs, gates, reviews, and commits, pushes and PRs on a work branch.
 
-These need my yes in the session, prepared so my yes is the last step:
+These need my yes, prepared so yes is the last step:
 
 - A merge, and any change to `main`, `master`, `staging` or `sandbox`. These change only through a PR.
 - Deploys, releases and production workflow runs.
@@ -41,7 +41,7 @@ Base branch: the integration branch the repo names, else `staging` if it exists,
 
 ## Writing
 
-Prose follows pstack's `unslop`. Keep code names, paths and domain terms exact.
+Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code names, paths and domain terms exact. Draw a mechanism with its real module and function names.
 
 ## Adding rules
 
