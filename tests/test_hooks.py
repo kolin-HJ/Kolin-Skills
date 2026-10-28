@@ -178,7 +178,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                     [], f"print(json.dumps({{'diagnostics': {diagnostics!r}}}))\nsys.exit(1)\n")
                 self.assertEqual(result.returncode, returncode, result.stderr)
                 if returncode == 0:
-                    self.assertIn("too complex", json.loads(result.stdout)["hookSpecificOutput"]["systemMessage"])
+                    self.assertIn("too complex", json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"])
                 else:
                     self.assertIn("too complex", result.stderr)
         blocked_size = self.lint_with_fake_linters(
@@ -273,7 +273,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                     blocked = invoke(ENV_HOOK, {key: {"command": "cat .env.production"}}, directory)
                     allowed = invoke(ENV_HOOK, {key: {"command": "cat README.md"}}, directory)
                     self.assertEqual(blocked.returncode, 2)
-                    self.assertIn("Blocked: `.env.production` is a .env file.", blocked.stderr)
+                    self.assertIn("Blocked: `.env.production` is a .env file, and agents do not read secrets.", blocked.stderr)
                     self.assertEqual((allowed.returncode, allowed.stdout, allowed.stderr), (0, "", ""))
 
     def test_env_guard_covers_file_tools_not_only_shell(self):

@@ -81,7 +81,7 @@ REQUIRED_TOOLS = {
     "node": "the loop-refactor-to-pstack gate templates are tested with it, and npx skills needs it",
 }
 SKILL_INDEXES = ["README.md"]
-SIZE_BUDGETS = {"policy/AGENTS.md": 12_000, "skills/pstack-local/SKILL.md": 8_000}
+SIZE_BUDGETS = {"policy/AGENTS.md": 4_500, "skills/pstack-local/SKILL.md": 8_000}
 MAX_FILE_LINES = 1000
 CI_VALUES = {"1", "true", "yes"}
 
@@ -618,7 +618,7 @@ def check(files_only=False):
     if failures:
         return 1
     print("Passed: home drift and strays (unless skipped above), spend caps, size budgets, 1,000-line files, skill indexes, required tools, vendored and third-party skills, Python and Node tests, feature-budget (report-only).")
-    print("Live agent routing and model-seat readiness are not checked.")
+    print("Live agent routing and model-role readiness are not checked.")
     return 0
 
 

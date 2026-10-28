@@ -14,7 +14,7 @@ Local Supabase and Postgres run as one project per checkout in the Supabase CLI'
 3. Replace every fixed local URL (`localhost:5432`, `54322`) with the URL read from `supabase status --output-format json` (`env.DB_URL`). User and password are `postgres`.
 4. Delete the repo's Docker Postgres (`docker-compose.yml` service, docs, scripts) in the same change, and point the verification skill's launch at the stack.
 
-A repo that still runs local Postgres in Docker moves to this in its own change.
+Do the move from Docker as its own PR, not inside feature work.
 
 ## Use it
 
@@ -32,4 +32,4 @@ supabase stack destroy --yes                           # deletes this checkout's
 - Stop your stack (`supabase stop`) when your unit's proof is done. macOS allows 32 shared-memory segments (`kern.sysv.shmmni`), each running stack holds some, and a new start fails with `could not create shared memory segment` when they run out. `kolin-skills stacks --stop` stops every idle stack.
 - Before you remove a worktree, run `supabase stack destroy --yes` in it. Stack data lives in `~/.supabase/stacks/<id>/`, and the shared download cache in `~/.supabase/cache/stack`.
 - Native runs on macOS 14 or later on Apple silicon and Linux with glibc 2.35 or later, not as `root`. A cold first start downloads about 360 MB.
-- The docs recommend Docker when several stacks share one machine, because native stacks share the process table. The native runtime is still the rule here, so agents never need a container engine.
+- The docs recommend Docker when several stacks share one machine, because native stacks share the process table.

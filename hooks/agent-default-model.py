@@ -6,14 +6,13 @@ import sys
 UNPINNED_BUILTINS = {"Explore", "claude-code-guide", "general-purpose"}
 EDITING_BUILTINS = {"general-purpose", "claude"}
 ISOLATION_REASON = (
-    "isolation: worktree makes the harness refuse the builder's gate commands. "
+    "Blocked: isolation: worktree makes the harness refuse the builder's gate commands. "
     "Create the worktree with `git worktree add <path> -b <branch> <base>`, name the path in the brief, "
     "and spawn without isolation."
 )
 OPUS_REASON = (
-    "Edit-capable agents run on Sonnet (pstack-local/models.md), so this Opus request would run on Sonnet. "
-    "For an Opus judgment seat (pstack-local/models.md), spawn `Plan` "
-    "with model opus: it is read-only and keeps MCP. For a builder, drop `model`."
+    "Blocked: agents that can edit run on Sonnet. "
+    "For an Opus judgment role, spawn `Plan` with model opus (read-only, keeps MCP). For a builder, drop `model`."
 )
 DEFAULT_MODEL = "sonnet"
 SEAT_MODELS = {"senior-reviewer": "opus"}

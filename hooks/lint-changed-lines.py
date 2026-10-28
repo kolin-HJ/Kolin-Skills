@@ -265,11 +265,11 @@ def main(argv):
         print(json.dumps({"additional_context": text + "\n" + footer}))
         return 0
     if has_errors:
-        print(text + "\nFix these before continuing. " + footer, file=sys.stderr)
+        print(text + "\nFix these in the lines you changed. " + footer, file=sys.stderr)
         return 2
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "PostToolUse",
-        "systemMessage": text + "\n" + footer,
+        "additionalContext": text + "\n" + footer,
     }}))
     return 0
 

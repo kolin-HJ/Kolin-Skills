@@ -15,9 +15,9 @@ if (Math.abs(swipeAmount) >= SWIPE_THRESHOLD || velocity > 0.11) {
 }
 ```
 
-### Damping at boundaries
+### Damping and friction at boundaries
 
-When a user drags past the natural boundary (e.g., dragging a drawer up when already at top), apply damping. The more they drag, the less the element moves. Things in real life don't suddenly stop; they slow down first.
+When a user drags past the natural boundary (e.g., dragging a drawer up when already at top), allow the drag with increasing friction: the more they drag, the less the element moves. Do not stop it at a hard wall.
 
 ### Pointer capture for drag
 
@@ -33,8 +33,3 @@ function onPress() {
   // Start drag...
 }
 ```
-
-### Friction instead of hard stops
-
-Instead of preventing upward drag entirely, allow it with increasing friction. It feels more natural than hitting an invisible wall.
-

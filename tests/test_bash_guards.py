@@ -171,7 +171,7 @@ class HeavyJobsGuardTests(unittest.TestCase):
     def test_docker_database_message_tells_the_agent_to_carry_on(self):
         blocked = invoke(BASH_GUARD, {"command": "docker compose up -d postgres"})
         self.assertEqual(blocked.returncode, 2)
-        self.assertIn("do not ask Kolin to exempt this hook", blocked.stderr)
+        self.assertIn("carry on with the task", blocked.stderr)
 
 
 class EnvGuardEmbeddedPathTests(unittest.TestCase):

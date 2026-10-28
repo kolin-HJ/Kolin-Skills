@@ -96,7 +96,7 @@ class McpAccessTests(unittest.TestCase):
                     continue
                 output = json.loads(result.stdout)["hookSpecificOutput"]
                 self.assertEqual(output["hookEventName"], "PostToolUseFailure")
-                self.assertIn("claude_ai_Supabase connector in this Claude account (/accounts/work)", output["additionalContext"])
+                self.assertIn("claude_ai_Supabase connector has no access in this Claude account (/accounts/work)", output["additionalContext"])
                 self.assertIn("mcp__claude_ai_Supabase__*", output["additionalContext"])
 
 

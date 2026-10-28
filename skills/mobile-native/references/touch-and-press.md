@@ -53,7 +53,7 @@ button, a, [role="button"], .tappable {
 }
 ```
 
-Keep press feedback at 100–160ms and `ease-out`. If the codebase has motion tokens, use them; don't fork a new curve.
+Press feedback lasts 100-160ms with `ease-out`. If the codebase has motion tokens, use them; don't fork a new curve.
 
 ### 8. Long-press selects button text
 

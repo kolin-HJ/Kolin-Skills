@@ -1,6 +1,6 @@
 ---
 name: loop-refactor-to-pstack
-description: "Run a long, multi-session program that refactors a whole repository to pstack standards and architecture on one branch, with Lauren Tan's (poteto's) method, and sets up the pstack workflow so later agents stay trustworthy: one instruction file routed through poteto-mode, one check command the git hooks and the deploy run, strict gates at zero allowance, repeated mistakes made impossible with `correct`, a target module architecture enforced by gates, a verification skill with lockstep parity against the base branch, a verifier agent and PR proof check, a tamper-evident ratchet and agent guards. Errors and effects use plain strict TypeScript (foundation skill); Effect (Effect-TS) only when the user asks for it. It works in waves of codemods and delegated lanes, one verified commit per unit on a single program branch that lands as one PR, without changing what users see. Use it whenever the user wants to adopt pstack in a repo, refactor a codebase to pstack or poteto's practices or architecture, drive lint baselines to zero, make agents trustworthy in a codebase, set up the pstack workflow, adopt Effect when the user asks for it, or resume such a program after a compaction, even if they don't name the skill. Not for one bug fix or one feature; those use poteto-mode's playbooks."
+description: "Run a long, multi-session program that refactors a whole repo to pstack standards on one branch and one PR: gates at zero allowance, a target architecture, a verification skill with lockstep parity, and trust checks. Not for one bug fix or feature."
 ---
 
 # Loop: refactor a repo to pstack on one branch
@@ -17,7 +17,7 @@ This skill composes pstack and does not restate it. Each phase hands its method 
 
 | Job | pstack owner |
 |---|---|
-| The program (coordinator role, store, briefs, drains, ledger, liveness, escalation) | `poteto-mode/playbooks/orchestrate.md`, with its stack and frontier machinery replaced by the one branch (Single-branch mechanics) |
+| The program (orchestrator role, store, briefs, drains, ledger, liveness, escalation) | `poteto-mode/playbooks/orchestrate.md`, with its stack and frontier machinery replaced by the one branch (Single-branch mechanics) |
 | Framing the predicate and rigor | `figure-it-out` Phase A |
 | Each wave | `poteto-mode/playbooks/refactoring.md` |
 | Reading a subsystem before touching it | `how`, fanned out with `swarm`; `why` before deleting anything whose reason is unclear |
@@ -30,7 +30,7 @@ This skill composes pstack and does not restate it. Each phase hands its method 
 | Prose (ADRs, commit messages, the PR body) | `technical-writing`, then `unslop` |
 | Pause, resume and close | `pause-safely.md`, `session-pickup.md` with `recall`, then `reflect` |
 
-`references/pstack-map.md` lists where every playbook, skill and principle fires. Every pstack skill sets `disable-model-invocation`, so read its `SKILL.md` and follow it (`pstack-local/SKILL.md`, Loading a pstack skill). Read a principle's leaf before you cite it.
+`references/pstack-map.md` lists where every playbook and skill fires. Every pstack skill sets `disable-model-invocation`, so read its `SKILL.md` and follow it (`pstack-local/SKILL.md`, Loading a pstack skill). Read a principle's leaf before you cite it.
 
 Read these before the first iteration:
 
@@ -75,7 +75,7 @@ Check every row at the end of each wave. Keep looping until all hold. Never rela
 
 Build the environment before cleaning anything. Each item is its own verified commit on the branch.
 
-1. **The workflow** per `references/workflow-setup.md`: one `AGENTS.md` that routes every task through poteto-mode, vendored pstack with its source pin and link check, the `.pstack/` folder, the PR template with its proof check, and the agent guard. The templates are in `assets/workflow/`.
+1. **The workflow** per `references/workflow-setup.md`: one `AGENTS.md` that says non-trivial program units follow poteto-mode playbooks, vendored pstack with its source pin and link check, the `.pstack/` folder, the PR template with its proof check, and the agent guard. The templates are in `assets/workflow/`.
 2. **One check command** runs every gate. A pre-commit hook, a pre-push hook and a `prepare` script that installs them run it locally, and so does the production deploy. Gates run locally by default (`references/user-decisions.md`, Where gates run). Get the user's explicit yes before you write hooks or agent settings. Never route around a refusal.
 3. **Every gate the language supports, at strict settings.** Propose each new tool before you add it. The list is a formatter, a type-aware linter at error, strict types, and tests with test-shape rules. It also holds no comments, dead code with import boundaries, a file-length limit, an authorization guard gate with a reviewed public list, and a doc-reference gate.
 4. **Gate policy as data.** Every threshold, scope and owner or exemption list lives in one JSON file, so the ratchet sees it.
@@ -128,7 +128,7 @@ The steps of each wave:
 1. **Plan.** Run `gates:status`, `orch status` and `orch inbox drain`. Run `how` over the subsystem. Pin the behavior contract, and name the data shape and the target shape (`refactoring.md` steps 1 to 3). A risky change to code with no test gets a characterization test first, as its own unit, seen red when the pinned behavior is broken.
 2. **Lever.** Write the codemod for the mechanical part and prove it on hand-done sites (`references/brief-templates.md`, Codemod first). Run it yourself.
 3. **Brief** the leftover sites as lanes with disjoint files, about 30 to 70 sites each, with the nine-field template. Add each unit with `orch unit add <id> --track <wave> --brief <path>`. The track is how the PR's wave table groups commits.
-4. **Launch** a rolling window of lanes on `poteto-agent` or the repo's implementer, without a `model` argument, so the agent definition's pin applies (`references/subagents.md`). Refill as each lane finishes. Never launch blocking batches. Wait on a background command's completion, never a wakeup or sleep loop. Workers never commit, push or run the app.
+4. **Launch** a rolling window of lanes on `poteto-agent` or the repo's implementer, without a `model` argument, so the agent definition's pin applies (`references/subagents.md`). Refill as each lane finishes. Never launch blocking batches. Wait on a background command's completion, never a wakeup or sleep loop. Builders and sweepers never commit, push or run the app.
 5. **Drain** each completion as a queue event (`orch inbox push`). Accept a lane only against `references/review-checklist.md`. A report is a lead.
 6. **Integrate.** Fix findings, delete re-export shims, re-key moved hits, and run `gates:lower`. Then run the check command, then the framework's compile through an app launch.
 7. **Review the wave diff once,** in this order: `no-comments`, `deslop`, the repo's reviewer (`senior-reviewer`). Add `interrogate` and `blast-radius` by the proof tier below. Send the riskiest lane to a verifier that is a fresh Claude subagent on a different model or lens, and record its verdict with `orch ledger record`.
@@ -153,7 +153,7 @@ Record every site a lane leaves unchanged, with its reason and the wave that unb
 
 ## Single-branch mechanics
 
-- **One writer per file.** All lanes work in the program worktree with disjoint files (`principle-separate-before-serializing-shared-state`). Only the coordinator commits, merges and pushes.
+- **One writer per file.** All lanes work in the program worktree with disjoint files (`principle-separate-before-serializing-shared-state`). Only the orchestrator commits, merges and pushes.
 - **Commits.** One unit per commit, each green on the check command when it was made. `commit-unit.sh` adds a `Unit:` trailer. `assets/wave-table.mjs` joins that trailer with `units.tsv` to group commits by wave.
 - **Never rewrite pushed history.** Do not rebase, amend, squash or force-push the program branch. Fix a pushed commit with a new commit.
 - **Merge the base at every wave boundary.** Fetch the base and merge it into the program branch, through the host's sync tool when it has one. Resolve conflicts in the merge commit. Then move the parity base checkout to the new base SHA (`references/parity.md`, Base drift), and rerun the check command and scoped parity. A base merge does not void unit verdicts. The boundary parity run after the merge is the verdict for the tip.
@@ -188,7 +188,7 @@ After each wave, tell the user in a few plain sentences: what landed on the bran
 
 ## Files in this skill
 
-- `references/pstack-map.md`: where each pstack playbook, skill and principle fires.
+- `references/pstack-map.md`: where each pstack playbook and skill fires.
 - `references/architecture.md`: the target architecture phase, the red-flag census and the boundary gates.
 - `references/workflow-setup.md`: the workflow a pstack repo ends with, and the template for each piece.
 - `references/subagents.md`: which agent does which job, the model pin, panels, and briefs written for the pinned model.

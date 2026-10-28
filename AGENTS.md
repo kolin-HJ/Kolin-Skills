@@ -27,4 +27,4 @@ This repo is the source of truth for Kolin's agent setup on every machine: the g
 
 ## Gate
 
-`kolin-skills check` is the gate. `.githooks/pre-commit` runs `check --files` (the 1,000-line limit). `.githooks/pre-push` runs the full check. GitHub Actions runs the same check on Linux, skipping home drift and vendored skills. It fails when home has drifted from the repo, a watched home folder holds an entry the repo does not own, a skill in `upstream/skills.json` is not installed, a spend cap is off, a required tool is missing, the policy or `skills/pstack-local/SKILL.md` is over its size budget, a tracked file is over 1,000 lines, or a test fails. It also fails on a comment in code and on a skill missing from the README index. It prints `feature-budget` counts and does not fail on them. Run it before you call work done.
+`kolin-skills check` is the gate. It runs at pre-push and in Linux CI (which skips home drift and vendored skills), and pre-commit runs `check --files` (the 1,000-line limit). Each failure prints its fix. Run it before you call work done.
