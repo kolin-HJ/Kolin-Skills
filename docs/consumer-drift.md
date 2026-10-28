@@ -26,4 +26,4 @@ Stop vendoring pstack in that repo. Point the machine at a Kolin-Skills checkout
 
 ## Box re-apply (later PR)
 
-Own-skill links still target `/tmp/kolin-skills-main` (stale, still names `foundation` and `gap-audit`, missing `repo-standard` / `council` / `modernize`). Clone to a persistent path (`~/Kolin-Skills`), fast-forward `main`, then `python3 "$PWD/bin/kolin-skills" apply --adopt`. Apply prunes the deleted skills and links the new ones. Do not rewire the box in this PR.
+Own-skill links still target `/tmp/kolin-skills-main` (stale, still names `foundation` and `gap-audit`, missing `repo-standard` / `council` / `modernize`). Follow [`stay-on-main.md`](stay-on-main.md). Do not rewire the box in this PR.
