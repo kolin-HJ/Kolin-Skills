@@ -32,8 +32,8 @@ flowchart TB
 
 | Part | What it gives you |
 |---|---|
-| 📜 **Policy** | A short rule book: only what a model gets wrong untold — approvals, code preferences, security, done, PR format |
-| 🧰 **Skills** | Knowledge and workflows that load when your request matches or you call them: audit a repo, polish a UI, take a PR to merge |
+| 📜 **Policy** | A short rule book on top of pstack: only what a model gets wrong untold — approvals, code preferences, security, done, PR format |
+| 🧰 **Skills** | pstack is the method. Own skills add knowledge it lacks (the repo standard, UI craft, local Supabase) and the full-stop and full-send permissions |
 | 🤖 **Subagents** | A builder, a reviewer and a sweeper. The builder never reviews its own code |
 | 🛡️ **Guardrails** | Hooks that block a risky action before it runs |
 | ✅ **Gate** | `kolin-skills check`, run on pre-commit (file length), pre-push, and Linux CI |
@@ -44,7 +44,7 @@ flowchart TB
 |---|---|
 | Each tool has its own rules file | One rule book in every tool |
 | A rule in a prompt is only a request | A hook blocks the action, and the gate fails the push |
-| The agent reviews its own code | A fresh reviewer reads every diff |
+| The agent reviews its own code | A fresh reviewer reads every large or risky diff |
 | "Done" means it compiles | "Done" means proven on the real artifact |
 | The same mistake comes back | A mistake that costs time twice, or once for security, data loss or an irreversible action, becomes a lint rule, a test or a type |
 
@@ -128,7 +128,7 @@ Each lesson goes into the strongest layer that can hold it:
  weakest ───▶  4. Review
 ```
 
-The full bar: [`policy/AGENTS.md`](policy/AGENTS.md) and [`skills/foundation/SKILL.md`](skills/foundation/SKILL.md).
+The full bar: [`policy/AGENTS.md`](policy/AGENTS.md) and [`skills/repo-standard/SKILL.md`](skills/repo-standard/SKILL.md). The method is pstack's `poteto-mode`.
 
 ## Working with it
 
@@ -141,7 +141,7 @@ Ask for the outcome in plain words, such as "fix the redirect bug on login". The
 | | A merge, a deploy, a migration |
 | | Money, secrets, messages to people |
 
-You can also call any skill by name, such as `/gap-audit`.
+You can also call any skill by name, such as `/full-stop`.
 
 ## Skills
 
@@ -151,21 +151,21 @@ Each skill starts in one of two ways:
 |---|---|
 | 💬 **On match** | The agent loads it when your request matches its description |
 | ⌨️ **You only** | Only you can start it, by phrase or slash command. In Claude Code, the agent cannot start it by itself |
+| 📜 **By policy** | The policy sends matching work to it, and you can also type its slash command |
 
 **Core**
 
 | Skill | Starts | What it does |
 |---|---|---|
-| `foundation` | 💬 | Large work: the flow, the extra approval points, the quality bars, layout budgets and the UI bar |
-| `pstack-local` | 💬 | Maps pstack onto each tool when a pstack skill runs: tools, paths and model roles |
-| `poteto-mode` (pstack) | ⌨️ | Playbooks for feature, bug fix, refactor, review and shipping, when you ask for them |
+| `poteto-mode` (pstack) | 📜 | The method: playbooks for feature, bug fix, refactor, review, babysit and shipping. The policy routes code work beyond a one-line change to it |
+| `pstack-local` | 💬 | Maps pstack onto each tool when a pstack skill runs: tools, paths, model roles and where the policy wins |
+| `repo-standard` | 💬 | What a finished repo looks like: layout and budgets, quality bars, gate design, the UI bar, and the checklist to audit a repo against it |
 
 **Process**
 
 | Skill | Starts | Say | What it does |
 |---|---|---|---|
-| `gap-audit` | 💬 | "Audit this repo", "bring it up to standard" | Ranks a repo's gaps against `foundation`, then closes them in small verified steps |
-| `full-stop` | ⌨️ | "full stop" or `/full-stop` | Takes one task to a PR that is ready to merge. You merge |
+| `full-stop` | ⌨️ | "full stop" or `/full-stop` | Runs the pstack playbooks to a PR the watcher reports `READY`, inside a fixed permission scope. You merge |
 | `full-send` | ⌨️ | "full send" or `/full-send` | Does all of `full-stop`, then merges that one PR after a 4-item merge checklist. It never deploys |
 | `council` | ⌨️ | "council" or `/council` | Gets a review from three models on three providers, in rounds, until they agree. Scores go in the PR body |
 | `modernize` | 💬 | "Modernize this PR", "take over #42" | Decides if an old PR should still land (modernize, rework or close), then updates it and keeps the authors' credit |
@@ -192,7 +192,7 @@ Each skill starts in one of two ways:
 | Agent | Model | Spawned when |
 |---|---|---|
 | `poteto-agent` | Sonnet | A large, independent unit of code can run in parallel with other work |
-| `senior-reviewer` | Opus | A non-trivial diff is ready, before a commit or PR |
+| `senior-reviewer` | Opus | Before a PR over 150 changed lines or one that touches schema, auth, access, money or a migration; also the seats of pstack's `interrogate` |
 | `haiku-worker` | Haiku | A mechanical sweep: a rename, a codemod, a read-only search |
 
 <details>
@@ -247,7 +247,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts |
 | `pr-body <base>` | Prints a PR body skeleton with the policy's sections and a diff table grouped into code, tests and docs |
 | `diff-audit <base>` | Flags reward hacks and slop in a diff (skipped tests, comments, new dependencies) and lists every addition for the value check |
-| `feature-budget` | Counts files and lines under `features/<name>/` against the plan (defaults: read 5/800, edit 7/1,200, write 12/2,500, tests excluded). Lists under-40-line single-importer files except a library wrapper. Report-only in `kolin-skills check`. Over budget fails review; over twice the budget stops the wave (`foundation`, "Where Kolin steps in") |
+| `feature-budget` | Counts files and lines under `features/<name>/` against the plan (defaults: read 5/800, edit 7/1,200, write 12/2,500, tests excluded). Lists under-40-line single-importer files except a library wrapper. Report-only in `kolin-skills check`. Over budget fails review; over twice the budget stops the wave (`repo-standard`, Layout) |
 
 </details>
 

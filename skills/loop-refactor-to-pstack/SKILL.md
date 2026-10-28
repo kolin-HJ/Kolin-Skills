@@ -91,7 +91,7 @@ Run `create-verification-skill`. It must end with a CLI that launches the real a
 
 Follow `references/architecture.md`. Ground each subsystem with `how` and `why`, sketch the target module map with `architect`, screen it against the design red flags, and run `interrogate` on the synthesis. Record the result in `.pstack/architecture.md` and an ADR. Each boundary becomes a gate rule (an import boundary, a banned import or an owner list) seeded at today's count. Each red flag the census found becomes a baseline with its owner wave.
 
-Plain TypeScript is the default (`foundation`, Guardrails). Only when the user chose Effect, the Effect service graph is part of this design. Follow `references/effect.md` steps 1 to 4 here: the census, the design with an ADR, the foundation unit, then a one-slice pilot proven by parity and timing. Nothing fans out until the pilot lands. The remaining Effect steps run as waves inside the loop.
+Plain TypeScript is the default (`repo-standard`, Guardrails). Only when the user chose Effect, the Effect service graph is part of this design. Follow `references/effect.md` steps 1 to 4 here: the census, the design with an ADR, the foundation unit, then a one-slice pilot proven by parity and timing. Nothing fans out until the pilot lands. The remaining Effect steps run as waves inside the loop.
 
 ## Phase 4: make the repeated mistakes impossible
 

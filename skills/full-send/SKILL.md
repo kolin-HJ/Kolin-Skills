@@ -14,12 +14,13 @@ Kolin never merges without a yes in the session. Kolin invoking full send for th
 - Ends when the PR scope grows past the original intent. Then fall back to full stop.
 ## Merge checklist
 Check every item at the current head commit, and record the command and result for each.
-1. **Ready.** The full-stop ready checklist passes. A skipped required check counts as failed.
+1. **Ready.** full-stop's Babysit reports `READY` and its ready checks pass. A skipped required check counts as failed.
 2. **Up to date.** `gh pr view <N> --json mergeable,mergeStateStatus` shows `MERGEABLE` and `CLEAN`.
 3. **Migrations.** No destructive migration (drop, truncate, destructive rename, data deletion) unless a PR label approves it. Any schema change still needs Kolin's approval.
 4. **Not a promotion.** The PR does not promote or release to production (`staging` into `main`, a release branch, a version tag) unless Kolin said so for this PR.
 If an item fails and you can fix it, fix it, re-verify and start again at item 1. If you can't, stop with the full-stop report and the reason.
 ## Merge step
+This is pstack's **Shipping** playbook for one PR. Shipping step 1 is replaced: the verdict is the policy's fresh review when one was required, else full-stop's evidence. Shipping steps 3 to 5 (patch-id, retarget, `--force-with-lease`, `--auto`) do not apply. These limits win over Shipping:
 1. Run `git fetch`, then check items 1 and 2 again. If base commits that landed after the last green run touch this PR's files, merge the base in, push and wait for green again.
 2. Use the merge method the repo uses (repo settings or recent merged PRs).
 3. Run `gh pr merge <N> --<squash|merge|rebase>` once, without `--auto` or `--admin`.

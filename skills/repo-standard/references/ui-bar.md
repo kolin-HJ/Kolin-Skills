@@ -1,6 +1,6 @@
 # UI bar
 
-Part of `foundation`. Applies to every repo with a UI.
+Part of `repo-standard`. Applies to every repo with a UI.
 
 - Desktop and phone both look clean and professional. Prove it with screenshots at 390 px and 1440 px, no horizontal scroll, and tap targets of at least 44 x 44 px.
 - A screen's primary action (checkout, add to bag, save, submit) stays visible and reachable on a short phone, with the keyboard open, with the browser toolbars shown and inside the safe areas, and every modal or slide-out panel keeps a reachable close button. A change that can hide it blocks, and a change to a sticky bar or checkout needs a real iPhone Safari check (`mobile-native`).

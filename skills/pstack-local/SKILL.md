@@ -25,6 +25,7 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 | `AskQuestion` | `AskUserQuestion` |
 | todolist | The harness's todo or task list. If there is none, a checklist in the reply. |
 | Cursor `/loop` | Claude Code `/loop`, with `ScheduleWakeup` or `Monitor`. Codex: keep working in the turn. |
+| Babysit's watcher (`watch-pr` under `/loop`) | T3 Code: `watch_pull_request` in the thread that owns the PR, then end the turn. Elsewhere: `watch-pr` as one background command. |
 | Cursor built-in `create-skill` | `anthropic-skills:skill-creator`. A repo skill goes in `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. A global skill goes in Kolin-Skills `skills/<name>/`; if a tool wrote it into home, run `kolin-skills import <path>`. |
 | `/deslop`, `control-ui`, `control-cli` from `cursor-team-kit` | Vendored and linked with the same names. For proof, use the repo's own verification skill (its CLI and feature map) first; if the repo has none, build one with `create-verification-skill` rather than scripting a one-off. The chrome-devtools MCP is for ad-hoc inspection. |
 | `.cursor/skills/<name>/` output, or any project-local skill a pstack skill writes | `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. |
@@ -45,7 +46,7 @@ Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refu
 
 The global policy and the repo's `AGENTS.md` win every conflict with pstack. This adapter adds only how they land on pstack's own steps:
 
-- **Autonomy and Opening a PR** act without asking in pstack. Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask (policy, Approvals). `autopilot-full` is not used.
+- **Autonomy.** pstack lets external actions (team chat, tickets, evals) run without asking. Here they need Kolin's yes (policy, Approvals). Opening a PR acts without asking in pstack. Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask (policy, Approvals). `autopilot-full` is not used.
 - **PR title and body** use the repo's template. Where the repo has none, start from `pr-body <base>` (policy, Pull requests) in place of pstack's Why, Scope and Tradeoffs.
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Done. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a lint directive with `-- <reason>`.
