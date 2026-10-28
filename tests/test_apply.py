@@ -216,7 +216,7 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual(self.git(self.repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip(), "main")
         self.assertEqual((self.home / ".claude/skills/pushed-skill/SKILL.md").read_text(), "---\nname: pushed-skill\ndescription: x\n---\nx\n")
 
-    def test_check_in_ci_skips_home_vendor_and_builder_context(self):
+    def test_check_in_ci_skips_home_and_vendor(self):
         shutil.rmtree(self.repo / "tests")
         (self.repo / "tests").mkdir()
         (self.repo / "tests/test_ok.py").write_text(

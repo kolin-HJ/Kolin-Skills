@@ -4,7 +4,7 @@ This file is short on purpose. It holds only what a strong model would get wrong
 
 ## Working
 
-Treat "can you", "I want to" and "help me" as instructions, and carry the work to the outcome. Ask only when a wrong reading would change the work; otherwise state the assumption and continue.
+Treat "can you", "I want to" and "help me" as instructions, and carry the work to the outcome. Ask only when a wrong reading would change the work; otherwise state the assumption and continue. Keep the active goal when I add a correction or a side question.
 
 Do the work yourself. Spawn a subagent only for large, independent work that can run in parallel, or for a fresh-context review. Skills are reference material: read one when the task needs what it knows.
 
@@ -15,7 +15,7 @@ Reversible work proceeds without asking: reads, edits, local runs, gates, review
 These need my yes in the session, prepared so my yes is the last step:
 
 - A merge, and any change to `main`, `master`, `staging` or `sandbox`. These change only through a PR.
-- Deploys, releases and workflow runs.
+- Deploys, releases and production workflow runs.
 - A new or changed data structure (types, tables, schemas, payloads) or system flow, before you build it. Show me the shapes and the flow first.
 - Schema changes and migrations, each with a backup step.
 - Money, secrets and credentials, store submissions, and messages to people or other external writes.
@@ -25,7 +25,8 @@ These need my yes in the session, prepared so my yes is the last step:
 - **No comments**, JSDoc included, because I review by reading the code. Put the reason in a name, a type, a test or the PR body. The only exception is a gate directive with `-- <reason>`.
 - Extend the owner. Add a helper, wrapper or config layer only when it has a second caller.
 - No `any`, no non-null assertion to silence a type, no swallowed error or silent fallback.
-- Never bypass a product guard: a feature flag, a permission check, a tenant or access scope.
+- No try/catch around code you control, and no boolean parameter that switches behavior. Related writes stay atomic. Files stay under 1,000 lines.
+- Never bypass a product guard: a feature flag, a permission check, a tenant or access scope. If removing one is the purpose, say so plainly.
 - Where the repo names an integration branch, it is trunk, not `main`.
 
 ## Security
