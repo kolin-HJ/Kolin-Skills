@@ -28,7 +28,7 @@ You may not:
 4. **Change** the smallest thing that reaches the outcome.
 5. **Prove the fix.** Rerun the reproduction, then the repo's gate and every check its hooks run. For UI or runtime behavior, run the app and observe it.
 6. **Review.** A fresh `senior-reviewer` reads the diff. Fix its findings under the scope rule above.
-7. **Open the PR** with `gh pr create --draft --base <base>`, in the repo's template or the policy's PR format, with the evidence in `## Verification` and how to revert in `## Blast Radius`.
+7. **Open the PR** with `gh pr create --draft --base <base>`, from the repo's template or `pr-body <base>`, with the evidence in `## Verification` and how to revert in `## Blast Radius`.
 8. **Mark ready** with `gh pr ready <N>` when the local evidence is complete.
 9. **Babysit** until the ready checklist passes or a stop rule fires. If you end a turn with nothing set to wake you, the work stops.
    - Handle existing checks and comments first. Then start one watcher per PR and end the turn: in T3 Code, `watch_pull_request` in the thread that owns the PR; elsewhere, `gh pr checks <N> --watch` as one background command, then read `gh pr view <N> --comments` when it exits. If a review bot has not finished, wait with Monitor on an until-loop over `gh pr view <N> --json reviews`. Never write a sleep loop.

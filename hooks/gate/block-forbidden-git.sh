@@ -21,7 +21,7 @@ nv="--no-""verify"
 protected='(main|master|staging|sandbox)'
 guard skip-hooks; rc=$?
 (( rc == 0 )) && deny "agents do not skip git hooks (--no-verify, commit -n, core.hooksPath). Fix what the hook reports."
-(( rc != 1 )) && { [[ $cmd == *"$nv"* ]] || [[ $cmd =~ git[[:space:]]+commit([^;&|]*)[[:space:]]-[a-z]*n ]]; } && deny "agents do not skip git hooks (--no-verify, commit -n, core.hooksPath). Fix what the hook reports."
+(( rc != 1 )) && { [[ $cmd == *"$nv"* ]] || [[ $cmd =~ git[[:space:]]+commit([^;&|]*)[[:space:]]-[a-z]*n ]]; } && deny "this command could not be parsed and may skip git hooks. Rewrite it so --no-verify or -n does not appear in the command, for example put a commit message in a file and use -F."
 guard pr-merge; rc=$?
 merging=0
 (( rc == 0 )) && merging=1

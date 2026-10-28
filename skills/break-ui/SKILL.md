@@ -1,6 +1,6 @@
 ---
 name: break-ui
-description: Stress-test UI with worst-case data (long names, missing fields, zero or huge counts, emoji, non-Latin text), behind a "Worst case" toggle, then report what broke and the fix. Use when asked to stress-test, break or find edge cases in a component, table, card or screen. Not for polish or motion (emil-design-eng) or phone feel (mobile-native).
+description: Stress-test UI with worst-case data (long names, missing fields, zero or huge counts, emoji, non-Latin text), behind a "Worst case" toggle, then fix the clear breaks and report the rest. Use when asked to stress-test, break or find edge cases in a component, table, card or screen. Not for polish or motion (emil-design-eng) or phone feel (mobile-native).
 ---
 
 # Breaking UI

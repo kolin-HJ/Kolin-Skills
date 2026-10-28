@@ -70,7 +70,7 @@ def decide(agent, tool_input, text):
     seat = SEAT_MODELS.get(agent)
     pinned = pinned_model(text) if text else None
     if seat and not passed and pinned and seat not in pinned.lower():
-        return "allow", f"{agent} is the {seat} seat in pstack-local/models.md; this definition pins a lower model", seat
+        return "allow", f"{agent} runs on {seat} in pstack-local/models.md; this definition pins a lower model", seat
     if not effective_model(tool_input, text) and (agent in UNPINNED_BUILTINS or edit_capable(agent, text)):
         return "allow", f"{agent} pins no model; defaulted to {DEFAULT_MODEL}", DEFAULT_MODEL
     if passed and "opus" in passed.lower() and edit_capable(agent, text) and os.environ.get("KOLIN_OPUS_BUILDERS") != "1":

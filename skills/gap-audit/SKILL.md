@@ -46,6 +46,7 @@ Stop here and send the report unless Kolin already asked you to close the gaps.
 - Gates first: add the missing gate, seed it at today's count, prove it flags one case and passes one.
 - Then drive counts down, a codemod first (`principle-build-the-lever`), then small lanes. Each step is one verified commit-sized change on a work branch.
 - A split cuts at a seam: the new module owns one concept and takes a few inputs. A hook or component that takes 10 or more inputs only moves lines; it does not close a file-length gap. Record the file as open instead.
+- Never split to lower a complexity or CRAP count. Simplify in place, or merge fragments back into the feature's folder.
 - Gap PRs merge into a `gaps/<date>` branch, never into the integration branch ahead of feature work. They ship as their own release after Kolin reads each PR's value case. With `delete_branch_on_merge` off, retarget a stacked gap PR before its base merges.
 - After each step and before the next one starts, rerun the audit rows the step touched and update the report: counts before and after, the next step. Never defer the re-audit to a final wave.
 - After each step, write the resume point to `.pstack/status.md`, so a session limit loses no work.

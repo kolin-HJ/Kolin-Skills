@@ -22,7 +22,10 @@ def live_state(cwd):
     root = git(cwd, "rev-parse", "--show-toplevel")
     if root is None:
         return f"Working directory: {cwd} (not a git repository)"
-    status = (git(cwd, "status", "--short") or "").splitlines()
+    raw_status = git(cwd, "status", "--short")
+    if raw_status is None:
+        return f"Working directory: {cwd}\nRepository root: {root}\nChanged files: unknown (git status failed)"
+    status = raw_status.splitlines()
     shown = "\n".join(status[:STATUS_LINES])
     more = f"\n...and {len(status) - STATUS_LINES} more" if len(status) > STATUS_LINES else ""
     lines = [

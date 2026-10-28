@@ -157,7 +157,7 @@ Each skill starts in one of two ways:
 | Skill | Starts | What it does |
 |---|---|---|
 | `foundation` | 💬 | Large work: the flow, the extra approval points, the quality bars, layout budgets and the UI bar |
-| `pstack-local` | 💬 | Maps pstack onto each tool when a pstack skill runs: tools, paths and model seats |
+| `pstack-local` | 💬 | Maps pstack onto each tool when a pstack skill runs: tools, paths and model roles |
 | `poteto-mode` (pstack) | ⌨️ | Playbooks for feature, bug fix, refactor, review and shipping, when you ask for them |
 
 **Process**
@@ -166,7 +166,7 @@ Each skill starts in one of two ways:
 |---|---|---|---|
 | `gap-audit` | 💬 | "Audit this repo", "bring it up to standard" | Ranks a repo's gaps against `foundation`, then closes them in small verified steps |
 | `full-stop` | ⌨️ | "full stop" or `/full-stop` | Takes one task to a PR that is ready to merge. You merge |
-| `full-send` | ⌨️ | "full send" or `/full-send` | Does all of `full-stop`, then merges that one PR after a 7-item merge gate. It never deploys |
+| `full-send` | ⌨️ | "full send" or `/full-send` | Does all of `full-stop`, then merges that one PR after a 4-item merge checklist. It never deploys |
 | `council` | ⌨️ | "council" or `/council` | Gets a review from three models on three providers, in rounds, until they agree. Scores go in the PR body |
 | `modernize` | 💬 | "Modernize this PR", "take over #42" | Decides if an old PR should still land (modernize, rework or close), then updates it and keeps the authors' credit |
 | `loop-refactor-to-pstack` | ⌨️ | `/loop-refactor-to-pstack` | Refactors a whole repo to the standard over many sessions on one branch |
@@ -175,7 +175,7 @@ Each skill starts in one of two ways:
 
 | Skill | Starts | Say | What it does |
 |---|---|---|---|
-| `break-ui` | 💬 | "Stress-test this table" | Feeds worst-case data to a UI and reports what broke |
+| `break-ui` | 💬 | "Stress-test this table" | Feeds worst-case data to a UI, fixes the clear breaks and reports the rest |
 | `emil-design-eng` | 💬 | "Make this drawer feel polished" | Motion and polish: easing, springs, transitions, gestures |
 | `mobile-native` | 💬 | "It feels wrong on my phone" | Fixes the tells that make a web app feel like a website on a phone |
 
