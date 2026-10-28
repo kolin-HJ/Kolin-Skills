@@ -1,6 +1,6 @@
 ---
 name: repo-standard
-description: Kolin's bar for a repo — feature-first layout and budgets, quality bars, gate and ratchet design, the UI bar, and the checklist to audit a repo against it. Use when setting up gates, budgets or layout, or when Kolin asks to audit a repo, says "what is it missing", "bring it up to standard", "close the gaps" or "make it agent-ready". The method (plan, build, review, ship) is pstack's poteto-mode, not this file.
+description: Kolin's bar for a repo — feature-first layout and budgets, quality bars, gate and ratchet design, the UI bar, and the checklist to audit a repo against it. Use when setting up gates, budgets or layout, when planning a rebuild, port or migration of a live feature, or when Kolin asks to audit a repo, says "what is it missing", "bring it up to standard", "close the gaps" or "make it agent-ready". The method (plan, build, review, ship) is pstack's poteto-mode, not this file.
 ---
 
 # Repo standard
@@ -75,4 +75,4 @@ Read only. Measure, do not guess, and record each row's command and count.
 
 Write `.pstack/gap-report.md`, or the path Kolin names: a score per area (met, partial or missing, with the count), the gaps ranked by risk times reach (data loss, security and money first, then gates, then readability), one step per gap with **Done when**, and the decisions Kolin owns in one bundled ask, recommended option first. Stop at the report unless Kolin asked you to close the gaps.
 
-To close gaps, run each one as a pstack playbook (Refactoring, Feature) on a work branch, gates first, and rerun the rows it touched before the next one. A split cuts at a seam that owns one concept; never split to lower a complexity or CRAP count. A whole-repo program on one branch is `loop-refactor-to-pstack`.
+To close gaps, run each one as a pstack playbook (Refactoring, Feature), gates first, and rerun the rows it touched before the next one. Gap PRs merge into a `gaps/<date>` branch, never into the integration branch ahead of feature work, and ship as their own release after Kolin reads each PR's value case (a gap split merged into `staging` was reverted in #930). A split cuts at a seam that owns one concept; never split to lower a complexity or CRAP count. A whole-repo program on one branch is `loop-refactor-to-pstack`.

@@ -22,7 +22,7 @@ These need my yes in the session, prepared so my yes is the last step:
 
 - **No comments**, JSDoc included, because I review by reading the code. Put the reason in a name, a type, a test or the PR body. The only exception is a lint directive with `-- <reason>`.
 - No `any`, no cast or non-null assertion to silence a type, no swallowed error or silent fallback.
-- No try/catch around code you control, no boolean parameter that switches behavior. Related writes stay atomic.
+- No try/catch around code you control, no boolean parameter that switches behavior. Related writes stay atomic. Files stay under 1,000 lines.
 - Never bypass a product guard: a feature flag, a permission check, a tenant or access scope. If removing one is the purpose, say so plainly.
 
 ## Security

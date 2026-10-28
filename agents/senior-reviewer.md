@@ -13,7 +13,7 @@ The spawning prompt states the task. Read the diff against it to tell scope cree
 
 Count changed lines (`git diff --numstat`, ignoring lockfiles and generated files) and pick a depth. State it in the first line.
 
-- **Skip.** Under 150 lines with no schema, auth, access, money or migration change, when the repo's gate proves it. One line: "No review needed: <reason>".
+- **Skip.** Docs, formatting or gate-only under 150 lines that the repo's gate proves. One line: "No review needed: <reason>".
 - **Lite.** Under about 600 lines and no schema, access rule, auth, mutation, money or contested design. Read the diff, each changed function and its callers. Stop when the answer is clear.
 - **Full.** Everything else. Read every changed file. For a migration, check that old code survives new rows and new code survives old rows.
 

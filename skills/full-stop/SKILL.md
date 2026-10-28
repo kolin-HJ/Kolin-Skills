@@ -7,7 +7,7 @@ Kolin invoked this because he is not watching the thread. Own the work from its 
 If Kolin did not clearly invoke full stop, do not take this autonomy. Work normally.
 ## Scope of permission
 You may, without asking:
-- Commit and push a work branch. Open a draft PR, update it, and mark it ready.
+- Commit and push a work branch. Open a PR and update it.
 - Merge the base branch into the work branch and push normally.
 - Reply to review comments and resolve the threads you fixed.
 - Run the app, a dev server, a browser or a simulator, and take screenshots, when the proof needs it. List each under `Decisions:`.
@@ -27,12 +27,14 @@ The method is pstack's `poteto-mode`, read through `pstack-local`:
 
 1. The playbook that matches the task (Bug fix, Feature, Refactoring and the rest), on a work branch off the base the policy names. When you take over someone's PR, keep their commits or credit them with `Co-authored-by:`.
 2. The fresh review the policy names (Pull requests), then **Opening a PR**, with the body from the repo's template or `pr-body <base>`.
-3. **Babysit** in `drive` mode until the watcher reports `READY`. In T3 Code, the watcher is `watch_pull_request` in the thread that owns the PR; end the turn after you arm it. If you end a turn with nothing set to wake you, the work stops.
+3. **Babysit** in `drive` mode until the watcher reports `READY`. Invoking full stop is the babysit ask. When the base moves or conflicts, merge it in (never rebase), rerun the proof and push; this wins over Babysit steps 4 and 5. In T3 Code, the watcher is `watch_pull_request` in the thread that owns the PR; end the turn after you arm it. If you end a turn with nothing set to wake you, the work stops.
 
 Before you report ready, also check at the current head:
 
 - The evidence covers every changed file and behavior.
 - `diff-audit <base>` shows no block, or the PR body gives each one a reason.
+- Review bots have finished, and every finding is fixed or answered.
+- With no required checks, every check that ran is green and none is pending.
 - The branch is up to date with the base (`mergeStateStatus`; `watch_pull_request` does not report BEHIND).
 
 Then report in the format below, ending with `Ready for Kolin to merge.` In T3 Code, call `unwatch_pull_request` first.
