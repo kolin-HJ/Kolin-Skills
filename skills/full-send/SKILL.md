@@ -24,11 +24,12 @@ Check every item at the current head commit. Record the command and the result f
 If any item fails and you can fix it, fix it, re-verify, and go back to item 1. If you can't fix it, stop with the full stop report and give the reason the gate failed.
 ## Merge step
 When the gate passes:
-1. Pick the merge method the repo uses (from the repo settings or recent merged PRs).
-2. Run `gh pr merge <N> --<squash|merge|rebase>` once. Do not add `--auto` or `--admin`.
-3. If a guard hook blocks it, do not try any other route to merge: no API call, no script, no git merge into the base, no workaround. Stop and report with this status line, and put the command only in the report text:
+1. Run `git fetch`, then check items 2 and 5 again. If base commits that landed after the last green run touch this PR's files, merge the base in, push and wait for green again.
+2. Pick the merge method the repo uses (from the repo settings or recent merged PRs).
+3. Run `gh pr merge <N> --<squash|merge|rebase>` once. Do not add `--auto` or `--admin`.
+4. If a guard hook blocks it, do not try any other route to merge: no API call, no script, no git merge into the base, no workaround. Stop and report with this status line, and put the command only in the report text:
    `Gate passed, merge blocked by hook; run: gh pr merge <N> --<squash|merge|rebase>`
-4. If it merges, confirm with `gh pr view <N> --json state,mergeCommit` and report `Merged` with the merge commit.
+5. If it merges, confirm with `gh pr view <N> --json state,mergeCommit` and report `Merged` with the merge commit.
 ## Pushes
 - Push only normally, and only to the agent's own feature branch.
 - Never force-push. To update the branch, merge the base into it and push normally. Never rebase a pushed branch.
