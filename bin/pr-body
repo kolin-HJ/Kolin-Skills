@@ -22,7 +22,7 @@ SKELETON = "Value: <kind> — <one sentence>\n\n" + "".join(
 
 
 def load_audit():
-    path = str(pathlib.Path(__file__).with_name("diff-audit"))
+    path = str(pathlib.Path(__file__).resolve().with_name("diff-audit"))
     loader = importlib.machinery.SourceFileLoader("diff_audit", path)
     module = importlib.util.module_from_spec(importlib.util.spec_from_loader("diff_audit", loader))
     loader.exec_module(module)

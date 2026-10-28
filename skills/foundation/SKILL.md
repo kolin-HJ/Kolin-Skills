@@ -42,6 +42,8 @@ Ask once: one bundled question, recommended option first, with the work prepared
 These add to the policy's Code and Done rules:
 
 - **Readable:** a feature lives in one folder inside its budget (Layout). Files aim for 400 lines and split before the policy's 1,000 at a seam that owns one concept. When a complexity cap fires, simplify in place (a table, a `switch`, a state model); never split only to pass a metric.
+- **Typed:** strict mode, and the count of casts and `as unknown as` only falls.
+- **Value check:** of every addition, ask whether it fixes the problem at its root or works around it. Remove what fails.
 - **Tested fast:** under 60 s per module, no sleeps. External APIs replay recorded contract fixtures (for example MSW in Vitest); no live accounts in tests.
 - **Small scope:** the unit changes only what its brief names. Delete out-of-scope code; never park it.
 - **Componentized:** one shared component per UI pattern and one wrapper per third-party library, so a later switch changes one place.

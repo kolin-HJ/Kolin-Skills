@@ -13,8 +13,8 @@ You may, without asking:
 - Run the app, a dev server, a browser or a simulator, and take screenshots, when the proof needs it. List each under `Decisions:`.
 You may not:
 - Merge, enable auto-merge, or call the merge API.
-- Force-push, or rebase a pushed branch.
-- Push to a protected branch, deploy, release, or run workflows.
+- Force-push (including `--force-with-lease`), or rebase a pushed branch.
+- Push to `main`, `master`, `staging` or `sandbox`, deploy, release, or run workflows.
 - Change DB schema or migrations, env vars or secrets, or data in a shared account. Add dependencies.
 ## Rules
 - A guard hook that blocks a command ends that path. Do not rephrase, split, alias, encode or script around it.
@@ -27,10 +27,10 @@ You may not:
 3. **Prove the failure** for a bug or behavior change: a failing test or a reproduction. Record the command and output.
 4. **Change** the smallest thing that reaches the outcome.
 5. **Prove the fix.** Rerun the reproduction, then the repo's check command and every check its hooks run. For UI or runtime behavior, run the app and observe it.
-6. **Open the PR** with `gh pr create --draft --base <base>`, in the repo's template or the policy's PR format, with the evidence in `## Verification`.
+6. **Open the PR** with `gh pr create --draft --base <base>`, in the repo's template or the policy's PR format, with the evidence in `## Verification` and how to revert in `## Blast Radius`.
 7. **Mark ready** with `gh pr ready <N>` when the local evidence is complete.
 8. **Babysit** until the ready gate passes or a stop rule fires. If you end a turn with nothing set to wake you, the work stops.
-   - Handle existing checks and comments first. Then start one watcher per PR and end the turn: in T3 Code, `watch_pull_request` in the thread that owns the PR; elsewhere, `gh pr checks <N> --watch` as one background command. Never write a sleep loop.
+   - Handle existing checks and comments first. Then start one watcher per PR and end the turn: in T3 Code, `watch_pull_request` in the thread that owns the PR; elsewhere, `gh pr checks <N> --watch` as one background command, then read `gh pr view <N> --comments` when it exits. If a review bot has not finished, wait with Monitor on an until-loop over `gh pr view <N> --json reviews`. Never write a sleep loop.
    - A wake is news, not a merge decision. Act only on checks and comments newer than the latest push. Verify each bot finding in the source before you change code. Tell a real failure from an infrastructure flake.
    - On a failed check, read `gh run view <id> --log-failed`, fix the root cause, re-verify and push. On a review comment, fix it or reply with a specific reason.
    - When the base moves, merge it in, rerun step 5 and push. `watch_pull_request` does not report BEHIND, so check `mergeStateStatus`.
@@ -43,7 +43,7 @@ You may not:
 10. **Report** in the format below, ending with `Ready for Kolin to merge.` In T3 Code, call `unwatch_pull_request` first.
 ## Stop rules
 Stop and report when a guard hook blocks a command you need, the work needs anything under "You may not", the same check fails 3 times after separate fixes, reviewers conflict or the intent is unclear, or the fix must grow past the original intent.
-When blocked or ready, ask with the question tool (AskUserQuestion) if one exists, with the PR link, the block, the options and your recommendation first. Otherwise make it the first line of the report.
+Contact Kolin only when blocked or ready. Ask with the question tool (AskUserQuestion) if one exists, with the PR link, the block, the options and your recommendation first. Otherwise make it the first line of the report.
 ## Report format
 ```
 PR: <url> (head <sha>, base <base>)
