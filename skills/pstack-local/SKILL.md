@@ -49,7 +49,7 @@ The global policy (`policy/AGENTS.md`) lists the rules that override pstack. It 
 
 - **Autonomy and Opening a PR** act without asking in pstack. Here a commit, push or PR on a work branch needs no ask; a merge or deploy does (policy, Approvals). Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask. `autopilot-full` is not used.
 - **External writes** (chat, tickets) wait for a yes unless the repo's `AGENTS.md` allows them.
-- **PR title and body** use the repo's template. Where the repo has none, start from `scripts/pr-body <base>` (policy, Pull requests) in place of pstack's Why, Scope and Tradeoffs.
+- **PR title and body** use the repo's template. Where the repo has none, start from `pr-body <base>` (policy, Pull requests) in place of pstack's Why, Scope and Tradeoffs.
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Done. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a gate directive with `-- <reason>`.
 - **Builder brief.** poteto-mode says to put its path in every `poteto-agent` prompt. Here the brief names the files, the done check and any principle leaf the unit needs, and the builder does not read poteto-mode.

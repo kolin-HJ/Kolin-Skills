@@ -6,7 +6,7 @@ description: "Use only when Kolin explicitly says \"full send\" or invokes /full
 Kolin invoked this because he is not watching the thread. Own the work from its current state to a merged PR. Kolin reads your messages only after you stop, so a message in the chat does not reach him until then.
 If Kolin did not clearly invoke full send in this session, do not take this autonomy. Work normally.
 ## Base workflow
-Read `~/.agents/skills/full-stop/SKILL.md` and follow all of it: rules, flow steps 1 to 9, stop rules, contacting Kolin, report format. Full send changes only the end. It replaces "stop at ready" with the merge gate below.
+Read `~/.agents/skills/full-stop/SKILL.md` and follow all of it: scope, rules, flow steps 1 to 9, stop rules and report format. Full send changes only the end. It replaces "stop at ready" with the merge gate below.
 ## The yes and its scope
 Kolin's rule: never merge without a yes in the session. Kolin explicitly invoking full send in this session for this PR is that yes. The yes:
 - Covers this one PR only. It does not carry over to other PRs, follow-up PRs, or later sessions.

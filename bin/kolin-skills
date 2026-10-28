@@ -62,6 +62,8 @@ LINKS = {
     "bin/kolin-skills": [".local/bin/kolin-skills"],
     "bin/context-audit": [".local/bin/context-audit"],
     "bin/feature-budget": [".local/bin/feature-budget"],
+    "bin/pr-body": [".local/bin/pr-body"],
+    "bin/diff-audit": [".local/bin/diff-audit"],
 }
 MERGED_JSON = {
     "claude/settings.json": ".claude/settings.json",

@@ -13,4 +13,4 @@
 
 ## Diff
 
-<!-- Paste the ## Diff section that ~/.agents/skills/pstack-local/scripts/pr-body <base> prints. -->
+<!-- Paste the ## Diff section that pr-body <base> prints. -->

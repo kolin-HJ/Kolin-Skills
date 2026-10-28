@@ -41,7 +41,7 @@ Test the behavior a caller relies on: calculations, rules, permissions, data wri
 
 ## Pull requests
 
-A fresh `senior-reviewer` reads the diff before a PR opens. Start the body from `~/.agents/skills/pstack-local/scripts/pr-body <base>` or the repo's template, with `## Review this` (decisions and risky hunks by `file:line`), `## Blast Radius` (migrations, config, deploy order, user-visible changes) and `## Verification` (one line per check: `Ran:` or `Not run: <check>, because <why>`).
+A fresh `senior-reviewer` reads the diff before a PR opens. Start the body from `pr-body <base>` or the repo's template, with `## Review this` (decisions and risky hunks by `file:line`), `## Blast Radius` (migrations, config, deploy order, user-visible changes) and `## Verification` (one line per check: `Ran:` or `Not run: <check>, because <why>`).
 
 ## Writing
 

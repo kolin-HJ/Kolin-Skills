@@ -168,7 +168,7 @@ Each skill starts in one of three ways:
 | Skill | Starts | What it does |
 |---|---|---|
 | `foundation` | 💬 | Large work: the flow, the extra approval points, the quality bars, layout budgets and the UI bar |
-| `pstack-local` | 💬 | Maps pstack onto each tool when a pstack skill runs: model seats, `diff-audit`, `pr-body` |
+| `pstack-local` | 💬 | Maps pstack onto each tool when a pstack skill runs: tools, paths and model seats |
 | `poteto-mode` (pstack) | ⌨️ | Playbooks for feature, bug fix, refactor, review and shipping, when you ask for them |
 
 **Process**
@@ -255,6 +255,8 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
 | `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts |
+| `pr-body <base>` | Prints a PR body skeleton with the policy's sections and a diff table grouped into code, tests and docs |
+| `diff-audit <base>` | Flags reward hacks and slop in a diff (skipped tests, comments, new dependencies) and lists every addition for the value check |
 | `feature-budget` | Counts files and lines under `features/<name>/` against the plan (defaults: read 5/800, edit 7/1,200, write 12/2,500, tests excluded). Lists under-40-line single-importer files except a library wrapper. Report-only in `kolin-skills check`. Over budget fails review; over twice the budget stops the wave (`foundation`, "Where Kolin steps in") |
 
 </details>

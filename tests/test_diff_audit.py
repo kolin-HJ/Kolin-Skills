@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 
-AUDIT = pathlib.Path(__file__).resolve().parent.parent / "skills/pstack-local/scripts/diff-audit"
+AUDIT = pathlib.Path(__file__).resolve().parent.parent / "bin/diff-audit"
 
 
 class DiffAuditTests(unittest.TestCase):
