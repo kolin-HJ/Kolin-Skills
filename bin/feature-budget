@@ -15,9 +15,9 @@ EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py"]
 INDEXES = ["index.ts", "index.tsx", "index.js", "index.py"]
 PLAN = pathlib.Path(".pstack/feature-budgets.json")
 HEADER = ("feature-budget: {n} features (report-only). "
-          "Over budget fails review; over 2x stops the wave (foundation, Where Kolin steps in)")
+          "Over budget fails review; over 2x stops the wave (repo-standard, Layout)")
 REVIEW = "over — fails review"
-WAVE = "2x — wave stops until Kolin approves a new budget (foundation, Where Kolin steps in)"
+WAVE = "2x — wave stops until Kolin approves a new budget (repo-standard, Layout)"
 
 
 def relative(path, root):
@@ -165,7 +165,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Report per-feature file and line counts against the plan budget. "
                     "Report-only: never fails the gate. Over budget fails review; over 2x stops the wave "
-                    "(foundation, Where Kolin steps in)."
+                    "(repo-standard, Layout)."
     )
     parser.add_argument("root", nargs="?", default=".")
     args = parser.parse_args()

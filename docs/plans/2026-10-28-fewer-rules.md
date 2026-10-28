@@ -1,6 +1,19 @@
 # Plan: pstack as the one method
 
-Draft 2, 2026-10-28. Nothing here is built yet.
+Draft 2, 2026-10-28.
+
+## Status
+
+Stages 1–4 shipped in one PR. Where the build differs from the plan below:
+
+- `gap-audit`'s audit table is knowledge, so it moved into `repo-standard` ("Audit a repo"). Only its close loop was cut.
+- `foundation`'s two check points (the multi-phase plan and the exemplar feature) are approvals, so they moved into the policy's Approvals list.
+- `break-ui` keeps its phases, which are mostly failure signatures and truncation rules. Only the forced output format was cut.
+- `pstack-local` keeps the PR body and reply-style overrides, because `pr-body` and the STE style still differ from pstack.
+- The policy is 3,391 characters, not under 2,500. The rest is Approvals and Security. `SIZE_BUDGETS` is 3,500.
+- The `isolation: worktree` deny in `hooks/agent-default-model.py` was not re-tested.
+
+Open: Stage 0 (the baseline replay) and Stage 5 (MCP connectors, by hand).
 
 ## Goal
 

@@ -36,7 +36,7 @@ fork: inherits Opus and the parent's whole context; use it when that context is 
 
 Edit-capable agents run Sonnet; the hook denies an Opus request on one, because a silent rewrite once ran 180 "Opus" interrogate reviewers on Sonnet in 14 days. Env `KOLIN_OPUS_BUILDERS=1` lets Kolin allow Opus builders. An Opus judgment role runs as a read-only agent: `Plan`, `Explore` or `senior-reviewer`. The judgment roles are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
 
-Interrogate gives each reviewer one lens:
+Interrogate is the fresh review before a pstack PR opens (policy, Pull requests). Run each Opus seat as `senior-reviewer` and the Sonnet seat as `senior-reviewer` with `model: "sonnet"`, with the lens in the brief. Interrogate gives each reviewer one lens:
 
 1. Correctness and data integrity: wrong numbers, races and lost writes.
 2. Security and access: authorization, secrets and external writes.
@@ -50,7 +50,7 @@ Plan, build and review are separate roles:
 | Builder | `poteto-agent`, or the repo's implementer | Sonnet 5.5, medium (hook default when the agent pins no model and can edit) | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
 | Sweeper | `haiku-worker` | Haiku 5.5, medium | Recipe work: renames, codemods, fixtures, searches the brief spells out |
 | Searcher | `Explore` | Sonnet (hook default) | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
-| Reviewer | `senior-reviewer` | Opus 5.5, high, read-only | Fresh review of every non-trivial diff; never the builder. A Lite re-review of follow-up fix hunks passes `model: "sonnet"` |
+| Reviewer | `senior-reviewer` | Opus 5.5, high, read-only | The policy's fresh review and interrogate's seats; never the builder. A Lite re-review of follow-up fix hunks passes `model: "sonnet"` |
 | Comment sweep | `comment-sicko` (pstack) | Sonnet (hook default) | Deletes comments before review |
 
 ## Spend

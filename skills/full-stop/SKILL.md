@@ -22,26 +22,21 @@ You may not:
 - Evidence means things you ran and saw in this session: commands, exit codes, output, screenshots. A claim or "should work" is not evidence.
 - Start each PR comment or review reply with `> [!NOTE]` and `> 🤖 **<model> responding on behalf of Kolin**`, then a blank line. Lead with the conclusion and cite the `file:line`, check or output. Resolve a thread only after GitHub returns the reply URL.
 ## Flow
-1. **Orient.** Read the task and the repo's `AGENTS.md`. Pick the base branch by the policy's rule. Find the repo's gate and git hooks.
-2. **Branch.** Use a work branch. When you take over someone's PR, keep their commits or credit them with `Co-authored-by:`.
-3. **Prove the failure** for a bug or behavior change: a failing test or a reproduction. Record the command and output.
-4. **Change** the smallest thing that reaches the outcome.
-5. **Prove the fix.** Rerun the reproduction, then the repo's gate and every check its hooks run. For UI or runtime behavior, run the app and observe it.
-6. **Review.** A fresh `senior-reviewer` reads the diff. Fix its findings under the scope rule above.
-7. **Open the PR** with `gh pr create --draft --base <base>`, from the repo's template or `pr-body <base>`, with the evidence in `## Verification` and how to revert in `## Blast Radius`.
-8. **Mark ready** with `gh pr ready <N>` when the local evidence is complete.
-9. **Babysit** until the ready checklist passes or a stop rule fires. If you end a turn with nothing set to wake you, the work stops.
-   - Handle existing checks and comments first. Then start one watcher per PR and end the turn: in T3 Code, `watch_pull_request` in the thread that owns the PR; elsewhere, `gh pr checks <N> --watch` as one background command, then read `gh pr view <N> --comments` when it exits. If a review bot has not finished, wait with Monitor on an until-loop over `gh pr view <N> --json reviews`. Never write a sleep loop.
-   - A wake is news, not a merge decision. Act only on checks and comments newer than the latest push. Verify each bot finding in the source before you change code. Tell a real failure from an infrastructure flake.
-   - On a failed check, read `gh run view <id> --log-failed`, fix the root cause, re-verify and push. On a review comment, fix it or reply with a specific reason.
-   - When the base moves, merge it in, rerun step 5 and push. `watch_pull_request` does not report BEHIND, so check `mergeStateStatus`.
-10. **Ready checklist.** Stop only when all are true at the current head:
-   - The evidence covers every changed file and behavior.
-   - `diff-audit <base>` shows no block, or the PR body gives each one a reason.
-   - Required checks are green; with none required, every check that ran is green and none is pending.
-   - Review bots have finished, and every finding is fixed or answered.
-   - No reviewer has changes requested, and the branch is up to date with no conflicts.
-11. **Report** in the format below, ending with `Ready for Kolin to merge.` In T3 Code, call `unwatch_pull_request` first.
+
+The method is pstack's `poteto-mode`, read through `pstack-local`:
+
+1. The playbook that matches the task (Bug fix, Feature, Refactoring and the rest), on a work branch off the base the policy names. When you take over someone's PR, keep their commits or credit them with `Co-authored-by:`.
+2. The fresh review the policy names (Pull requests), then **Opening a PR**, with the body from the repo's template or `pr-body <base>`.
+3. **Babysit** in `drive` mode until the watcher reports `READY`. In T3 Code, the watcher is `watch_pull_request` in the thread that owns the PR; end the turn after you arm it. If you end a turn with nothing set to wake you, the work stops.
+
+Before you report ready, also check at the current head:
+
+- The evidence covers every changed file and behavior.
+- `diff-audit <base>` shows no block, or the PR body gives each one a reason.
+- The branch is up to date with the base (`mergeStateStatus`; `watch_pull_request` does not report BEHIND).
+
+Then report in the format below, ending with `Ready for Kolin to merge.` In T3 Code, call `unwatch_pull_request` first.
+
 ## Stop rules
 Stop and report when a guard hook blocks a command you need, the work needs anything under "You may not", the same check fails 3 times after separate fixes, reviewers conflict or the intent is unclear, or the fix must grow past the original intent.
 Contact Kolin only when blocked or ready. Ask with the question tool (AskUserQuestion) if one exists, with the PR link, the block, the options and your recommendation first. Otherwise make it the first line of the report.

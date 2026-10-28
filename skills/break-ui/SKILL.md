@@ -105,30 +105,8 @@ Every long string forces this choice. Make it per field, not globally:
 - **Clamp** (`line-clamp: 2`) for multi-line previews in cards, so card heights stay predictable.
 - **Never truncate** numbers, amounts, dates, or anything the user compares. Give them the room.
 
-### Phase 5 — Report
+### Phase 5 — Report and fix
 
-Fix the clear breaks, leave the toggle running, and report in the format below.
+Fix the clear breaks, leave the toggle running, and re-check Demo so a fix does not regress it. Keep the worst-case fixture as the regression test.
 
-### Phase 6 — Fix on request
-
-After fixes, re-check Demo too: a fix for the worst case must not regress the demo. Keep the worst-case fixture as the regression test.
-
-## Required Output Format
-
-### Part 1 — What broke
-
-One row per break, worst first. Severity: **Broken** (content unreadable, action unreachable, wrong data shown), **Ugly** (readable but visibly wrong: squished avatar, wrapped badge), **Fragile** (fine now, one realistic step from breaking: no limit, no fallback).
-
-| # | Severity | Field | Worst-case value | What happens | Fix |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Broken | `email` | `bartholomew.fitzgerald@northwind-industries-holdings.example.com` | Pushes the ••• menu off the row; menu unreachable at 400px | `min-width: 0` on text column, `overflow-wrap: anywhere` on email, `flex-shrink: 0` on menu |
-
-Every row has `file:line` for the fix location in the Fix cell or directly below the table.
-
-### Part 2 — Decisions for Kolin
-
-Breaks with more than one right answer: truncate vs wrap for a field, what an empty role should show, whether a 1,000-row list paginates or virtualizes. One line each, with your recommendation and why.
-
-### Part 3 — What held up
-
-List the worst cases the component already handles. This shows the test was real and tells Kolin what not to touch.
+Report the breaks worst first, each with its severity (**Broken**: unreadable, unreachable or wrong data; **Ugly**: readable but visibly wrong; **Fragile**: one realistic step from breaking), the field, the value, what happens, and the fix with its `file:line`. Then list the breaks with more than one right answer, one line each with your recommendation, and the worst cases that already held up.

@@ -41,7 +41,7 @@ class FeatureBudgetTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("files=3 lines=30 budget=5/800 (read)  ok", result.stdout)
         self.assertNotIn("files=4", result.stdout)
-        self.assertIn("Where Kolin steps in", result.stdout)
+        self.assertIn("(repo-standard, Layout)", result.stdout)
 
     def test_over_budget_fails_review_and_double_stops_the_wave_without_failing(self):
         for n in range(6):
@@ -51,7 +51,7 @@ class FeatureBudgetTests(unittest.TestCase):
         result = self.run_cli()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("wide  files=6 lines=6 budget=5/800 (read)  over — fails review", result.stdout)
-        self.assertIn("huge  files=11 lines=11 budget=5/800 (read)  2x — wave stops until Kolin approves a new budget (foundation, Where Kolin steps in)", result.stdout)
+        self.assertIn("huge  files=11 lines=11 budget=5/800 (read)  2x — wave stops until Kolin approves a new budget (repo-standard, Layout)", result.stdout)
 
     def test_reads_budgets_from_the_plan_and_falls_back_to_kind_defaults(self):
         self.write(".pstack/feature-budgets.json", json.dumps({
@@ -72,7 +72,7 @@ class FeatureBudgetTests(unittest.TestCase):
         result = self.run_cli()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("0 features (report-only)", result.stdout)
-        self.assertIn("Where Kolin steps in", result.stdout)
+        self.assertIn("(repo-standard, Layout)", result.stdout)
 
     def test_lists_under_40_line_single_importer_and_skips_a_library_wrapper(self):
         self.source("src/features/otif/tiny.ts", 12)

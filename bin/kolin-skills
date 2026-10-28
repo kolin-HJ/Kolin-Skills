@@ -81,7 +81,7 @@ REQUIRED_TOOLS = {
     "node": "the loop-refactor-to-pstack gate templates are tested with it, and npx skills needs it",
 }
 SKILL_INDEXES = ["README.md"]
-SIZE_BUDGETS = {"policy/AGENTS.md": 4_500, "skills/pstack-local/SKILL.md": 8_000}
+SIZE_BUDGETS = {"policy/AGENTS.md": 3_500, "skills/pstack-local/SKILL.md": 8_000}
 MAX_FILE_LINES = 1000
 CI_VALUES = {"1", "true", "yes"}
 
