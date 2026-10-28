@@ -243,7 +243,8 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `kolin-skills upstream` | Installs third-party skills at pinned commits. `--bump` moves the pins |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
 | `kolin-skills stacks` | Lists running native Supabase stacks. `--stop` stops the idle ones. `--notice` runs at session start and prints only when idle stacks exist |
-| `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor |
+| `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor. With a path, it only runs `check-drift` |
+| `kolin-skills check-drift <path>` | Fails when that tree's vendored pstack SOURCE/rev or synced `senior-reviewer` differs from this repo. What it compares, and the hj-supply-chain / box follow-ups: [`docs/consumer-drift.md`](docs/consumer-drift.md) |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts |
 | `pr-body <base>` | Prints a PR body skeleton with the policy's sections and a diff table grouped into code, tests and docs |
 | `diff-audit <base>` | Flags reward hacks and slop in a diff (skipped tests, comments, new dependencies) and lists every addition for the value check |

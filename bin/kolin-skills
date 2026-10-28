@@ -3,6 +3,7 @@ import argparse
 import contextlib
 import datetime
 import fcntl
+import hashlib
 import json
 import re
 import signal
@@ -555,6 +556,95 @@ def overlong_files(root=REPO, limit=MAX_FILE_LINES):
     return found
 
 
+PSTACK_SOURCE = ".agents/PSTACK.SOURCE"
+VENDOR_JSONS = ("upstream/vendor.json", ".agents/vendor.json")
+VENDOR_CLONE = ".agents/vendor/cursor-plugins"
+SYNCED_REVIEWER = ".claude/agents/senior-reviewer.md"
+REV_LINE = re.compile(r"(?im)^(commit|rev|sha):\s*([0-9a-f]{7,40})\b")
+
+
+def pinned_cursor_plugins_rev():
+    return json.loads((REPO / "upstream/vendor.json").read_text())["cursor-plugins"]["rev"]
+
+
+def same_git_rev(recorded, pinned):
+    left, right = recorded.lower(), pinned.lower()
+    return left == right or (len(left) >= 7 and right.startswith(left)) or (len(right) >= 7 and left.startswith(right))
+
+
+def rev_from_source(path):
+    text = path.read_text()
+    match = REV_LINE.search(text)
+    if match:
+        return match.group(2)
+    stripped = text.strip()
+    return stripped if re.fullmatch(r"[0-9a-f]{7,40}", stripped, re.I) else None
+
+
+def cursor_plugins_rev(data):
+    plugin = data.get("cursor-plugins") if isinstance(data, dict) else None
+    if not isinstance(plugin, dict):
+        return None
+    rev = plugin.get("rev") or plugin.get("commit")
+    if isinstance(rev, str) and re.fullmatch(r"[0-9a-f]{7,40}", rev.lower()):
+        return rev
+    return None
+
+
+def recorded_pstack_revs(target):
+    found = []
+    source = target / PSTACK_SOURCE
+    if source.is_file():
+        found.append((PSTACK_SOURCE, rev_from_source(source)))
+    for relative in VENDOR_JSONS:
+        path = target / relative
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            found.append((f"{relative} cursor-plugins.rev", None))
+            continue
+        if isinstance(data, dict) and "cursor-plugins" in data:
+            found.append((f"{relative} cursor-plugins.rev", cursor_plugins_rev(data)))
+    clone = target / VENDOR_CLONE
+    if (clone / ".git").exists():
+        result = subprocess.run(["git", "-C", str(clone), "rev-parse", "HEAD"], text=True, capture_output=True, timeout=5)
+        found.append((VENDOR_CLONE, result.stdout.strip() if result.returncode == 0 else None))
+    return found
+
+
+def consumer_drift_problems(target):
+    pin = pinned_cursor_plugins_rev()
+    problems = []
+    for label, rev in recorded_pstack_revs(target):
+        if not rev:
+            problems.append(f"{label} has no cursor/plugins rev; record the pin from Kolin-Skills upstream/vendor.json ({pin[:12]})")
+        elif not same_git_rev(rev, pin):
+            problems.append(f"{label} is {rev[:12]}, not the Kolin-Skills pin {pin[:12]} in upstream/vendor.json; refresh from that rev or stop vendoring and run kolin-skills apply")
+    reviewer = target / SYNCED_REVIEWER
+    canonical = REPO / "agents/senior-reviewer.md"
+    if reviewer.is_symlink() and not reviewer.exists():
+        problems.append(f"{SYNCED_REVIEWER} is a broken symlink; replace it from Kolin-Skills agents/senior-reviewer.md or run kolin-skills apply")
+    elif reviewer.is_file() and reviewer.resolve() != canonical.resolve() and hashlib.sha256(reviewer.read_bytes()).digest() != hashlib.sha256(canonical.read_bytes()).digest():
+        problems.append(f"{SYNCED_REVIEWER} does not match Kolin-Skills agents/senior-reviewer.md ({line_count(reviewer)} lines vs {line_count(canonical)}); replace it from the repo or delete the copy and run kolin-skills apply")
+    return problems
+
+
+def check_drift(target_raw):
+    target = pathlib.Path(target_raw).expanduser().resolve()
+    if not target.is_dir():
+        print(f"FAIL: {target} is not a directory", file=sys.stderr)
+        return 1
+    problems = consumer_drift_problems(target)
+    for problem in problems:
+        print(f"FAIL: {problem}", file=sys.stderr)
+    if problems:
+        return 1
+    print(f"Passed: vendored pstack SOURCE/rev and synced senior-reviewer match Kolin-Skills, or are absent, at {target}")
+    return 0
+
+
 def check(files_only=False):
     failures = [f"{entry}, over the {MAX_FILE_LINES}-line limit; split it in its own change"
                 for entry in overlong_files()]
@@ -739,6 +829,9 @@ def main():
     stacks_parser.add_argument("--notice", action="store_true", help="session-start hook: one JSON line when idle stacks exist, else nothing")
     check_parser = commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets, file length and tests")
     check_parser.add_argument("--files", action="store_true", help="only the 1,000-line file limit")
+    check_parser.add_argument("target", nargs="?", help="scan this tree for a vendored pstack pin or synced senior-reviewer that drifted from this repo (skips the rest of the gate)")
+    drift_parser = commands.add_parser("check-drift", help="fail when a tree's vendored pstack or synced senior-reviewer drifts from this repo")
+    drift_parser.add_argument("target", help="repo root to scan")
     commands.add_parser("install", help="first run on a machine: upstream, apply, check")
     args = parser.parse_args()
     if args.command == "apply":
@@ -752,7 +845,11 @@ def main():
     if args.command == "stacks":
         return stacks(args.stop, args.idle_hours, args.notice)
     if args.command == "check":
+        if args.target and not args.files:
+            return check_drift(args.target)
         return check(files_only=args.files)
+    if args.command == "check-drift":
+        return check_drift(args.target)
     fetched = upstream()
     return check() or fetched
 
