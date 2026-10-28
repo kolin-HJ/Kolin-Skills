@@ -8,7 +8,7 @@ This is the only agent instruction file in this repository. Every agent reads it
 
 This repo runs Lauren Tan's pstack method ([upstream](https://github.com/cursor/plugins/tree/main/pstack), MIT), vendored in `.agents/skills/` at the commit in `.agents/PSTACK.SOURCE`. Go deep first. The goal is the most impact with the least code, proven on the running app.
 
-1. **Route every task through poteto-mode.** Read `.agents/skills/poteto-mode/SKILL.md`, match the task to one playbook in `.agents/skills/poteto-mode/playbooks/`, and open a todo list that starts with its steps. Mark a skipped step `skip: <reason>`.
+1. **Non-trivial program units follow poteto-mode playbooks.** Read `.agents/skills/poteto-mode/SKILL.md` and match the unit to one playbook in `.agents/skills/poteto-mode/playbooks/`.
 2. **Understand before editing.** A nontrivial change starts with the `how` skill. Code that crosses a module boundary gets `architect` first. Name the data shape before writing logic.
 3. **Observe, do not ask.** Prototype any question an experiment can answer. Ask only for product or preference calls. Prove it on the real app.
 4. **Review adversarially.** Read every non-trivial diff in a fresh context (`<reviewer>`). A contested design, mutation, access rule or schema change also gets `interrogate`.

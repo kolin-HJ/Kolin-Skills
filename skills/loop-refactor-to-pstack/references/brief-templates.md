@@ -1,6 +1,6 @@
 # Brief templates
 
-The brief is the product (Orchestrate, The brief). A worker inherits none of your context and cannot ask a question, so a vague brief fails quietly. Spawn it on `poteto-agent` or the repo's implementer, which run Sonnet 5.5 at medium effort and load the user's rules; name the principle leaves the unit needs in the brief. Built-in agents load neither pstack nor the user's rules (`references/subagents.md`). Quote every rule the task depends on, and write for that tier: exact files, exact commands, the output that means done, and the cases where the worker must stop.
+The brief is the product (Orchestrate, The brief). A worker inherits none of your context and cannot ask a question, so a vague brief fails quietly. Spawn it on `poteto-agent` or the repo's implementer, which run Sonnet 5.5 at medium effort; quote any principle the unit depends on in the brief. Built-in agents do not load the user's rules (`references/subagents.md`). Quote every rule the task depends on, and write for that tier: exact files, exact commands, the output that means done, and the cases where the worker must stop.
 
 Every spawn carries all nine fields. A field you cannot fill is a unit you have not scoped. Size the brief to the unit: a one-command unit collapses the template to a paragraph that still names goal, scope, verify and report.
 
@@ -102,7 +102,7 @@ Leave and report: any site whose error message, status code, write order or retr
 - No runtime import cycles. Shared pieces move into a leaf file.
 - A new sibling holding components or hooks gets the same client or server directive on its first line.
 - Every file ends under the limit, with room for later waves.
-- Rule hits that move with code show up as rises in the new files. Report them as moved hits; the coordinator re-keys them.
+- Rule hits that move with code show up as rises in the new files. Report them as moved hits; the orchestrator re-keys them.
 
 ## Verifier brief (the riskiest lane)
 

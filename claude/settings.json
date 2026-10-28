@@ -92,7 +92,7 @@
         ]
       },
       {
-        "matcher": "Bash|Read|Grep|Glob",
+        "matcher": "Bash|Read|Grep",
         "hooks": [
           {
             "type": "command",
@@ -198,6 +198,7 @@
     "dataviz": "name-only",
     "anthropic-skills:computer-use": "name-only",
     "reverse-engineer-anything": "user-invocable-only",
-    "code-review": "name-only"
+    "code-review": "name-only",
+    "council": "user-invocable-only"
   }
 }

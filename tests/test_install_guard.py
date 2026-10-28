@@ -134,7 +134,7 @@ class InstallGuardTests(unittest.TestCase):
         result = subprocess.run([shutil.which("bash"), str(HOOK)], input=json.dumps(payload), text=True,
                                 capture_output=True, env={"HOME": str(self.home), "PATH": str(tools)}, timeout=20)
         self.assertEqual(result.returncode, 2)
-        self.assertIn("D4: the install check could not run", result.stderr)
+        self.assertIn("the install check could not run", result.stderr)
 
 
 class StalePullTests(unittest.TestCase):

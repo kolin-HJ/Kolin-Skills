@@ -259,7 +259,7 @@ class ApplyTests(unittest.TestCase):
                 guarded = [entry["matcher"] for entry in entries if "block-env-reads.py" in json.dumps(entry)]
                 self.assertTrue(guarded and "Bash" in guarded[0], guarded)
         claude_guarded = next(entry["matcher"] for entry in claude if "block-env-reads.py" in json.dumps(entry))
-        self.assertEqual(set(claude_guarded.split("|")), {"Bash", "Read", "Grep", "Glob"})
+        self.assertEqual(set(claude_guarded.split("|")), {"Bash", "Read", "Grep"})
 
     def write_skill(self, directory):
         directory.mkdir(parents=True)

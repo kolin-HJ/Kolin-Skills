@@ -20,15 +20,4 @@ const shouldReduceMotion = useReducedMotion();
 const closedX = shouldReduceMotion ? 0 : '-100%';
 ```
 
-### Touch device hover states
-
-```css
-@media (hover: hover) and (pointer: fine) {
-  .element:hover {
-    transform: scale(1.05);
-  }
-}
-```
-
-Touch devices trigger hover on tap, causing false positives. Gate hover animations behind this media query.
-
+Hover gating for touch devices: see `mobile-native` `references/touch-and-press.md`.

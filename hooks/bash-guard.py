@@ -41,14 +41,13 @@ UNQUOTED_GLOB = re.compile(
 )
 LONG_LIVED = re.compile(r"--watch\b|\bwatch\b|\bdev\b")
 POLL_MESSAGE = (
-    "Blocked: a sleep loop that polls holds this turn and hits the Bash timeout. "
-    "Start the job with run_in_background: true and you are notified when it exits. "
-    "To wait for a file, a port or a log line, use the Monitor tool with an until-loop."
+    "Blocked: a foreground sleep loop holds the turn until the Bash timeout. "
+    "Run the job with run_in_background: true, or wait for a file, port or log line with Monitor and an until-loop."
 )
 GATE_LOG_NOTE = "The hook saved the gate's full output to {logs} and ran your filter on that file. Read it for the whole output."
 CURL_RETRY_MESSAGE = (
-    "Blocked: a long curl retry holds the turn and ignores a dead server; start the server with "
-    "run_in_background and wait with Monitor, using an until-loop that also exits when the server process dies."
+    "Blocked: a foreground curl with more than 10 retries holds the turn and keeps retrying a dead server. "
+    "Start the server with run_in_background, then wait with Monitor in an until-loop that also exits when the server dies."
 )
 
 DOCKER_DB = re.compile(
@@ -56,10 +55,9 @@ DOCKER_DB = re.compile(
     re.IGNORECASE,
 )
 DOCKER_DB_MESSAGE = (
-    "Blocked: local Supabase and Postgres run in the Supabase CLI's native runtime, one stack per checkout, "
-    "never in Docker. Read ~/.agents/skills/local-supabase/SKILL.md: run `supabase start --runtime native "
-    "--output-format json` and connect with its env.DB_URL. For a task already in progress, start the native "
-    "stack against this checkout's supabase/ folder and carry on; do not ask Kolin to exempt this hook."
+    "Blocked: local Supabase and Postgres run in the Supabase CLI's native runtime, never in Docker "
+    "(see the local-supabase skill). Run `supabase start --runtime native --output-format json`, "
+    "connect with its env.DB_URL, and carry on with the task."
 )
 
 

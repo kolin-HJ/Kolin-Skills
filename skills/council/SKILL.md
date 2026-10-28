@@ -9,13 +9,13 @@ A reviewer on the model that wrote the code shares its blind spots. Council adds
 ## Before round 1
 
 - Fix what you already know: open PR comments, failing checks, known bugs. Council reviews the current code, not a list of fixes you plan to make.
-- Run the repo's gate and record the result. Do not send code that this change breaks.
+- Run the repo's gate and record the result.
 - Find the base: `git merge-base HEAD origin/<base>`. Use one diff command for every round.
 - Write the intent and what is out of scope in one or two sentences.
 
 ## Members
 
-Use the members Kolin names. Otherwise use the latest flagship model of three providers, for example Claude Opus, GPT Sol and Gemini Pro, at high effort.
+Use the members Kolin names. Otherwise use the latest flagship model of three providers, at high effort.
 
 In T3 Code, call `orchestrator_capabilities`, then start one `delegate_task` per member in parallel, with `role: "review"`. Every round is a new `delegate_task`. Do not hardcode a model ID. Elsewhere, use the harness's subagent tool with that model. If a member is not available, report it. Never put a different model in its seat.
 
