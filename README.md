@@ -13,7 +13,7 @@ Claude Code, Codex, Cursor and Grok follow the same rules, skills and guardrails
 ![Gate](https://img.shields.io/badge/gate-pre--push_%2B_CI-blue)
 ![check](https://github.com/kolin-HJ/Kolin-Skills/actions/workflows/check.yml/badge.svg)
 
-[What](#what-it-is) · [Why](#why-use-it) · [How it works](#how-it-works) · [Install](#install) · [Quality](#what-quality-means) · [Daily use](#working-with-it) · [Skills](#skills)
+[What](#what-it-is) · [Why](#why-use-it) · [How it works](#how-it-works) · [Install](#install) · [Updates](#updates-by-environment) · [Quality](#what-quality-means) · [Daily use](#working-with-it) · [Skills](#skills)
 
 </div>
 
@@ -87,33 +87,23 @@ python3 ~/Kolin-Skills/bin/kolin-skills install
 
 1. **Run `install` once.** It fetches the pinned third-party skills, links everything into each tool, runs `check` and puts `kolin-skills` in `~/.local/bin`.
 2. **Open any agent in any repo.** There is nothing to start.
-3. **Updates come by themselves.** Each Claude Code and Codex session pulls the latest `main`, as long as the clone has no local edits. When an update moves a third-party pin, run `kolin-skills upstream`.
+3. **Stay on `main`.** Updates are not the same on every tool. Use the matrix. Put a machine on current `main` with [`docs/stay-on-main.md`](docs/stay-on-main.md). When an update moves a third-party pin, run `kolin-skills upstream`.
 4. **Put your own rules in each project's `AGENTS.md`.** Do not edit the clone, because a local edit stops the updates.
 
 With Node older than 22.20, `install` skips the third-party skills and says so. Offline, it links what it has and exits 1.
 
-### Rewire onto current main
+### Updates by environment
 
-An old install keeps its old hooks until home is wired to a checkout on current `main`. Those hooks can block commands that current `main` allows: without `jq` the git guard blocks every shell command, and an old lint hook blocked metric findings that now only report. Do not change hook behavior to work around that. Rewire.
+| Environment | Auto `pull` at session start | What is live after `apply` on current `main` |
+|---|---|---|
+| Claude Code | Yes (`claude/settings.json` SessionStart) | Policy, skills, subagents, hooks |
+| Codex | Yes (`codex/hooks.json` SessionStart) | Policy, skills, subagents, most hooks |
+| Cursor | No. `cursor/hooks.json` is `postToolUse` lint only | Policy rule, skills, lint hook via `~/.agents` and `~/.cursor` |
+| Grok | No. Grok has no hooks | Policy and skills |
 
-`apply` writes into `$HOME`. Use the account the agents on that machine use. Invoke the CLI from the checkout on current `main`, not `kolin-skills` on `PATH`, which may still be the old symlink. A worktree is the wrong checkout; `pull` only updates the wired clone, and only when it is clean `main`.
+A clone with local edits also skips `pull`. Cursor and Grok then keep whatever `apply` last wrote, even if `origin/main` moved.
 
-```sh
-cd ~/Kolin-Skills
-git fetch origin
-git switch main
-git merge --ff-only origin/main
-python3 "$PWD/bin/kolin-skills" apply --adopt
-python3 "$PWD/bin/kolin-skills" check
-```
-
-`--adopt` is required when `~/.kolin-skills/state.json` names a different checkout. Skip it when this checkout already owns home. `install` is only the first run on a machine (it also fetches third-party skills).
-
-Confirm:
-
-1. `jq -r .repo ~/.kolin-skills/state.json` is this checkout's absolute path.
-2. `git -C "$(jq -r .repo ~/.kolin-skills/state.json)" rev-parse HEAD origin/main` prints the same SHA twice.
-3. `check` prints `Passed:`.
+T3Bot owns apply verification on T3 DEVS and the home Mac. Box re-apply and hj-supply-chain unvendor are follow-ons ([`docs/consumer-drift.md`](docs/consumer-drift.md)).
 
 ## What quality means
 
@@ -223,10 +213,11 @@ claude/                      managed settings keys, status line, output style (s
 codex/, cursor/              hook config and the Cursor policy rule
 .githooks/                   pre-commit runs check --files; pre-push runs check; post-merge, post-checkout, post-rewrite run apply
 upstream/                    pstack and cursor-team-kit (vendor.json), npx skills (skills.json)
+docs/                        stay-on-main, consumer-drift
 tests/                       installer, hook and repo-rule tests, run by check
 ```
 
-Edits to existing files are live at once. A new, renamed or deleted skill or agent needs `apply`, which runs by itself at session start and after `git pull`, `checkout` and `rebase` here. `apply` is idempotent, and a real file it replaces goes to `~/.kolin-skills/backup/`.
+Edits to existing files are live at once. A new, renamed or deleted skill or agent needs `apply`. Claude Code and Codex run `apply` through `pull` at session start. After `git pull`, `checkout` and `rebase` in this clone, the git hooks run `apply`. Cursor and Grok have no session `pull`; they follow links from the last `apply`. `apply` is idempotent, and a real file it replaces goes to `~/.kolin-skills/backup/`.
 
 Project rules live in each project's own `AGENTS.md`, never here. Not managed: credentials, Codex `config.toml`, Cursor `mcp.json`, and `permissions` and `autoMode` in `~/.claude/settings.json`.
 
@@ -239,7 +230,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 |---|---|
 | `kolin-skills install` | First run on a machine: `upstream`, `apply`, then `check` |
 | `kolin-skills apply` | Links the repo into home. `--check` reports drift only. `--adopt` moves home to this checkout. `--if-wired` runs only when home is wired here |
-| `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, then applies. Runs at each Claude Code and Codex session start, and prints `kolin-skills: stale setup` when it cannot update |
+| `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, then applies. Runs at each Claude Code and Codex session start. Not Cursor or Grok. Prints `kolin-skills: stale setup` when it cannot update. Machines without those hooks: [`docs/stay-on-main.md`](docs/stay-on-main.md) |
 | `kolin-skills upstream` | Installs third-party skills at pinned commits. `--bump` moves the pins |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
 | `kolin-skills stacks` | Lists running native Supabase stacks. `--stop` stops the idle ones. `--notice` runs at session start and prints only when idle stacks exist |
