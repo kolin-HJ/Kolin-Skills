@@ -227,6 +227,28 @@ class ApplyTests(unittest.TestCase):
         self.assertIn("CI: skipped home drift and vendored skills.", result.stdout)
         self.assertNotIn("home differs", result.stderr)
 
+    def test_check_fails_on_a_skill_claude_code_cannot_list(self):
+        shutil.rmtree(self.repo / "tests")
+        (self.repo / "tests").mkdir()
+        (self.repo / "tests/test_ok.py").write_text(
+            "import unittest\nclass Ok(unittest.TestCase):\n    def test_ok(self):\n        self.assertEqual(1, 1)\n"
+        )
+        nameless = self.repo / "skills/no-description"
+        nameless.mkdir()
+        (nameless / "SKILL.md").write_text("---\nname: no-description\n---\n\n# x\n")
+        result = self.run_cli("check", extra_env={"CI": "true"})
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("skills/no-description/SKILL.md has no frontmatter description", result.stderr)
+
+    def test_check_fails_on_a_home_skill_link_without_a_skill_file(self):
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        target = self.home / ".agents/vendor/cursor-plugins/pstack/skills/architect"
+        target.mkdir(parents=True)
+        (self.home / ".claude/skills/architect").symlink_to(target)
+        result = self.run_cli("check", "--files")
+        self.assertIn("~/.claude/skills/architect links to", result.stderr)
+        self.assertIn("which has no SKILL.md", result.stderr)
+
     def test_check_in_a_second_checkout_checks_the_repo_not_home(self):
         self.assertEqual(self.run_cli("apply").returncode, 0)
         first = self.repo
