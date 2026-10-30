@@ -236,9 +236,14 @@ class ApplyTests(unittest.TestCase):
         nameless = self.repo / "skills/no-description"
         nameless.mkdir()
         (nameless / "SKILL.md").write_text("---\nname: no-description\n---\n\n# x\n")
+        readme = self.repo / "README.md"
+        readme.write_text(readme.read_text() + "\n| `no-description` | test fixture |\n")
         result = self.run_cli("check", extra_env={"CI": "true"})
         self.assertEqual(result.returncode, 1)
-        self.assertIn("skills/no-description/SKILL.md has no frontmatter description", result.stderr)
+        self.assertEqual(
+            [line for line in result.stderr.splitlines() if line.startswith("FAIL:")],
+            ["FAIL: skills/no-description/SKILL.md has no frontmatter description; Claude Code cannot list it"],
+        )
 
     def test_check_fails_on_a_home_skill_link_without_a_skill_file(self):
         self.assertEqual(self.run_cli("apply").returncode, 0)
@@ -246,8 +251,11 @@ class ApplyTests(unittest.TestCase):
         target.mkdir(parents=True)
         (self.home / ".claude/skills/architect").symlink_to(target)
         result = self.run_cli("check", "--files")
-        self.assertIn("~/.claude/skills/architect links to", result.stderr)
-        self.assertIn("which has no SKILL.md", result.stderr)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(
+            [line for line in result.stderr.splitlines() if line.startswith("FAIL:")],
+            [f"FAIL: ~/.claude/skills/architect links to {target}, which has no SKILL.md; run kolin-skills apply"],
+        )
 
     def test_check_in_a_second_checkout_checks_the_repo_not_home(self):
         self.assertEqual(self.run_cli("apply").returncode, 0)
