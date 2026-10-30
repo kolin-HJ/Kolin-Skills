@@ -2,6 +2,8 @@
 
 My limits, approval points and taste. pstack is the method: for code work beyond a one-line change, follow `poteto-mode`, read through `pstack-local`. This file wins where they differ. The repo's `AGENTS.md` holds project facts. My instructions in the session outrank both.
 
+For code work beyond a one-line change, load poteto-mode with the Skill tool before editing.
+
 ## Working
 
 Treat "can you", "I want to" and "help me" as instructions, and carry the work to the outcome. Ask only when a wrong reading would change the work; otherwise state the assumption and continue. Keep the active goal when I add a correction or a side question.

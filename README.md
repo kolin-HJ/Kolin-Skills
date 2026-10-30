@@ -13,7 +13,7 @@ Claude Code, Codex, Cursor and Grok follow the same rules, skills and guardrails
 ![Gate](https://img.shields.io/badge/gate-pre--push_%2B_CI-blue)
 ![check](https://github.com/kolin-HJ/Kolin-Skills/actions/workflows/check.yml/badge.svg)
 
-[What](#what-it-is) · [Why](#why-use-it) · [How it works](#how-it-works) · [Install](#install) · [Updates](#updates-by-environment) · [Quality](#what-quality-means) · [Daily use](#working-with-it) · [Skills](#skills)
+[What](#what-it-is) · [Why](#why-use-it) · [How it works](#how-it-works) · [Install](#install) · [For agents](#install-for-agents) · [Updates](#updates-by-environment) · [Quality](#what-quality-means) · [Daily use](#working-with-it) · [Skills](#skills)
 
 </div>
 
@@ -104,6 +104,23 @@ With Node older than 22.20, `install` skips the third-party skills and says so. 
 A clone with local edits also skips `pull`. Cursor and Grok then keep whatever `apply` last wrote, even if `origin/main` moved.
 
 T3Bot owns apply verification on T3 DEVS and the home Mac. Box re-apply and hj-supply-chain unvendor are follow-ons ([`docs/consumer-drift.md`](docs/consumer-drift.md)).
+
+## Install (for agents)
+
+Given this repo's URL and "install this", run these steps in order. Stop at the first failure and read its message.
+
+```sh
+for tool in git jq python3 node; do command -v "$tool" >/dev/null || echo "missing: $tool"; done
+python3 -c 'import sys; assert sys.version_info >= (3, 9), sys.version'
+node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 20)) process.exit(1)'
+CLONE="${KOLIN_SKILLS_DIR:-$HOME/Kolin-Skills}"
+git clone https://github.com/kolin-HJ/Kolin-Skills.git "$CLONE"
+python3 "$CLONE/bin/kolin-skills" install
+export PATH="$HOME/.local/bin:$PATH"
+kolin-skills check --quick
+```
+
+Keep the clone where it is, because the home folders link into it. `check --quick` takes seconds and passes only when the links resolve, the hooks and policy are wired, and `poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct` and the `principle-*` skills have no `disable-model-invocation` line. Then start a new session: a running agent keeps the skills and policy it loaded at start.
 
 ## What quality means
 
@@ -234,7 +251,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `kolin-skills upstream` | Installs third-party skills at pinned commits. `--bump` moves the pins |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
 | `kolin-skills stacks` | Lists running native Supabase stacks. `--stop` stops the idle ones. `--notice` runs at session start and prints only when idle stacks exist |
-| `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor. With a path, it only runs `check-drift` |
+| `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. `--quick` checks only home, in seconds: links resolve, hooks and policy are wired, the self-invoking pstack skills carry no model lock. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor. With a path, it only runs `check-drift` |
 | `kolin-skills check-drift <path>` | Fails when that tree's vendored pstack SOURCE/rev or synced `senior-reviewer` differs from this repo. What it compares, and the hj-supply-chain / box follow-ups: [`docs/consumer-drift.md`](docs/consumer-drift.md) |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts |
 | `pr-body <base>` | Prints a PR body skeleton with the policy's sections and a diff table grouped into code, tests and docs |

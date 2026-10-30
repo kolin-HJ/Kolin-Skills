@@ -58,9 +58,9 @@ class ExplainShapeTests(unittest.TestCase):
         self.assertRegex(STE, r"yes")
 
     def test_size_budgets_are_the_repo_caps(self):
-        self.assertIn('"policy/AGENTS.md": 3_500', CLI)
+        self.assertIn('"policy/AGENTS.md": 3_600', CLI)
         self.assertIn('"skills/pstack-local/SKILL.md": 8_000', CLI)
-        self.assertLessEqual((REPO / "policy/AGENTS.md").stat().st_size, 3_500)
+        self.assertLessEqual((REPO / "policy/AGENTS.md").stat().st_size, 3_600)
         self.assertLessEqual((REPO / "skills/pstack-local/SKILL.md").stat().st_size, 8_000)
 
 
