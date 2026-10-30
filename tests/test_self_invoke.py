@@ -2,6 +2,7 @@ import json
 import os
 import pathlib
 import re
+import runpy
 import shutil
 import subprocess
 import sys
@@ -14,6 +15,7 @@ PSTACK_SKILLS = "cursor-plugins/pstack/skills"
 LOCKED_FRONTMATTER = "---\nname: {name}\ndescription: test {name}\ndisable-model-invocation: true\nicon: crown\n---\n\n# {name}\n"
 SELF_INVOKING = ["poteto-mode", "how", "architect", "tdd", "interrogate", "correct", "principle-fix-root-causes", "principle-prove-it-works"]
 USER_ONLY = ["swarm", "reflect"]
+OWN_USER_ONLY_SKILLS = ["full-send", "full-stop", "council", "loop-refactor-to-pstack"]
 
 
 def has_model_lock(skill_file):
@@ -93,6 +95,94 @@ class ApplySelfInvokeTests(SelfInvokeCase):
         for home in [".agents/skills", ".claude/skills"]:
             self.assertFalse((self.home / home / "tdd").is_symlink(), home)
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+
+
+class DerivedTreeTests(SelfInvokeCase):
+    ALLOWLIST_LINE = re.compile(r"^SELF_INVOKING_SKILLS = \{.*\}$", re.M)
+
+    def allowlist_without(self, name):
+        cli = self.repo / "bin/kolin-skills"
+        original = cli.read_text()
+        self.assertRegex(original, self.ALLOWLIST_LINE)
+        shrunk = self.ALLOWLIST_LINE.sub(lambda match: match.group(0).replace(f'"{name}", ', "").replace(f', "{name}"', ""), original)
+        self.assertNotEqual(shrunk, original)
+        cli.write_text(shrunk)
+        return original
+
+    def derived(self, *parts):
+        return self.home / ".kolin-skills/derived" / pathlib.Path(*parts)
+
+    def test_a_skill_that_joins_the_allowlist_later_is_derived_without_writing_under_the_vendor(self):
+        original = self.allowlist_without("how")
+        self.apply()
+        self.assertEqual(self.derived("how").resolve(), (self.vendor / "how").resolve())
+        (self.repo / "bin/kolin-skills").write_text(original)
+        self.apply()
+        self.assertEqual((self.vendor / "how/SKILL.md").read_text(), LOCKED_FRONTMATTER.format(name="how"))
+        self.assertTrue((self.vendor / "how/references").is_dir() and not (self.vendor / "how/references").is_symlink())
+        self.assertEqual((self.vendor / "how/references/guide.md").read_text(), "guide of how\n")
+        self.assertFalse(self.derived("how").is_symlink())
+        self.assertFalse(has_model_lock(self.home / ".claude/skills/how/SKILL.md"))
+        self.assertEqual((self.home / ".claude/skills/how/references/guide.md").read_text(), "guide of how\n")
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+
+    def test_a_skill_that_leaves_the_allowlist_goes_back_to_the_vendored_folder_without_a_backup(self):
+        self.apply()
+        self.allowlist_without("how")
+        self.apply()
+        self.assertEqual((self.home / ".claude/skills/how").resolve(), (self.vendor / "how").resolve())
+        self.assertTrue(has_model_lock(self.home / ".claude/skills/how/SKILL.md"))
+        self.assertEqual(self.derived("how").resolve(), (self.vendor / "how").resolve())
+        self.assertFalse((self.home / ".kolin-skills/backup").exists())
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+
+    def test_a_subpath_that_upstream_deletes_leaves_no_dangling_link_in_the_derived_folder(self):
+        self.apply()
+        shutil.rmtree(self.vendor / "poteto-mode/references")
+        (self.derived("poteto-mode") / "stray.md").write_text("left behind\n")
+        self.apply()
+        self.assertEqual(sorted(os.listdir(self.derived("poteto-mode"))), ["SKILL.md"])
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+
+    def test_a_skill_that_upstream_drops_leaves_no_entry_in_the_derived_folder(self):
+        self.apply()
+        shutil.rmtree(self.vendor / "tdd")
+        shutil.rmtree(self.vendor / "swarm")
+        self.apply()
+        remaining = sorted(os.listdir(self.derived()))
+        self.assertEqual(remaining, sorted(set(SELF_INVOKING + USER_ONLY) - {"tdd", "swarm"}))
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+
+    def test_a_dangling_link_inside_a_derived_folder_fails_the_quick_check(self):
+        self.apply()
+        shutil.rmtree(self.vendor / "poteto-mode/references")
+        result = self.run_cli("check", "--quick")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("remove ~/.kolin-skills/derived/poteto-mode/references", result.stdout)
+        self.assertEqual(
+            [line for line in result.stderr.splitlines() if line.startswith("FAIL:")],
+            ["FAIL: home differs from the repo; fix each line above",
+             f"FAIL: ~/.kolin-skills/derived/poteto-mode/references links to {self.vendor}/poteto-mode/references, which does not exist; run kolin-skills apply"],
+        )
+
+
+class UserOnlyOwnSkillsTests(SelfInvokeCase):
+    def test_the_user_only_process_skills_are_never_on_the_allowlist(self):
+        self_invoking = runpy.run_path(str(REPO / "bin/kolin-skills"), run_name="not_main")["self_invoking"]
+        self.assertEqual([name for name in OWN_USER_ONLY_SKILLS if self_invoking(name)], [])
+
+    def test_apply_links_the_user_only_process_skills_unchanged_even_when_the_vendor_ships_the_same_name(self):
+        for name in OWN_USER_ONLY_SKILLS:
+            skill = self.vendor / name
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(LOCKED_FRONTMATTER.format(name=name))
+        self.apply()
+        for name in OWN_USER_ONLY_SKILLS:
+            for home in [".agents/skills", ".claude/skills"]:
+                with self.subTest(skill=name, home=home):
+                    self.assertEqual((self.home / home / name).resolve(), (self.repo / "skills" / name).resolve())
+                    self.assertEqual((self.home / home / name / "SKILL.md").read_text(), (REPO / "skills" / name / "SKILL.md").read_text())
+            self.assertFalse((self.home / ".kolin-skills/derived" / name).exists(), name)
 
 
 class PolicyLineTests(SelfInvokeCase):

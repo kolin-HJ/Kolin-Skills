@@ -87,7 +87,7 @@ REQUIRED_TOOLS = {
     "node": "the loop-refactor-to-pstack gate templates are tested with it, and npx skills needs it",
 }
 SKILL_INDEXES = ["README.md"]
-SIZE_BUDGETS = {"policy/AGENTS.md": 3_600, "skills/pstack-local/SKILL.md": 8_000}
+SIZE_BUDGETS = {"policy/AGENTS.md": 3_500, "skills/pstack-local/SKILL.md": 8_000}
 MAX_FILE_LINES = 1000
 CI_VALUES = {"1", "true", "yes"}
 
@@ -207,6 +207,11 @@ class Plan:
         else:
             self.backup(path)
 
+    def discard(self, path):
+        self.note(f"remove ~/{path.relative_to(HOME)}")
+        if not self.check:
+            (shutil.rmtree if path.is_dir() and not path.is_symlink() else os.unlink)(path)
+
     def remove(self, path):
         self.owned.add(path)
         self.note(f"remove ~/{path.relative_to(HOME)}")
@@ -228,26 +233,39 @@ def self_invoking(name):
 
 
 def without_model_lock(text):
-    lines = text.splitlines(keepends=True)
-    if not lines or lines[0].strip() != "---":
+    header = re.match(r"---\n.*?\n---\n", text, re.S)
+    if not header:
         return text
-    kept = [lines[0]]
-    for index, line in enumerate(lines[1:], 1):
-        if line.strip() == "---":
-            return "".join(kept + lines[index:])
-        locked = not line.startswith((" ", "\t")) and line.partition(":")[0].strip() == MODEL_LOCK_KEY
-        if not locked:
-            kept.append(line)
-    return text
+    return re.sub(rf"^{MODEL_LOCK_KEY}:.*\n", "", header.group(0), flags=re.M) + text[header.end():]
 
 
 def derive_unlocked_skill(plan, name, skill):
     derived = DERIVED / name
+    if derived.is_symlink():
+        plan.discard(derived)
+    plan.owned.add(derived)
     for entry in sorted(skill.iterdir()):
         if entry.name != "SKILL.md":
             plan.link(entry, derived / entry.name)
     plan.write(derived / "SKILL.md", without_model_lock((skill / "SKILL.md").read_text()))
     return derived
+
+
+def mirror_vendored_skill(plan, name, skill):
+    mirror = DERIVED / name
+    if mirror.exists() and not mirror.is_symlink():
+        plan.discard(mirror)
+    plan.link(skill, mirror)
+
+
+def prune_derived(plan):
+    for top in sorted(DERIVED.iterdir()) if DERIVED.is_dir() else []:
+        if top not in plan.owned:
+            plan.discard(top)
+        elif top.is_dir() and not top.is_symlink():
+            for child in sorted(top.iterdir()):
+                if child not in plan.owned:
+                    plan.discard(child)
 
 
 def points_into_managed_tree(path, roots):
@@ -284,7 +302,7 @@ def apply(plan, roots):
             source = derive_unlocked_skill(plan, name, skill)
         else:
             source = skill
-            plan.link(skill, DERIVED / name)
+            mirror_vendored_skill(plan, name, skill)
         plan.link(source, HOME / ".agents/skills" / name)
         for home in VENDOR_SKILL_HOMES[1:]:
             existing = HOME / home / name
@@ -292,6 +310,7 @@ def apply(plan, roots):
                 plan.owned.add(existing)
                 continue
             plan.link(pathlib.Path(f"../../.agents/skills/{name}"), existing)
+    prune_derived(plan)
 
     for name in sorted(DROPPED_SKILLS - declared_upstream_skills()):
         for home in WATCHED_HOMES:
@@ -720,6 +739,8 @@ def broken_link_problems():
     for home in [*OWN_SKILL_HOMES, ".claude/agents"]:
         directory = HOME / home
         candidates += sorted(directory.iterdir()) if directory.is_dir() else []
+    tops = sorted(DERIVED.iterdir()) if DERIVED.is_dir() else []
+    candidates += tops + [child for top in tops if top.is_dir() and not top.is_symlink() for child in top.iterdir()]
     return [f"~/{path.relative_to(HOME)} links to {os.readlink(path)}, which does not exist; run kolin-skills apply"
             for path in candidates if path.is_symlink() and not path.exists()]
 
