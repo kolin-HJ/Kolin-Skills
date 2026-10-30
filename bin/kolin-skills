@@ -27,6 +27,7 @@ REPO = on_disk_case(pathlib.Path(__file__).resolve().parent.parent)
 HOME = pathlib.Path.home()
 STATE_DIR = HOME / ".kolin-skills"
 VENDOR = HOME / ".agents/vendor"
+DERIVED = STATE_DIR / "derived"
 OWN_SKILL_HOMES = [".agents/skills", ".claude/skills", ".cursor/skills"]
 VENDOR_SKILL_HOMES = [".agents/skills", ".claude/skills"]
 VENDOR_SKILL_DIRS = {
@@ -34,6 +35,10 @@ VENDOR_SKILL_DIRS = {
     "cursor-plugins/cursor-team-kit/skills": None,
 }
 VENDOR_SKIP = {"setup-pstack"}
+SELF_INVOKING_SKILLS = {"poteto-mode", "how", "architect", "tdd", "interrogate", "correct"}
+SELF_INVOKING_PREFIXES = ("principle-",)
+MODEL_LOCK_KEY = "disable-model-invocation"
+QUICK_CHECK_SECONDS = 30
 VENDOR_AGENTS = ["cursor-plugins/pstack/agents/comment-sicko.md"]
 WATCHED_HOMES = [
     ".agents/skills", ".claude/skills", ".cursor/skills", ".codex/skills", ".grok/skills",
@@ -202,6 +207,11 @@ class Plan:
         else:
             self.backup(path)
 
+    def discard(self, path):
+        self.note(f"remove ~/{path.relative_to(HOME)}")
+        if not self.check:
+            (shutil.rmtree if path.is_dir() and not path.is_symlink() else os.unlink)(path)
+
     def remove(self, path):
         self.owned.add(path)
         self.note(f"remove ~/{path.relative_to(HOME)}")
@@ -218,9 +228,49 @@ def vendor_skills():
     return skills
 
 
+def self_invoking(name):
+    return name in SELF_INVOKING_SKILLS or name.startswith(SELF_INVOKING_PREFIXES)
+
+
+def without_model_lock(text):
+    header = re.match(r"---\n.*?\n---\n", text, re.S)
+    if not header:
+        return text
+    return re.sub(rf"^{MODEL_LOCK_KEY}:.*\n", "", header.group(0), flags=re.M) + text[header.end():]
+
+
+def derive_unlocked_skill(plan, name, skill):
+    derived = DERIVED / name
+    if derived.is_symlink():
+        plan.discard(derived)
+    plan.owned.add(derived)
+    for entry in sorted(skill.iterdir()):
+        if entry.name != "SKILL.md":
+            plan.link(entry, derived / entry.name)
+    plan.write(derived / "SKILL.md", without_model_lock((skill / "SKILL.md").read_text()))
+    return derived
+
+
+def mirror_vendored_skill(plan, name, skill):
+    mirror = DERIVED / name
+    if mirror.exists() and not mirror.is_symlink():
+        plan.discard(mirror)
+    plan.link(skill, mirror)
+
+
+def prune_derived(plan):
+    for top in sorted(DERIVED.iterdir()) if DERIVED.is_dir() else []:
+        if top not in plan.owned:
+            plan.discard(top)
+        elif top.is_dir() and not top.is_symlink():
+            for child in sorted(top.iterdir()):
+                if child not in plan.owned:
+                    plan.discard(child)
+
+
 def points_into_managed_tree(path, roots):
     text = os.readlink(path)
-    return text.startswith((*(f"{root}/" for root in roots), str(VENDOR), "../../.agents/skills/"))
+    return text.startswith((*(f"{root}/" for root in roots), str(VENDOR), str(DERIVED), "../../.agents/skills/"))
 
 
 def prune_stale_links(plan, directory, roots):
@@ -229,7 +279,7 @@ def prune_stale_links(plan, directory, roots):
     for path in sorted(directory.iterdir()):
         if not path.is_symlink() or path in plan.owned or not points_into_managed_tree(path, roots):
             continue
-        if not path.exists() or os.readlink(path).startswith(str(VENDOR)):
+        if not path.exists() or os.readlink(path).startswith((str(VENDOR), str(DERIVED))):
             plan.remove(path)
 
 
@@ -248,13 +298,19 @@ def apply(plan, roots):
     for name, skill in vendored.items():
         if name in {path.name for path in own}:
             continue
-        plan.link(skill, HOME / ".agents/skills" / name)
+        if self_invoking(name) and model_locked(skill / "SKILL.md"):
+            source = derive_unlocked_skill(plan, name, skill)
+        else:
+            source = skill
+            mirror_vendored_skill(plan, name, skill)
+        plan.link(source, HOME / ".agents/skills" / name)
         for home in VENDOR_SKILL_HOMES[1:]:
             existing = HOME / home / name
             if existing.exists() and not existing.is_symlink():
                 plan.owned.add(existing)
                 continue
             plan.link(pathlib.Path(f"../../.agents/skills/{name}"), existing)
+    prune_derived(plan)
 
     for name in sorted(DROPPED_SKILLS - declared_upstream_skills()):
         for home in WATCHED_HOMES:
@@ -645,9 +701,87 @@ def check_drift(target_raw):
     return 0
 
 
+def frontmatter_keys(skill_file):
+    lines = skill_file.read_text().splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    keys = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            return keys
+        key, separator, value = line.partition(":")
+        if separator and not line.startswith((" ", "\t")):
+            keys[key.strip()] = value.strip()
+    return {}
+
+
+def model_locked(skill_file):
+    return skill_file.is_file() and MODEL_LOCK_KEY in frontmatter_keys(skill_file)
+
+
+def unloadable_skill_problems():
+    problems = []
+    for skill in sorted((REPO / "skills").glob("*/SKILL.md")):
+        keys = frontmatter_keys(skill)
+        for required in ("name", "description"):
+            if not keys.get(required):
+                problems.append(f"skills/{skill.parent.name}/SKILL.md has no frontmatter {required}; Claude Code cannot list it")
+    for home in OWN_SKILL_HOMES:
+        directory = HOME / home
+        for path in sorted(directory.iterdir()) if directory.is_dir() else []:
+            if path.is_symlink() and points_into_managed_tree(path, [str(REPO / "skills"), str(VENDOR)]) and not (path / "SKILL.md").is_file():
+                problems.append(f"~/{home}/{path.name} links to {os.readlink(path)}, which has no SKILL.md; run kolin-skills apply")
+    return problems
+
+
+def broken_link_problems():
+    candidates = [HOME / destination for destinations in LINKS.values() for destination in destinations]
+    for home in [*OWN_SKILL_HOMES, ".claude/agents"]:
+        directory = HOME / home
+        candidates += sorted(directory.iterdir()) if directory.is_dir() else []
+    tops = sorted(DERIVED.iterdir()) if DERIVED.is_dir() else []
+    candidates += tops + [child for top in tops if top.is_dir() and not top.is_symlink() for child in top.iterdir()]
+    return [f"~/{path.relative_to(HOME)} links to {os.readlink(path)}, which does not exist; run kolin-skills apply"
+            for path in candidates if path.is_symlink() and not path.exists()]
+
+
+def self_invoking_skill_problems():
+    problems = [f"~/.agents/skills/{name} is not installed; run kolin-skills upstream"
+                for name in sorted(SELF_INVOKING_SKILLS) if not (HOME / ".agents/skills" / name / "SKILL.md").is_file()]
+    for home in VENDOR_SKILL_HOMES:
+        directory = HOME / home
+        for path in sorted(directory.iterdir()) if directory.is_dir() else []:
+            if self_invoking(path.name) and model_locked(path / "SKILL.md"):
+                problems.append(f"~/{home}/{path.name}/SKILL.md sets {MODEL_LOCK_KEY}, so the agent cannot start it; run kolin-skills apply")
+    return problems
+
+
+def check_quick():
+    started = time.monotonic()
+    owner = wired_repo()
+    failures = []
+    if owner is None:
+        failures.append("home is not wired to any checkout; run kolin-skills install")
+    elif owner != str(REPO):
+        failures.append(f"home is wired to {owner}, not this checkout ({REPO}); run kolin-skills apply --adopt")
+    elif run_apply(check=True, quiet=True):
+        failures.append("home differs from the repo; fix each line above")
+    failures += broken_link_problems() + self_invoking_skill_problems()
+    elapsed = time.monotonic() - started
+    if elapsed > QUICK_CHECK_SECONDS:
+        failures.append(f"the quick check took {elapsed:.1f}s, over its {QUICK_CHECK_SECONDS}s budget")
+    for failure in failures:
+        print(f"FAIL: {failure}", file=sys.stderr)
+    if failures:
+        return 1
+    print(f"Passed: quick check, links, hooks, policy and self-invoking skills, in {elapsed:.2f}s")
+    return 0
+
+
 def check(files_only=False):
     failures = [f"{entry}, over the {MAX_FILE_LINES}-line limit; split it in its own change"
                 for entry in overlong_files()]
+    failures += unloadable_skill_problems()
     if files_only:
         for failure in failures:
             print(f"FAIL: {failure}", file=sys.stderr)
@@ -828,7 +962,9 @@ def main():
     stacks_parser.add_argument("--idle-hours", type=float, default=6, help="a stack is idle only after it has run this many hours; the 2-hour transcript window stays fixed")
     stacks_parser.add_argument("--notice", action="store_true", help="session-start hook: one JSON line when idle stacks exist, else nothing")
     check_parser = commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets, file length and tests")
-    check_parser.add_argument("--files", action="store_true", help="only the 1,000-line file limit")
+    check_mode = check_parser.add_mutually_exclusive_group()
+    check_mode.add_argument("--files", action="store_true", help="only the 1,000-line file limit")
+    check_mode.add_argument("--quick", action="store_true", help=f"home only, under {QUICK_CHECK_SECONDS}s: links resolve, hooks and policy are wired, self-invoking skills are not model-locked")
     check_parser.add_argument("target", nargs="?", help="scan this tree for a vendored pstack pin or synced senior-reviewer that drifted from this repo (skips the rest of the gate)")
     drift_parser = commands.add_parser("check-drift", help="fail when a tree's vendored pstack or synced senior-reviewer drifts from this repo")
     drift_parser.add_argument("target", help="repo root to scan")
@@ -845,6 +981,8 @@ def main():
     if args.command == "stacks":
         return stacks(args.stop, args.idle_hours, args.notice)
     if args.command == "check":
+        if args.quick:
+            return check_quick()
         if args.target and not args.files:
             return check_drift(args.target)
         return check(files_only=args.files)

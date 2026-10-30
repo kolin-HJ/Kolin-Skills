@@ -9,7 +9,7 @@ pstack ([upstream](https://github.com/cursor/plugins/tree/main/pstack)) is writt
 
 ## Loading a pstack skill
 
-Every pstack skill sets `disable-model-invocation: true`, so the Skill tool refuses it. When a playbook says "run the **how** skill" or "read the leaf principle", read `~/.agents/skills/<name>/SKILL.md` and follow it. Relative paths inside it (`references/`, `playbooks/`, `../principle-*/`) resolve from that directory. Kolin can still type `/poteto-mode`, `/how` and the rest.
+Most pstack skills set `disable-model-invocation: true`, so the Skill tool refuses them. `kolin-skills apply` links `poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct` and the `principle-*` skills without that line, so load those with the Skill tool. For any other, when a playbook says "run the **how** skill" or "read the leaf principle", read `~/.agents/skills/<name>/SKILL.md` and follow it. Relative paths inside it (`references/`, `playbooks/`, `../principle-*/`) resolve from that directory. Kolin can still type `/poteto-mode`, `/how` and the rest.
 
 ## Cursor term to local equivalent
 
