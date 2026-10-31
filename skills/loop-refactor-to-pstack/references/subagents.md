@@ -21,7 +21,7 @@ Never use `general-purpose` for program work. A read-only judgment role that nee
 - Run `bash <skill>/assets/check-subagents.sh [<repo implementer> ...]` in Phase 0 and after any change to agent files. It checks each pin above in the repo's `.claude/agents/`, then `~/.claude/agents/`, and that `comment-sicko` exists. A wrong or missing pin is fixed in the frontmatter with the user's yes, because agent definitions are harness configuration.
 - A Codex agent `.toml` is generated from its `.md`; never edit the mirror by hand.
 - Every seat is a native Claude subagent through the Agent tool (`pstack-local/models.md`). Do not start a seat with the `claude` CLI, because it takes the CLI's default model, not the definition's pin.
-- Record the model in the ledger: `orch ledger record … --verifier poteto-agent/sonnet-5.5`.
+- Record the model in the ledger: append a `ledger.tsv` row whose verifier field is `poteto-agent/sonnet-5.5`.
 
 ## Worktrees for workers
 

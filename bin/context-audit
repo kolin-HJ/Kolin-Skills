@@ -2,6 +2,7 @@
 import argparse
 import collections
 import datetime
+import dataclasses
 import json
 import os
 import pathlib
@@ -361,6 +362,68 @@ def print_sessions(days, needles=()):
     print(f"\nUnique PR URLs linked: {len(urls)}")
 
 
+@dataclasses.dataclass
+class WindowSession:
+    project: str
+    session: str
+    start: datetime.datetime
+    main: dict
+    subagent_tokens: int
+    roles: collections.Counter
+    long_builders: int
+
+    @property
+    def tokens(self):
+        return self.main["tokens"] + self.subagent_tokens
+
+
+def window_sessions(start, end):
+    sessions = []
+    for root in (HOME / ".claude_personal/projects", HOME / ".claude/projects"):
+        for path in root.glob("*/*.jsonl"):
+            first = next((record.get("timestamp") for record in records(path) if record.get("timestamp")), None)
+            if not first:
+                continue
+            timestamp = datetime.datetime.fromisoformat(first.replace("Z", "+00:00"))
+            if timestamp.tzinfo is None:
+                continue
+            timestamp = timestamp.astimezone(datetime.timezone.utc)
+            if not start <= timestamp.date() <= end:
+                continue
+            main = session_stats(path)
+            roles = collections.Counter()
+            subagent_tokens = long_builders = 0
+            for agent in (path.parent / path.stem / "subagents").glob("agent-*.jsonl"):
+                role = agent_meta(agent).get("agentType", "unknown")
+                stats = session_stats(agent)
+                roles[role] += 1
+                subagent_tokens += stats["tokens"]
+                long_builders += role == "poteto-agent" and stats["calls"] > LONG_RUN_CALLS
+            sessions.append(WindowSession(path.parent.name, path.stem, timestamp, main, subagent_tokens, roles, long_builders))
+    return sessions
+
+
+def print_window(start, end, top):
+    sessions = window_sessions(start, end)
+    main = sum(session.main["tokens"] for session in sessions)
+    total = sum(session.tokens for session in sessions)
+    builders = sum(session.roles["poteto-agent"] for session in sessions)
+    long_builders = sum(session.long_builders for session in sessions)
+    share = 100 * main / total if total else 0
+    print(f"Window {start} through {end} UTC by session start: {len(sessions)} sessions, {total:,} tokens, main {main:,} ({share:.1f}%), builders {builders}, builders >{LONG_RUN_CALLS} calls {long_builders}.")
+    print("\nTop sessions: project, session, start UTC, total tokens, main tokens, subagent tokens, main calls, main peak context, compactions, roles")
+    for session in sorted(sessions, key=lambda item: -item.tokens)[:top]:
+        roles = ", ".join(f"{role}={count}" for role, count in sorted(session.roles.items())) or "-"
+        print(f"  {session.project} {session.session} {session.start.isoformat()} {session.tokens:,} {session.main['tokens']:,} {session.subagent_tokens:,} {session.main['calls']} {session.main['peak']:,} {session.main['compactions']} {roles}")
+
+
+def calendar_date(value):
+    try:
+        return datetime.date.fromisoformat(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("expected a date in YYYY-MM-DD format")
+
+
 def run_gh(*args):
     return subprocess.run(["gh", *args], text=True, capture_output=True)
 
@@ -439,8 +502,14 @@ def main():
     mode.add_argument("--sessions", nargs="?", const=SESSION_DAYS, type=int, metavar="DAYS",
                       help=f"report token use, hook blocks and failing tools across transcripts of the last DAYS days (default {SESSION_DAYS})")
     mode.add_argument("--pr", metavar="OWNER/REPO#N", help="report the sessions that mention this PR, the PRs its body references, or their branches, with GitHub merge flags")
+    mode.add_argument("--window", nargs=2, type=calendar_date, metavar=("START", "END"), help="report sessions by inclusive UTC start dates")
+    parser.add_argument("--top", type=int, default=10, help="with --window, number of top sessions (default 10)")
     parser.add_argument("--days", type=int, default=PR_DAYS, help=f"with --pr, how far back to read transcripts (default {PR_DAYS})")
     args = parser.parse_args()
+    if args.window:
+        if args.window[0] > args.window[1] or args.top < 1:
+            parser.error("--window needs ordered dates and --top must be positive")
+        return print_window(*args.window, args.top)
     if args.pr:
         match = PR_REF.fullmatch(args.pr) or parser.error("--pr takes OWNER/REPO#N")
         needles = github_section(match[1], int(match[2]))

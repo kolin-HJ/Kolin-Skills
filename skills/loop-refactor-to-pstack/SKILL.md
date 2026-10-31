@@ -17,7 +17,7 @@ This skill composes pstack and does not restate it. Each phase hands its method 
 
 | Job | pstack owner |
 |---|---|
-| The program (orchestrator role, store, briefs, drains, ledger, liveness, escalation) | `poteto-mode/playbooks/orchestrate.md`, with its stack and frontier machinery replaced by the one branch (Single-branch mechanics) |
+| The program (coordinator role, kickoffs, supervision) | `poteto-mode/playbooks/orchestrate.md`, with stacked PRs and one-owner-per-PR replaced by the one branch (Single-branch mechanics) |
 | Framing the predicate and rigor | `figure-it-out` Phase A |
 | Each wave | `poteto-mode/playbooks/refactoring.md` |
 | Reading a subsystem before touching it | `how`, fanned out with `swarm`; `why` before deleting anything whose reason is unclear |
@@ -42,7 +42,7 @@ The user's global policy wins over the repo's file, and both win over pstack. Na
 
 - `opening-a-pr.md` "prefer five narrow PRs": one program PR instead.
 - `refactoring.md` step 8 "rebase into small ordered commits": one commit per unit, made in order and never rewritten.
-- `orchestrate.md` step 2 `orch frontier set`, step 3's "stack entry" and "merge", step 6's stacker, and all of Stack safety: Single-branch mechanics instead. The first unit of each new unit shape is the pilot, and it lands as a commit on the branch.
+- `orchestrate.md` one-owner-per-PR, stacked PRs, and "you never author or edit code": Single-branch mechanics instead. The coordinator commits each verified unit on the one program branch. The first unit of each new unit shape is the pilot, and it lands as a commit on the branch.
 
 ## The goal predicate
 
@@ -65,8 +65,8 @@ Check every row at the end of each wave. Keep looping until all hold. Never rela
 2. **Observe before asking.** Read the git hooks, any CI the repo already has, the deploy workflow, the hosting setup, branch protection (`gh api repos/<o>/<r>/rulesets`, `gh api orgs/<o> -q .plan.name`), open PRs on the base branch, and the package manifests. A doc's claim about protection or plan can be stale.
 3. **Census.** Run `how` over each area through `swarm`, read-only, one worker per area. Count what each gate would find, files over the line limit, pages with no feature map, the design red flags per module and, for Effect, every effectful module (`references/effect.md`, step 1). The census is the program's first measurement and goes in the store's `research/`.
 4. **Frame** with `figure-it-out` Phase A: the predicate above as numbers the gates print, the scope in units and waves, and the rigor level. Then apply Orchestrate's Frame step. If one agent could finish inside the session's budget, collapse to Autonomous run and drop the store.
-5. **Ask once.** Send one batched question with the recommended option first (`references/user-decisions.md`, Setup, Landing and Effect). Park the rest with `orch gate park`, so they do not arrive mid-wave. Record each answer as a numbered standing order. An approval covers only the action it names. "I approve all decisions toward the goal" covers reversible work, never a merge, deploy, external write or push to a protected branch (policy, Approvals).
-6. **Cut the branch and open the PR.** Create the program worktree and branch from the base tip, and record both SHAs. All program work happens there. Commit the plan (step 7), then push and open the program PR (policy, Approvals). `orch ledger record` takes only a PR number, so until the PR exists, record each verdict in the trail and copy it to the ledger when the PR opens.
+5. **Ask once.** Send one batched question with the recommended option first (`references/user-decisions.md`, Setup, Landing and Effect). Park the rest in `gates.md`, so they do not arrive mid-wave. Record each answer as a numbered standing order. An approval covers only the action it names. "I approve all decisions toward the goal" covers reversible work, never a merge, deploy, external write or push to a protected branch (policy, Approvals).
+6. **Cut the branch and open the PR.** Create the program worktree and branch from the base tip, and record both SHAs. All program work happens there. Commit the plan (step 7), then push and open the program PR (policy, Approvals). Until the PR exists, record each verdict in the trail and copy it to `ledger.tsv` when the PR opens.
 7. **Write the plan and glossary.** `.pstack/program.md` holds the predicate table, the wave order, the proof tiers and the calls with their defaults. `docs/GLOSSARY.md` holds one exact word per domain concept, each with the file or ADR that owns it, linked from the instruction file.
 8. **Create the store** (`references/program-store.md`) and open the trail with `show-me-your-work` at `.pstack/decision-log.tsv`.
 9. **Check the subagents.** Run `bash assets/check-subagents.sh [<repo implementer>]`. It must print `ok` for each definition (`references/subagents.md`).
@@ -125,13 +125,13 @@ Each wave takes the highest-leverage remaining baseline toward zero and runs `re
 
 The steps of each wave:
 
-1. **Plan.** Run `gates:status`, `orch status` and `orch inbox drain`. Run `how` over the subsystem. Pin the behavior contract, and name the data shape and the target shape (`refactoring.md` steps 1 to 3). A risky change to code with no test gets a characterization test first, as its own unit, seen red when the pinned behavior is broken.
+1. **Plan.** Run `gates:status`, then read `units.tsv`, `gates.md` and `inbox/`. Run `how` over the subsystem. Pin the behavior contract, and name the data shape and the target shape (`refactoring.md` steps 1 to 3). A risky change to code with no test gets a characterization test first, as its own unit, seen red when the pinned behavior is broken.
 2. **Lever.** Write the codemod for the mechanical part and prove it on hand-done sites (`references/brief-templates.md`, Codemod first). Run it yourself.
-3. **Brief** the leftover sites as lanes with disjoint files, about 30 to 70 sites each, with the nine-field template. Add each unit with `orch unit add <id> --track <wave> --brief <path>`. The track is how the PR's wave table groups commits.
+3. **Brief** the leftover sites as lanes with disjoint files, about 30 to 70 sites each, with the nine-field template. Append a `units.tsv` row for each unit (`id`, track, brief path). The track is how the PR's wave table groups commits.
 4. **Launch** a rolling window of lanes on `poteto-agent` or the repo's implementer, without a `model` argument, so the agent definition's pin applies (`references/subagents.md`). Refill as each lane finishes. Never launch blocking batches. Wait on a background command's completion, never a wakeup or sleep loop. Builders and sweepers never commit, push or run the app.
-5. **Drain** each completion as a queue event (`orch inbox push`). Accept a lane only against `references/review-checklist.md`. A report is a lead.
+5. **Drain** each completion as a queue event: write a pointer in `inbox/` and return to the wave. Accept a lane only against `references/review-checklist.md`. A report is a lead.
 6. **Integrate.** Fix findings, delete re-export shims, re-key moved hits, and run `gates:lower`. Then run the check command, then the framework's compile through an app launch.
-7. **Review the wave diff once,** in this order: `no-comments`, `deslop`, the repo's reviewer (`senior-reviewer`). Add `interrogate` and `blast-radius` by the proof tier below. Send the riskiest lane to a verifier that is a fresh Claude subagent on a different model or lens, and record its verdict with `orch ledger record`.
+7. **Review the wave diff once,** in this order: `no-comments`, `deslop`, the repo's reviewer (`senior-reviewer`). Add `interrogate` and `blast-radius` by the proof tier below. Send the riskiest lane to a verifier that is a fresh Claude subagent on a different model or lens, and append the verdict to `ledger.tsv`.
 8. **Prove** at the tier the change needs. A parity difference is code until two passes and each side's agreement with itself show otherwise. Fix each failure at the strongest layer (`principle-fix-root-causes`).
 9. **Commit** one unit per lane plus an integration commit, with `assets/commit-unit.sh`. Each message says what changed for the user and the engineer, every behavior change, and what ran.
 10. **Retire** each baseline that reached zero, with its registry entry and every doc that names it. Delete each legacy helper whose last caller moved, and ban its name.
@@ -193,7 +193,7 @@ After each wave, tell the user in a few plain sentences: what landed on the bran
 - `references/workflow-setup.md`: the workflow a pstack repo ends with, and the template for each piece.
 - `references/subagents.md`: which agent does which job, the model pin, panels, and briefs written for the pinned model.
 - `references/effect.md` (only when the user chose Effect): the Effect target, phase order, paved modules, legacy mapping, traps and gates.
-- `references/program-store.md`: the orch store, `RESUME.md` template, standing orders and commit helper.
+- `references/program-store.md`: the program store, `RESUME.md` template, standing orders and commit helper.
 - `references/user-decisions.md`: the calls the user owns, with recommended defaults.
 - `references/brief-templates.md`: the nine-field brief, codemod first, and the common, lane, Effect, split and verifier briefs.
 - `references/review-checklist.md`: the lessons that decide whether a lane's work is accepted.
