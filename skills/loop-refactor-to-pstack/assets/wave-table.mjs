@@ -73,7 +73,7 @@ function git(args) {
 function main() {
   const { values } = parseArgs({ options: { store: { type: "string" }, base: { type: "string" } } });
   if (values.store === undefined || values.base === undefined) {
-    console.error("usage: wave-table.mjs --store <orch store> --base <base ref>");
+    console.error("usage: wave-table.mjs --store <program store> --base <base ref>");
     process.exit(2);
   }
   const units = parseUnits(readFileSync(join(values.store, "units.tsv"), "utf8"));
