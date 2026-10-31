@@ -38,9 +38,19 @@ if ! git commit -q -F "$store/.commit-msg"; then
 fi
 rm -f "$store/.commit-msg"
 sha=$(git rev-parse --short HEAD)
-orch="$HOME/.agents/skills/poteto-mode/scripts/orch/orch.ts"
-if [ -f "$orch" ] && [ -f "$store/units.tsv" ] && command -v bun >/dev/null; then
-  bun "$orch" --store "$store" unit set "$unit" --state committed --sha "$sha" >/dev/null ||
-    echo "warning: the store has no unit $unit; add it with orch unit add" >&2
+tsv="$store/units.tsv"
+if [ -f "$tsv" ]; then
+  tmp="$store/.units.tsv.tmp"
+  if awk -F '\t' -v OFS='\t' -v id="$unit" -v sha="$sha" '
+    NR == 1 { print; next }
+    $1 == id { $3 = "committed"; $6 = sha; found = 1 }
+    { print }
+    END { if (!found) exit 2 }
+  ' "$tsv" > "$tmp"; then
+    mv "$tmp" "$tsv"
+  else
+    rm -f "$tmp"
+    echo "warning: the store has no unit $unit; append a units.tsv row before committing" >&2
+  fi
 fi
 echo "$unit committed as $sha ($(echo "$staged" | wc -l | tr -d ' ') files)"
