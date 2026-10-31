@@ -32,7 +32,7 @@ Count changed lines (`git diff --numstat`, ignoring lockfiles and generated file
 4. **Bypassed product guard.** A feature flag, permission, role or tenant scope the change bypasses or widens.
 5. **Setup breakage.** A production URL, ID or key in a staging or test path; config from the wrong environment; a renamed env variable, new secret source, remapped port or new manual step.
 6. **Masked errors.** try/catch around our own code, a swallowed error, a fallback that hides a failure, `any` or a non-null assertion that silences a type.
-7. **Unproven behavior.** A changed behavior with no evidence it ran, or a PR-body claim the diff does not support. Read what each new test asserts: a test that would pass if the code did nothing, or that mocks the unit under test, proves nothing.
+7. **Unproven behavior.** A changed behavior with no evidence it ran, or a PR-body claim the diff does not support. Read what each new test asserts: a test that would pass if the code did nothing, or that mocks the unit under test, proves nothing. A test that mocks one of the repo's own modules, takes a snapshot, or asserts copy, styling or config text breaks the policy's Done rule: name the module or the asserted text and the caller behavior the test should check instead.
 
 ## Pass two: is it the version that should land?
 
