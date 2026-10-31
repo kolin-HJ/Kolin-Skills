@@ -115,4 +115,4 @@ Run it on `senior-reviewer` in a fresh thread that did not build the lane. Hand 
 5. For Effect waves: concurrency, interruption of writes, error messages at the edge, every `yield*` present.
 6. A missing directive.
 
-Ask for `file:line`, the failing scenario, the fix risk and a confidence level, in under 700 words, plus what it did not check. Record the verdict with `orch ledger record`.
+Ask for `file:line`, the failing scenario, the fix risk and a confidence level, in under 700 words, plus what it did not check. Append the verdict to `ledger.tsv`.

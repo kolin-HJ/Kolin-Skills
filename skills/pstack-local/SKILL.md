@@ -26,6 +26,7 @@ Most pstack skills set `disable-model-invocation: true`, so the Skill tool refus
 | todolist | The harness's todo or task list. If there is none, a checklist in the reply. |
 | Cursor `/loop` | Claude Code `/loop`, with `ScheduleWakeup` or `Monitor`. Codex: keep working in the turn. |
 | Babysit's watcher (`watch-pr` under `/loop`) | T3 Code: `watch_pull_request` in the thread that owns the PR, then end the turn. Elsewhere: `watch-pr` as one background command. |
+| Project tracker (`notes.md`), Project store, PR/CI event subscriptions | T3 Code: that thread's project notes and `watch_pull_request`. Elsewhere: `.pstack/` or the loop store, and `gh pr view` / `gh pr checks`. |
 | Cursor built-in `create-skill` | `anthropic-skills:skill-creator`. A repo skill goes in `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. A global skill goes in Kolin-Skills `skills/<name>/`; if a tool wrote it into home, run `kolin-skills import <path>`. |
 | `/deslop`, `control-ui`, `control-cli` from `cursor-team-kit` | Vendored and linked with the same names. For proof, use the repo's own verification skill (its CLI and feature map) first; if the repo has none, build one with `create-verification-skill` rather than scripting a one-off. The chrome-devtools MCP is for ad-hoc inspection. |
 | `.cursor/skills/<name>/` output, or any project-local skill a pstack skill writes | `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. |
