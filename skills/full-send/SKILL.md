@@ -3,7 +3,7 @@ name: full-send
 description: "Use only when Kolin explicitly says \"full send\" or invokes /full-send for a specific PR or task in this session. Do not apply it on your own judgment."
 ---
 # Full send
-Kolin invoked this because he is not watching the thread. Own the work from its current state to a merged PR. Kolin reads your messages only after you stop, so a message in the chat does not reach him until then.
+Kolin invoked this because he is not watching the thread. Own the work from its current state to a PR that is merged, or that passes the merge checklist with only Kolin's merge left. `hooks/gate/block-forbidden-git.sh` blocks every merge into `main`, `master`, `staging` or `sandbox`, so on those bases full send ends at `Checklist passed, merge blocked by hook`. Kolin reads your messages only after you stop, so a message in the chat does not reach him until then.
 If Kolin did not clearly invoke full send in this session, do not take this autonomy. Work normally.
 ## Base workflow
 Read `~/.agents/skills/full-stop/SKILL.md` and follow all of it. Full send changes only the end: it replaces "stop at ready" with the merge checklist below.

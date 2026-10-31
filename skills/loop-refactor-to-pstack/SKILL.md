@@ -30,7 +30,7 @@ This skill composes pstack and does not restate it. Each phase hands its method 
 | Prose (ADRs, commit messages, the PR body) | `technical-writing`, then `unslop` |
 | Pause, resume and close | `pause-safely.md`, `session-pickup.md` with `recall`, then `reflect` |
 
-`references/pstack-map.md` lists where every playbook and skill fires. Every pstack skill sets `disable-model-invocation`, so read its `SKILL.md` and follow it (`pstack-local/SKILL.md`, Loading a pstack skill). Read a principle's leaf before you cite it.
+`references/pstack-map.md` lists where every playbook and skill fires. Load each pstack skill the way `pstack-local/SKILL.md`, Loading a pstack skill, says. Read a principle's leaf before you cite it.
 
 Read these before the first iteration:
 
