@@ -9,20 +9,20 @@ pstack ([upstream](https://github.com/cursor/plugins/tree/main/pstack)) is writt
 
 ## Loading a pstack skill
 
-Most pstack skills set `disable-model-invocation: true`, so the Skill tool refuses them. `kolin-skills apply` links `poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct` and the `principle-*` skills without that line, so load those with the Skill tool. For any other, when a playbook says "run the **how** skill" or "read the leaf principle", read `~/.agents/skills/<name>/SKILL.md` and follow it. Relative paths inside it (`references/`, `playbooks/`, `../principle-*/`) resolve from that directory. Kolin can still type `/poteto-mode`, `/how` and the rest.
+`kolin-skills apply` links skills under `~/.agents/skills`. In Claude Code, use the Skill tool for available skills. In Codex, read the listed skill's `SKILL.md` at its supplied path and follow it; there is no Skill tool. For a skill not listed, read `~/.agents/skills/<name>/SKILL.md` when a playbook requires it. Resolve relative paths from that skill's directory. `apply` removes the invocation lock from `poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct` and `principle-*`.
 
 ## Cursor term to local equivalent
 
 | pstack says | Do this |
 |---|---|
 | `Task` with `subagent_type: generalPurpose` | Claude Code: the Agent tool with `general-purpose`. Codex: a spawned agent. |
-| `subagent_type: "poteto-agent"` | A builder: `poteto-agent`. A read-only helper: `Explore`. A repo's own named implementer is a project fact; use it only for that repo's code. |
+| `subagent_type: "poteto-agent"` | Builder: `poteto-agent`. Read-only search: Claude `Explore`, Codex `explorer`. Use a repo's named implementer only in that repo. |
 | `subagent_type: "comment-sicko"` (was `Comment Sicko`) | `comment-sicko`, pstack's own agent, linked by `apply` |
-| `readonly: true`, or any role `models.md` runs on Opus | `Plan` with the role's model: read-only, keeps MCP. `Explore` for a search. Not `general-purpose`: it can edit, so `hooks/agent-default-model.py` denies Opus on it. |
-| `environment: "cloud"`, `cloud_base_branch` | A worktree from `git worktree add <path> -b <branch> <base>`, named in the brief. |
-| `model: <slug>` | The role line in `models.md` next to this file. |
+| `readonly: true`, or any role `models.md` runs on Opus | Claude: `Plan` for judgment, `Explore` for search. Codex: `senior-reviewer` for review, `explorer` for search; tell the agent the scope is read-only. |
+| `environment: "cloud"`, `cloud_base_branch` | T3 Code: `delegate_task` with `isolation: "worktree"`; never create a child checkout in the shell. Else use the harness's worktree support, or `git worktree add <path> -b <branch> <base>`. |
+| `model: <slug>` | Claude: the role line in `models.md`. Codex: inherit the session model unless the user or harness directs otherwise. |
 | `~/.cursor/rules/pstack-models.mdc`, `/setup-pstack` | `models.md` next to this file. Never write `~/.claude/rules/pstack-models.md`. |
-| `AskQuestion` | `AskUserQuestion` |
+| `AskQuestion` | Use the harness's user input tool when available. |
 | todolist | The harness's todo or task list. If there is none, a checklist in the reply. |
 | Cursor `/loop` | Claude Code `/loop`, with `ScheduleWakeup` or `Monitor`. Codex: keep working in the turn. |
 | Babysit's watcher (`watch-pr` under `/loop`) | T3 Code: `watch_pull_request` in the thread that owns the PR, then end the turn. Elsewhere: `watch-pr` as one background command. |
@@ -42,7 +42,7 @@ Most pstack skills set `disable-model-invocation: true`, so the Skill tool refus
 
 ## Model roles
 
-`models.md` assigns each role. pstack roles run on Claude only, as native subagents; read another provider's name in a pstack skill as one more Claude subagent from `models.md`. `council` is the one exception: Kolin invokes it to get other providers. A subagent's output is a lead: open the code it cites before a finding becomes yours.
+In Claude Code, `models.md` assigns native agent roles. `apply` renders `agents/*.md` as `~/.codex/agents/*.toml`: `poteto-agent` builds, `haiku-worker` sweeps, and `senior-reviewer` reviews. In Codex, use these when the harness exposes them; seats inherit the session model unless configured otherwise. Do not claim model diversity. Follow session delegation rules. A subagent's output is a lead: open the code it cites before a finding becomes yours.
 
 ## Where Kolin's rules win
 

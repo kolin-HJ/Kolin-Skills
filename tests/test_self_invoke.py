@@ -10,7 +10,6 @@ import tempfile
 import unittest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-POLICY_LINE = "For code work beyond a one-line change, load poteto-mode with the Skill tool before editing."
 PSTACK_SKILLS = "cursor-plugins/pstack/skills"
 LOCKED_FRONTMATTER = "---\nname: {name}\ndescription: test {name}\ndisable-model-invocation: true\nicon: crown\n---\n\n# {name}\n"
 SELF_INVOKING = ["poteto-mode", "how", "architect", "tdd", "interrogate", "correct", "principle-fix-root-causes", "principle-prove-it-works"]
@@ -183,14 +182,6 @@ class UserOnlyOwnSkillsTests(SelfInvokeCase):
                     self.assertEqual((self.home / home / name).resolve(), (self.repo / "skills" / name).resolve())
                     self.assertEqual((self.home / home / name / "SKILL.md").read_text(), (REPO / "skills" / name / "SKILL.md").read_text())
             self.assertFalse((self.home / ".kolin-skills/derived" / name).exists(), name)
-
-
-class PolicyLineTests(SelfInvokeCase):
-    def test_every_harness_policy_tells_the_agent_to_load_poteto_mode_with_the_skill_tool(self):
-        self.apply()
-        for relative in [".claude/CLAUDE.md", ".codex/AGENTS.md", ".grok/AGENTS.md"]:
-            with self.subTest(policy=relative):
-                self.assertIn(f"\n{POLICY_LINE}\n", (self.home / relative).read_text())
 
 
 class QuickCheckTests(SelfInvokeCase):
