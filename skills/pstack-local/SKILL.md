@@ -52,7 +52,7 @@ The global policy and the repo's `AGENTS.md` win every conflict with pstack. Thi
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Done. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a lint directive with `-- <reason>`.
 - **Builder brief.** poteto-mode says to put its path in every `poteto-agent` prompt. Here the brief names the files and the done check, quotes any principle the unit depends on, and the builder does not read poteto-mode.
-- **Reply style.** Keep pstack's Writing the reply rules. An explain, how, or walk-through follows `how`. State the principles that changed a decision in one line, not a section.
+- **Reply style.** Keep pstack's Writing the reply rules. An explain, how, or walk-through follows `how`, written as one sentence first, one diagram of at most 7 nodes or a short build-up with real names, at most 3 short beats, no table unless asked, and an explainer page offered only on a yes. State the principles that changed a decision in one line, not a section.
 
 ## Own skills
 
