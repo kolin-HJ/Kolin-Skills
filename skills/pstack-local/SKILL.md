@@ -31,7 +31,7 @@ pstack ([upstream](https://github.com/cursor/plugins/tree/main/pstack)) is writt
 | `.cursor/skills/<name>/` output, or any project-local skill a pstack skill writes | `.agents/skills/<name>/SKILL.md` with a `.claude/skills/<name>` symlink. |
 | `create-formal-verification-skill` tools | Install the verifier per repo at a pinned version (TLC: Java 11+ and `tla2tools.jar`. Kani: `cargo install --locked kani-verifier`, then `cargo kani setup`). A spec or harness has no comments. |
 | `statechart` | TLA+ model → chart. |
-| explain / how / "walk me through" / walkthrough | Read `how`; use `teach` only when explicitly requested. |
+| explain / how / "walk me through" / walkthrough | Read `teach`. Keep `/how` as pstack's how skill; teach runs it. |
 | `/visualize` (ketchup) | A Mermaid diagram in the reply, or a chart that a script renders. |
 | `agent-transcripts/`, `~/.cursor/projects/` | Claude Code: `~/.claude/projects/<cwd with each / and . as ->/*.jsonl`. Codex: `~/.codex/sessions/`. Read only the current workspace's transcripts. |
 | `mcps/` discovery (why) | The MCP tools listed in this session. |
@@ -52,7 +52,7 @@ The global policy and the repo's `AGENTS.md` win every conflict with pstack. Thi
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Done. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a lint directive with `-- <reason>`.
 - **Builder brief.** poteto-mode says to put its path in every `poteto-agent` prompt. Here the brief names the files and the done check, quotes any principle the unit depends on, and the builder does not read poteto-mode.
-- **Reply style.** Keep pstack's Writing the reply rules. An explain, how, or walk-through follows `how`, written as one sentence first, one diagram of at most 7 nodes or a short build-up with real names, at most 3 short beats, no table unless asked, and an explainer page offered only on a yes. State the principles that changed a decision in one line, not a section.
+- **Reply style.** Keep pstack's Writing the reply rules. An explain, how, or walk-through follows `teach`: one sentence first, one diagram of at most 7 nodes or a short build-up with real names, at most 3 short beats, no table unless asked, offer an explainer page only on a yes. State the principles that changed a decision in one line, not a section.
 
 ## Own skills
 
