@@ -128,6 +128,32 @@ class ContextAuditTests(unittest.TestCase):
         transcript(self.home / ".claude_personal/projects/p/b.jsonl", message)
         self.assertIn("2 main sessions", self.run_cli("--sessions", config=".claude_personal").stdout)
 
+    def test_window_includes_nested_agents_by_parent_start_and_deduplicates_messages(self):
+        def message(identifier, timestamp, tokens, calls=0):
+            return {"type": "assistant", "timestamp": timestamp, "message": {"id": identifier, "model": "claude-opus", "usage": {"input_tokens": tokens}, "content": [{"type": "tool_use", "id": f"{identifier}-{n}", "name": "Read"} for n in range(calls)]}}
+
+        parent = self.home / ".claude_personal/projects/project/session.jsonl"
+        first = message("main", "2026-10-28T00:00:00Z", 100, 2)
+        transcript(parent, first, first, {"type": "system", "subtype": "compact_boundary"})
+        builder = parent.parent / "session/subagents/agent-builder"
+        child = message("child", "2026-11-01T00:00:00Z", 200, 201)
+        transcript(builder.with_suffix(".jsonl"), child, child)
+        builder.with_suffix(".meta.json").write_text(json.dumps({"agentType": "poteto-agent"}))
+        reviewer = builder.parent / "agent-reviewer"
+        transcript(reviewer.with_suffix(".jsonl"), message("review", "2026-10-31T00:00:00Z", 50))
+        reviewer.with_suffix(".meta.json").write_text(json.dumps({"agentType": "reviewer"}))
+        transcript(self.projects / "other/end.jsonl", message("end", "2026-11-01T00:30:00+01:00", 10))
+        transcript(self.projects / "other/outside.jsonl", message("out", "2026-10-27T23:59:59Z", 900))
+        result = self.run_cli("--window", "2026-10-28", "2026-10-31")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("2 sessions, 360 tokens, main 110 (30.6%), builders 1, builders >200 calls 1", result.stdout)
+        self.assertIn("project session 2026-10-28T00:00:00+00:00 350 100 250 2 100 1 poteto-agent=1, reviewer=1", result.stdout)
+        self.assertNotIn("outside", result.stdout)
+        self.assertFalse((self.home / ".kolin-skills").exists())
+        limited = self.run_cli("--window", "2026-10-28", "2026-10-31", "--top", "1")
+        self.assertNotIn("other end", limited.stdout)
+        self.assertNotEqual(self.run_cli("--window", "2026-11-01", "2026-10-31").returncode, 0)
+
     def spawn_fixture(self, requested):
         def assistant(model, *content):
             return {"type": "assistant", "timestamp": "2026-10-20T10:00:00Z", "message": {"id": model + str(len(content)), "model": model, "usage": {"input_tokens": 1}, "content": list(content)}}
