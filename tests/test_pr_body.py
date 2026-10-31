@@ -26,13 +26,16 @@ class PrBodyTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
 
+    def render(self):
+        result = subprocess.run([sys.executable, str(PR_BODY), "main"], cwd=self.repo,
+                                text=True, capture_output=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout
+
     def body(self):
         self.git("add", "-A")
         self.git("commit", "-qm", "work")
-        result = subprocess.run([sys.executable, str(PR_BODY), "main"], cwd=self.repo,
-                                text=True, capture_output=True, timeout=20)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        return result.stdout
+        return self.render()
 
     def test_each_file_lands_in_its_group_with_its_line_counts_and_no_code(self):
         self.write("src/price.ts", "export const price = 2;\n")
@@ -56,6 +59,49 @@ class PrBodyTests(unittest.TestCase):
             "| &emsp;`README.md` | +4 -0 |\n"
             "| &emsp;`docs/a.md` | +1 -0 |\n"
             "| &emsp;`docs/café.md` | +1 -0 |\n"), body)
+
+    def test_release_reports_each_pr_and_direct_commit(self):
+        self.git("checkout", "-qb", "feature")
+        self.write("src/feature.py", "one\ntwo\n")
+        self.write("tests/test_feature.py", "assert True\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "feature")
+        self.git("checkout", "-q", "work")
+        self.git("merge", "--no-ff", "feature", "-m", "Merge pull request #11 from team/feature\n\nAdd feature")
+        self.write("docs/guide.md", "guide\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "Write guide (#12)")
+        self.write("src/direct.py", "direct\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "direct")
+        body = self.render()
+        self.assertIn("| #11 Add feature | +2 -0 | +1 -0 | +0 -0 | 2 |", body)
+        self.assertIn("| #12 Write guide | +0 -0 | +0 -0 | +1 -0 | 1 |", body)
+        self.assertIn("| Direct commits | +1 -0 | +0 -0 | +0 -0 | 1 |", body)
+        for title, path in (("#11 Add feature", "src/feature.py"), ("#12 Write guide", "docs/guide.md"),
+                            ("Direct commits", "src/direct.py")):
+            block = body.split(f"<summary>{title} ·", 1)[1].split("</details>", 1)[0]
+            self.assertIn(f"`{path}` |", block)
+
+    def test_feature_branch_has_no_pr_section_and_verification_names_head(self):
+        self.write("src/feature.py", "feature\n")
+        body = self.body()
+        head = subprocess.check_output(["git", "-C", str(self.repo), "rev-parse", "--short", "HEAD"], text=True).strip()
+        self.assertNotIn("## PRs", body)
+        self.assertIn(f"- Ran: `<command>` at `{head}`: <result>", body)
+        self.assertIn(f"- Reviewed: <senior-reviewer or interrogate> at `{head}`: <verdict>", body)
+
+    def test_large_release_keeps_all_pr_rows_under_budget(self):
+        for n in range(3):
+            for i in range(800):
+                self.write(f"src/pr{n}/file{i:04}.py", "value = 1\n")
+            self.git("add", "-A")
+            self.git("commit", "-qm", f"Feature {n} (#{n + 1})")
+        body = self.render()
+        for n in range(3):
+            self.assertIn(f"| #{n + 1} Feature {n} | +800 -0 |", body)
+        self.assertIn("Not shown:", body)
+        self.assertLess(len(body), 65_536 - 8_000)
 
     def test_many_files_keep_every_group_and_stay_under_the_github_limit(self):
         for n in range(2_500):

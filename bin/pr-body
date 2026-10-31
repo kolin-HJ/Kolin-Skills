@@ -1,24 +1,16 @@
 #!/usr/bin/env python3
 import argparse
+import html
 import importlib.machinery
 import importlib.util
 import os
 import pathlib
+import re
 import sys
 
 GITHUB_BODY_LIMIT = 65_536
 FILLED_TEXT_RESERVE = 8_000
 GROUPS = ("Code", "Tests", "Docs")
-
-SECTIONS = (
-    ("Summary", "<The problem in the user's words, then what ships, for whom, and what changes for them, in two to four sentences. "
-                "A release lists each merged PR in one line; PRs that cancel each other share one line.>"),
-    ("Review this", "- [ ] <file:line: a decision or risky hunk to double check, and why>"),
-    ("Blast Radius", "<Migrations, config, deploy order, user-visible changes and how to revert, or \"None.\">"),
-    ("Verification", "- Ran: `<command>` <result>\n- Not run: <check>, because <why>"),
-)
-SKELETON = "Value: <kind> — <one sentence>\n\n" + "".join(
-    f"## {title}\n\n{placeholder}\n\n" for title, placeholder in SECTIONS) + "## Diff\n"
 
 
 def load_audit():
@@ -41,17 +33,15 @@ def files_label(n):
     return f"{n} file{'' if n == 1 else 's'}"
 
 
-def changes(base, audit):
+def changes(base, head, audit):
     files = []
-    for record in audit.git("diff", "--numstat", "-z", "--no-renames", base, "HEAD").split("\0"):
+    for record in audit.git("diff", "--numstat", "-z", "--no-renames", base, head).split("\0"):
         if not record:
             continue
         added, removed, path = record.split("\t", 2)
         binary, lock = added == "-", bool(audit.LOCK.search(path))
-        lines = "binary" if binary else f"+{added} -{removed}" + (", lockfile" if lock else "")
-        cell = path.replace("|", "\\|")
-        files.append({"added": 0 if binary else int(added), "removed": 0 if binary else int(removed),
-                      "group": group_of(path, audit), "lock": lock, "row": f"| &emsp;`{cell}` | {lines} |"})
+        files.append({"path": path, "added": 0 if binary else int(added), "removed": 0 if binary else int(removed),
+                      "binary": binary, "group": group_of(path, audit), "lock": lock})
     return files
 
 
@@ -61,36 +51,110 @@ def count(files):
 
 
 def group_rows(group, members, shown):
-    rows = [f"| **{group}** · {files_label(len(members))} | **{count(members)}** |"] + [f["row"] for f in shown]
+    rows = [f"| **{group}** · {files_label(len(members))} | **{count(members)}** |"]
+    for f in shown:
+        path = f["path"].replace("|", "\\|")
+        lines = "binary" if f["binary"] else f"+{f['added']} -{f['removed']}" + (", lockfile" if f["lock"] else "")
+        rows.append(f"| &emsp;`{path}` | {lines} |")
     if len(members) > len(shown):
         rows.append(f"| &emsp;Not shown: {files_label(len(members) - len(shown))}, see Files changed | |")
     return rows
 
 
-def render(files):
-    groups = {group: [f for f in files if f["group"] == group] for group in GROUPS}
-    shown = {group: list(members) for group, members in groups.items()}
-    budget = GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE - len(SKELETON)
+def grouped(files):
+    return {group: [f for f in files if f["group"] == group] for group in GROUPS}
 
-    def table():
-        rows = ["| Group / file | Lines |", "|---|---|"]
-        for group, members in groups.items():
-            rows += group_rows(group, members, shown[group])
-        return "\n" + "\n".join(rows) + "\n"
 
-    while len(table()) > budget:
-        shown[max(shown, key=lambda group: len(shown[group]))].pop()
-    return SKELETON + table()
+def table(groups, shown):
+    rows = ["| Group / file | Lines |", "|---|---|"]
+    for group, members in groups.items():
+        rows += group_rows(group, members, shown[group])
+    return "\n".join(rows)
+
+
+def pull_requests(base, audit):
+    records = []
+    direct = {}
+    direct_commits = 0
+    commits = audit.git("rev-list", "--first-parent", "--reverse", f"{base}..HEAD").splitlines()
+    for commit in commits:
+        message = audit.git("show", "-s", "--format=%s%n%b", commit).splitlines()
+        subject = message[0]
+        merge = re.fullmatch(r"Merge pull request #(\d+) from .+", subject)
+        squash = re.fullmatch(r"(.+) \(#(\d+)\)", subject)
+        files = changes(f"{commit}^1", commit, audit)
+        if merge or squash:
+            number = merge.group(1) if merge else squash.group(2)
+            title = next((line.strip() for line in message[1:] if line.strip()), subject) if merge else squash.group(1)
+            records.append({"number": number, "title": title, "files": files})
+        else:
+            direct_commits += 1
+            for f in files:
+                if f["path"] not in direct:
+                    direct[f["path"]] = f.copy()
+                else:
+                    item = direct[f["path"]]
+                    item["added"] += f["added"]
+                    item["removed"] += f["removed"]
+                    item["binary"] = item["binary"] or f["binary"]
+    if records and direct_commits:
+        records.append({"number": None, "title": "Direct commits", "files": list(direct.values())})
+    return records
+
+
+def label(record):
+    return f"#{record['number']} {record['title']}" if record["number"] else record["title"]
+
+
+def render(files, records, sha):
+    groups = [grouped(record["files"]) for record in records] + [grouped(files)]
+    shown = [{group: list(members) for group, members in section.items()} for section in groups]
+
+    def body():
+        text = "Value: <kind> — <one sentence>\n\n## Why this ships\n\n"
+        text += "<The problem in the user's words, what changes and for whom, and the value or quality it adds, in 2–4 sentences.>\n\n"
+        if records:
+            text += "## PRs\n\n| PR | Code | Tests | Docs | Files | Why |\n|---|---|---|---|---|---|\n"
+            for record, section in zip(records, groups):
+                title = html.escape(label(record)).replace("|", "\\|")
+                text += f"| {title} | " + " | ".join(count(section[group]) for group in GROUPS)
+                text += f" | {len(record['files'])} | <why, one line> |\n"
+            for index, record in enumerate(records):
+                title = html.escape(label(record))
+                text += f"\n<details><summary>{title} · {files_label(len(record['files']))}</summary>\n\n"
+                text += table(groups[index], shown[index]) + "\n\n</details>\n"
+            text += "\n"
+        text += "## Review this\n\n- [ ] <file:line: a decision or risky hunk to double check, and why>\n\n"
+        text += '## Blast Radius\n\n<Migrations, config, deploy order, user-visible changes and how to revert, or "None.">\n\n'
+        text += f"## Verification\n\n- Ran: `<command>` at `{sha}`: <result>\n"
+        text += f"- Reviewed: <senior-reviewer or interrogate> at `{sha}`: <verdict>\n"
+        text += "- Not run: <check>, because <why>\n\n## Diff\n\n"
+        return text + table(groups[-1], shown[-1]) + "\n"
+
+    budget = GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE
+    result = body()
+    for indexes in (range(len(records)), [len(records)]):
+        while len(result) > budget:
+            candidates = [(len(rows), index, group) for index in indexes for group, rows in shown[index].items() if rows]
+            if not candidates:
+                break
+            _, index, group = max(candidates)
+            shown[index][group].pop()
+            result = body()
+    if len(result) > budget:
+        raise ValueError("PR rows and required sections exceed the GitHub body budget")
+    return result
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Print the PR body skeleton with each changed file's line counts grouped into code, tests and docs.")
+    parser = argparse.ArgumentParser(description="Print a PR body with grouped file changes and merged PRs.")
     parser.add_argument("base", nargs="?", default="origin/HEAD")
     args = parser.parse_args()
     audit = load_audit()
     os.chdir(audit.git("rev-parse", "--show-toplevel").strip())
     base = audit.git("merge-base", args.base, "HEAD").strip()
-    sys.stdout.write(render(changes(base, audit)))
+    sha = audit.git("rev-parse", "--short", "HEAD").strip()
+    sys.stdout.write(render(changes(base, "HEAD", audit), pull_requests(base, audit), sha))
     return 0
 
 
