@@ -1,16 +1,18 @@
 # Program store
 
-The store is the Orchestrate playbook's store (`poteto-mode/playbooks/orchestrate.md`, Store layout), placed in a gitignored folder of the repo such as `.verify/orchestrate/<program>/`. Committed artifacts live elsewhere: the plan in `.pstack/program.md`, the decision trail in `.pstack/decision-log.tsv`, decision records in `docs/adr/`.
+The store is this skill's file store for the one-branch program, placed in a gitignored folder of the repo such as `.verify/orchestrate/<program>/`. pstack 0.15.36 deleted the orch CLI; write these files directly. Upstream Orchestrate keeps state in the Project tracker and Project store (`pstack-local`). Committed artifacts live elsewhere: the plan in `.pstack/program.md`, the decision trail in `.pstack/decision-log.tsv`, decision records in `docs/adr/`.
 
 ## Create it once
 
 ```bash
 export ORCH_STORE=<repo>/.verify/orchestrate/<program>
-alias orch="bun ~/.agents/skills/poteto-mode/scripts/orch/orch.ts"
-orch init                                  # gates.md inbox/ ledger.tsv preferences.md units.tsv; frontier.json stays unused on one branch
-mkdir -p "$ORCH_STORE/briefs" "$ORCH_STORE/reports" "$ORCH_STORE/research"
+mkdir -p "$ORCH_STORE/briefs" "$ORCH_STORE/reports" "$ORCH_STORE/research" "$ORCH_STORE/inbox"
+printf 'id\ttrack\tstate\tbranch\tpr\tsha\tbrief\n' > "$ORCH_STORE/units.tsv"
+: > "$ORCH_STORE/ledger.tsv"
+: > "$ORCH_STORE/gates.md"
+: > "$ORCH_STORE/preferences.md"
 cp ~/.agents/skills/loop-refactor-to-pstack/assets/commit-unit.sh "$ORCH_STORE/"
-git check-ignore -v "$ORCH_STORE/RESUME.md"  # must print an ignore rule
+git check-ignore -v "$ORCH_STORE/RESUME.md"
 ```
 
 Each file has one writer, the orchestrator. Workers write only `reports/<brief>.md`.
@@ -18,17 +20,17 @@ Each file has one writer, the orchestrator. Workers write only `reports/<brief>.
 | File | Holds | Written by |
 |---|---|---|
 | `RESUME.md` | The resume note below | Rewritten at the end of every iteration |
-| `preferences.md` | The numbered standing orders | `orch standing add "<line>"`, the moment an order is given |
-| `units.tsv` | One row per unit: id, track (the wave), state, branch, PR, SHA, brief | `orch unit add`, `orch unit set`; `commit-unit.sh` marks a unit `committed`; every unit becomes `landed` when the program PR merges |
-| `ledger.tsv` | One verdict per unit commit, keyed by the program PR and the commit SHA | `orch ledger record <pr> <sha> <verdict> --evidence <path> --verifier <name>`. The PR must be a number, so before the program PR opens, keep verdicts in the trail and copy them in when it opens. |
-| `inbox/` | Completion pointers | `orch inbox push` on each notification; `orch inbox drain` at drain points |
-| `gates.md` | Questions parked for the user, with a default | `orch gate park <id> --question … --options … --default …` |
-| `status.md` | Derived counts | `orch status`, never by hand |
+| `preferences.md` | The numbered standing orders | Append a numbered line the moment an order is given |
+| `units.tsv` | One row per unit: id, track (the wave), state, branch, PR, SHA, brief | Append a row when you brief a unit; `commit-unit.sh` marks it `committed`; every unit becomes `landed` when the program PR merges |
+| `ledger.tsv` | One verdict per unit commit, keyed by the program PR and the commit SHA | Append `pr`, `sha`, `verdict`, `evidence`, `verifier`. The PR must be a number, so before the program PR opens, keep verdicts in the trail and copy them in when it opens. |
+| `inbox/` | Completion pointers | Write a file on each notification; read and clear the directory at drain points |
+| `gates.md` | Questions parked for the user, with a default | Append the id, question, options and default |
+| `status.md` | Derived counts | Recount from `units.tsv` and `ledger.tsv` at each drain, never by hand |
 | `briefs/`, `reports/`, `research/` | Briefs, worker reports, census and audits | Orchestrator, workers, audit agents |
 
 Verdicts, strongest first: `live-ui-verified` (parity or a driven recipe), `unit-test-verified`, `type-check-only`, `verifier-blocked`, `verifier-failed`. A refactor unit needs `live-ui-verified`. A new head SHA voids its row.
 
-Wave and unit ids must be unique. List `briefs/` and `orch unit list` before naming one.
+Wave and unit ids must be unique. List `briefs/` and `units.tsv` before naming one.
 
 ## RESUME.md
 
@@ -48,7 +50,7 @@ Keep it under about 60 lines. After a compaction or in a new session, read it fi
 
 ## Check state
     cd <worktree>; export ORCH_STORE=<store>
-    orch unit counts; orch gate list; orch inbox count
+    wc -l "$ORCH_STORE/units.tsv" "$ORCH_STORE/gates.md"; ls "$ORCH_STORE/inbox"
     <check command>; <gates:status>
     git log --oneline <base>..HEAD | head -30
 
@@ -93,4 +95,4 @@ Number the orders so a brief can cite one ("order 12"). Paste them verbatim into
 
 Usage: `bash <store>/commit-unit.sh <unit-id> <message-file> <path>...`
 
-It refuses a dirty index, stages exactly the given paths, and appends one trailer block holding `Unit: <id>` and `COMMIT_ATTRIBUTION` (set it to the harness's attribution line). Then it commits and marks the unit `committed` in `units.tsv`. `wave-table.mjs` reads the `Unit:` trailer, so commit every unit through this helper. Add each unit with `orch unit add` when you brief it, or the helper only warns. Pass paths explicitly; build lists from a file and pipe them through `tr '\n' '\0' | xargs -0`, because zsh does not split `$VAR`. Write each message to its own file.
+It refuses a dirty index, stages exactly the given paths, and appends one trailer block holding `Unit: <id>` and `COMMIT_ATTRIBUTION` (set it to the harness's attribution line). Then it commits and marks the unit `committed` in `units.tsv`. `wave-table.mjs` reads the `Unit:` trailer, so commit every unit through this helper. Append a `units.tsv` row when you brief a unit, or the helper only warns. Pass paths explicitly; build lists from a file and pipe them through `tr '\n' '\0' | xargs -0`, because zsh does not split `$VAR`. Write each message to its own file.

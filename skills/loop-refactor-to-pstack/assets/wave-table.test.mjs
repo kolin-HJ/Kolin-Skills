@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -42,6 +42,20 @@ test("commits made by commit-unit.sh are grouped by the wave each unit belongs t
   };
   commit("w01-lane1", "a.txt", "two\nthree\n");
   commit("w02-lane1", "b.txt", "new\n");
+  const units = Object.fromEntries(
+    readFileSync(join(store, "units.tsv"), "utf8")
+      .trim()
+      .split("\n")
+      .slice(1)
+      .map((row) => {
+        const [id, , state, , , sha] = row.split("\t");
+        return [id, { state, sha }];
+      })
+  );
+  assert.equal(units["w01-lane1"].state, "committed");
+  assert.equal(units["w02-lane1"].state, "committed");
+  assert.match(units["w01-lane1"].sha, /^[0-9a-f]{7,40}$/);
+  assert.match(units["w02-lane1"].sha, /^[0-9a-f]{7,40}$/);
   writeFileSync(join(dir, "c.txt"), "loose\n");
   run("git", ["add", "c.txt"]);
   run("git", ["commit", "-q", "-m", "chore: no trailer"]);
