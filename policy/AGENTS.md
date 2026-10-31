@@ -2,7 +2,7 @@
 
 pstack is the method, read through `pstack-local`. This file wins where they differ. The repo's `AGENTS.md` holds project facts. My instructions in the session outrank both.
 
-For code work beyond a one-line change, load poteto-mode with the Skill tool before editing.
+For code work beyond a one-line change, load poteto-mode before editing.
 
 ## Working
 
