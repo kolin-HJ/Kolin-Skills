@@ -8,7 +8,7 @@ Paths are relative to `~/.agents/skills/` (`deslop`, `control-ui` and `control-c
 
 | Playbook | Where it fires |
 |---|---|
-| `orchestrate.md` | The whole program: orchestrator role, store, brief fields, drains, ledger, liveness, escalation. Collapse it when one agent can finish inside the budget. |
+| `orchestrate.md` | The whole program: coordinator role, kickoffs, supervision. This skill keeps a file store for the one-branch program; pstack no longer ships an orch CLI. Collapse it when one agent can finish inside the budget. |
 | `refactoring.md` | Every behavior-preserving wave: pin the contract, name the target shape, subtract first, migrate callers and delete, prove equivalence, check the reader-load delta. |
 | `autonomous-run.md` | The wake mechanism between iterations, and its rule that a plateau is not a stop. |
 | `prototype.md` | Any fork an experiment can settle: an Effect edge adapter shape, a codemod's output, a rule's false-positive rate. |
