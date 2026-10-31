@@ -83,6 +83,21 @@ class PrBodyTests(unittest.TestCase):
             block = body.split(f"<summary>{title} ·", 1)[1].split("</details>", 1)[0]
             self.assertIn(f"`{path}` |", block)
 
+    def test_back_merge_of_base_is_not_reported_as_shipping(self):
+        self.git("checkout", "-q", "main")
+        self.write("src/hotfix.py", "hotfix\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "hotfix")
+        self.git("checkout", "-q", "work")
+        self.write("src/feature.py", "feature\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "Add feature (#5)")
+        self.git("merge", "--no-ff", "main", "-m", "Merge branch 'main' into work")
+        body = self.render()
+        self.assertIn("| #5 Add feature | +1 -0 |", body)
+        self.assertNotIn("Direct commits", body)
+        self.assertNotIn("hotfix.py", body)
+
     def test_feature_branch_has_no_pr_section_and_verification_names_head(self):
         self.write("src/feature.py", "feature\n")
         body = self.body()
