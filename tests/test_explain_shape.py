@@ -7,7 +7,6 @@ POLICY = (REPO / "policy/AGENTS.md").read_text()
 PSTACK_LOCAL = (REPO / "skills/pstack-local/SKILL.md").read_text()
 EXPLAINER = (REPO / "skills/explainer/SKILL.md").read_text()
 STE = (REPO / "claude/output-styles/ste-visual.md").read_text()
-CLI = (REPO / "bin/kolin-skills").read_text()
 
 
 def section(text, heading, stop):
@@ -56,12 +55,6 @@ class ExplainShapeTests(unittest.TestCase):
         self.assertRegex(STE, r"3 short beats|at most 3")
         self.assertRegex(STE, r"No table|no table")
         self.assertRegex(STE, r"yes")
-
-    def test_size_budgets_are_the_repo_caps(self):
-        self.assertIn('"policy/AGENTS.md": 3_500', CLI)
-        self.assertIn('"skills/pstack-local/SKILL.md": 8_000', CLI)
-        self.assertLessEqual((REPO / "policy/AGENTS.md").stat().st_size, 3_500)
-        self.assertLessEqual((REPO / "skills/pstack-local/SKILL.md").stat().st_size, 8_000)
 
 
 if __name__ == "__main__":

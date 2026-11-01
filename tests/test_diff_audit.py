@@ -47,6 +47,7 @@ class DiffAuditTests(unittest.TestCase):
             "comment": ("src/price.ts", "export function price(n: number) {\n  // double it\n  return n * 2;\n}\n"),
             "debug-leftover": ("src/price.ts", "export function price(n: number) {\n  debugger;\n  return n * 2;\n}\n"),
             "dependency": ("package.json", '{\n  "dependencies": {\n    "left-pad": "^1.3.0"\n  }\n}\n'),
+            "instructions-grew": ("policy/AGENTS.md", "Ask before you deploy.\n"),
         }
         for kind, (relative, text) in cases.items():
             with self.subTest(kind=kind):
@@ -57,6 +58,14 @@ class DiffAuditTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 1, result.stdout)
                 self.assertIn(f"block {kind}: {relative}", result.stdout)
                 self.assertEqual(self.audit("--allow", kind).returncode, 0)
+
+    def test_an_instruction_file_that_cuts_as_much_as_it_adds_passes(self):
+        self.write("CLAUDE.md", "Ask before every deploy and before every release.\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "rules")
+        self.write("CLAUDE.md", "Ask before a deploy or release.\nNo comments.\n")
+        result = self.audit()
+        self.assertEqual(result.returncode, 0, result.stdout)
 
     def test_a_console_log_blocks_in_a_ui_component(self):
         self.write("src/Price.tsx", "export function Price() {\n  console.log(1);\n  return null;\n}\n")
