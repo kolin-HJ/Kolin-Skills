@@ -192,7 +192,6 @@
     "find-skills": "user-invocable-only",
     "loop-refactor-to-pstack": "user-invocable-only",
     "full-send": "user-invocable-only",
-    "full-stop": "user-invocable-only",
     "schedule": "user-invocable-only",
     "workflow-authoring": "user-invocable-only",
     "dataviz": "name-only",

@@ -1,35 +1,55 @@
 ---
 name: full-send
-description: "Use only when Kolin explicitly says \"full send\" or invokes /full-send for a specific PR or task in this session. Do not apply it on your own judgment."
+description: "Use only when Kolin explicitly says \"full send\" or invokes /full-send for a task or PR. Do not apply it on your own judgment."
 ---
 # Full send
-Kolin invoked this because he is not watching the thread. Own the work from its current state to a PR that is merged, or that passes the merge checklist with only Kolin's merge left. `hooks/gate/block-forbidden-git.sh` blocks every merge into `main`, `master`, `staging` or `sandbox`, so on those bases full send ends at `Checklist passed, merge blocked by hook`. Kolin reads your messages only after you stop, so a message in the chat does not reach him until then.
+Kolin invoked this because Kolin will not watch or babysit the thread. Own the work from its current state to a polished PR against the base, green, reviewed, with every finding fixed or answered, and ready to merge. Never merge: the merge is Kolin's. Kolin reads your messages only after you stop.
 If Kolin did not clearly invoke full send in this session, do not take this autonomy. Work normally.
-## Base workflow
-Read `~/.agents/skills/full-stop/SKILL.md` and follow all of it. Full send changes only the end: it replaces "stop at ready" with the merge checklist below.
-## The yes and its scope
-Kolin never merges without a yes in the session. Kolin invoking full send for this PR is that yes. The yes:
-- Covers this one PR only, not follow-up PRs or later sessions.
-- Covers the merge only, never a deploy, release, promotion or workflow run, before or after the merge.
-- Ends when the PR scope grows past the original intent. Then fall back to full stop.
-## Merge checklist
-Check every item at the current head commit, and record the command and result for each.
-1. **Ready.** full-stop's Babysit reports `READY` and its ready checks pass. A skipped required check counts as failed.
-2. **Up to date.** `gh pr view <N> --json mergeable,mergeStateStatus` shows `MERGEABLE` and `CLEAN`.
-3. **Migrations.** No destructive migration (drop, truncate, destructive rename, data deletion) unless a PR label approves it. Any schema change still needs Kolin's approval.
-4. **Not a promotion.** The PR does not promote or release to production (`staging` into `main`, a release branch, a version tag) unless Kolin said so for this PR.
-If an item fails and you can fix it, fix it, re-verify and start again at item 1. If you can't, stop with the full-stop report and the reason.
-## Merge step
-This is pstack's **Shipping** playbook for one PR. Shipping step 1 is replaced: the verdict is the policy's fresh review when one was required, else full-stop's evidence. Shipping steps 3 to 5 (patch-id, retarget, `--force-with-lease`, `--auto`) do not apply. These limits win over Shipping:
-1. Run `git fetch`, then check items 1 and 2 again. If base commits that landed after the last green run touch this PR's files, merge the base in, push and wait for green again.
-2. Use the merge method the repo uses (repo settings or recent merged PRs).
-3. Run `gh pr merge <N> --<squash|merge|rebase>` once, without `--auto` or `--admin`.
-4. If a guard hook blocks it, try no other route to merge: no API call, no script, no git merge into the base. Stop and report with this status line:
-   `Checklist passed, merge blocked by hook; run: gh pr merge <N> --<squash|merge|rebase>`
-5. If it merges, confirm with `gh pr view <N> --json state,mergeCommit`.
-## Report
-Use the full-stop report format. Set `Status:` to one of:
-- `Checklist passed, merge blocked by hook; run: gh pr merge <N> --<method>`
-- `Merged <merge sha>`
-- `Checklist failed: <item>: <reason>`
-Under `Evidence:`, list the 4 checklist items with their results.
+## Scope of permission
+You may, without asking:
+- Commit and push a work branch. Open a PR and update it.
+- Merge the base branch into the work branch and push normally.
+- Reply to review comments and resolve the threads you fixed.
+- Run the app, a dev server, a browser or a simulator, and take screenshots, when the proof needs it. List each under `Decisions:`.
+You may not:
+- Merge, enable auto-merge, or call the merge API.
+- Force-push (including `--force-with-lease`), or rebase a pushed branch.
+- Push to `main`, `master`, `staging` or `sandbox`, deploy, release, or run workflows.
+- Open a PR that promotes to production (`staging` into `main`, a release branch, a version tag) unless Kolin said so for this task.
+- Change DB schema or migrations, env vars or secrets, or data in a shared account. Add dependencies.
+## Rules
+- A guard hook that blocks a command ends that path. Do not rephrase, split, alias, encode or script around it.
+- Keep the diff to the task. Fix a review finding only when the intended case is wrong or callers will hit a real bug. Decline the rest (another path, a rare case, an extra guard or test) with a one-line reason, and list it under `Follow-ups:`. Prefer the fix that deletes or narrows code.
+- Evidence means things you ran and saw in this session: commands, exit codes, output, screenshots. A claim or "should work" is not evidence.
+- Start each PR comment or review reply with `> [!NOTE]` and `> 🤖 **<model> responding on behalf of Kolin**`, then a blank line. Lead with the conclusion and cite the `file:line`, check or output. Resolve a thread only after GitHub returns the reply URL.
+## Flow
+The method is pstack's `poteto-mode`, read through `pstack-local`.
+1. **Build.** Run the playbook that matches the task (Bug fix, Feature, Refactoring and the rest) on a work branch off the base the policy names (`staging` when it exists). When you take over someone's PR, keep their commits or credit them with `Co-authored-by:`. Run the repo's gate and prove the behavior on the real artifact.
+2. **Polish.** Read the full `git diff <base>...HEAD` as a reviewer would. Cut what is outside the task, comments, dead code and slop. Run `diff-audit <base>` and clear each block, or keep its reason for the PR body. Run the gate again.
+3. **Review.** When the diff changes over 150 lines or touches schema, auth, access, money or a migration, spawn `senior-reviewer` with the task as Kolin stated it and the base. Do not give it your conclusions. Answer each finding by the scope rule, then run the gate again. If the fixes change behavior, run one more fresh `senior-reviewer` on the new diff. Under that line, the gate and your evidence are the review; say so under `Decisions:`.
+4. **Open the PR.** Follow **Opening a PR**, with the body from the repo's template or `pr-body <base>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`.
+5. **Drive to green.** Run **Babysit** in `drive` mode until the watcher reports `READY`. Invoking full send is the babysit ask. Fix failing checks and answer review-bot findings by the scope rule. When the base moves or conflicts, merge it in (never rebase), rerun the proof and push; this wins over Babysit steps 4 and 5. In T3 Code, the watcher is `watch_pull_request` in the thread that owns the PR; end the turn after you arm it. If you end a turn with nothing set to wake you, the work stops.
+## Ready checks
+At the current head:
+- The evidence covers every changed file and behavior.
+- `diff-audit <base>` shows no block, or the PR body gives each one a reason.
+- The PR title and body match the final diff.
+- Review bots have finished, and every finding is fixed or answered.
+- Every required check is green. A skipped required check counts as failed. With no required checks, every check that ran is green and none is pending.
+- `gh pr view <N> --json mergeable,mergeStateStatus` shows `MERGEABLE` and `CLEAN` (`watch_pull_request` does not report BEHIND).
+Then, in T3 Code, call `unwatch_pull_request`, and report. Take the merge method from the repo settings or recent merged PRs.
+## Stop rules
+Stop and report when a guard hook blocks a command you need, the work needs anything under "You may not", the same check fails 3 times after separate fixes, reviewers conflict or the intent is unclear, or the fix must grow past the original intent.
+Contact Kolin only when blocked or ready. Ask with the question tool (AskUserQuestion) if one exists, with the PR link, the block, the options and your recommendation first. Otherwise make it the first line of the report.
+## Report format
+```
+PR: <url> (head <sha>, base <base>)
+Status: Ready for Kolin to merge: gh pr merge <N> --<squash|merge|rebase> | Blocked: <reason>
+Evidence: <command> -> <result>, one line each
+Checks: <name>: <state>, one line each
+Review: senior-reviewer <ran n times / not needed: reason>; bots <done/pending>; findings <fixed n / declined n with reasons>; changes requested: <none/who>
+Decisions: <each choice you made for Kolin, one line each>
+Follow-ups: <declined nits and out-of-scope findings, or none>
+Residual risks: <list, or none known>
+Needs Kolin: <specific action, or nothing>
+```

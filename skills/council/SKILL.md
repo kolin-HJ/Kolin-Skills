@@ -40,7 +40,7 @@ C1 [blocker|should|nit] <file>:<line> <claim>. Fix: <suggestion>
 
 ## Answer findings
 
-Check each finding and its severity in the code yourself. Classify it by the scope rule in `full-stop`, whatever label it came with.
+Check each finding and its severity in the code yourself. Classify it by the scope rule in `full-send`, whatever label it came with.
 
 - Agree: make the smallest fix.
 - Disagree: say why, with a `file:line`, a test or output.
