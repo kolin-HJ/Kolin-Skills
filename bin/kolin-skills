@@ -14,6 +14,8 @@ import subprocess
 import sys
 import time
 
+import third_party
+
 
 def on_disk_case(path):
     resolved = pathlib.Path("/")
@@ -523,23 +525,6 @@ def vendor_pin_problems():
     return problems
 
 
-MIN_NODE = (22, 20)
-
-
-def node_problem():
-    node = shutil.which("node")
-    if node is None:
-        return f"Node is missing from PATH; third-party skills need Node >= {MIN_NODE[0]}.{MIN_NODE[1]}"
-    try:
-        raw = subprocess.run([node, "--version"], text=True, capture_output=True, timeout=10).stdout.strip()
-        version = tuple(int(part) for part in raw.lstrip("v").split(".")[:2])
-    except (OSError, ValueError, subprocess.TimeoutExpired):
-        return f"could not read the Node version; third-party skills need Node >= {MIN_NODE[0]}.{MIN_NODE[1]}"
-    if version < MIN_NODE:
-        return f"Node {raw} is too old; third-party skills need Node >= {MIN_NODE[0]}.{MIN_NODE[1]}. Upgrade Node, then run kolin-skills upstream"
-    return None
-
-
 def upstream(bump=False):
     manifest_file = REPO / "upstream/vendor.json"
     manifest = json.loads(manifest_file.read_text())
@@ -552,17 +537,12 @@ def upstream(bump=False):
             print(f"kolin-skills: could not fetch {name} ({error.stderr or 'git clone failed'}); continuing", file=sys.stderr)
     manifest_file.write_text(json.dumps(manifest, indent=2) + "\n")
     installed = {path.name for path in (HOME / ".agents/skills").iterdir()} if (HOME / ".agents/skills").is_dir() else set()
-    problem = node_problem()
+    problem = third_party.node_problem()
     if problem:
-        print(f"kolin-skills: skipped third-party skills: {problem}", file=sys.stderr)
-    for package, skills in ({} if problem else json.loads((REPO / "upstream/skills.json").read_text())).items():
-        missing = [skill for skill in skills if skill not in installed]
-        if missing:
-            result = subprocess.run(["npx", "--yes", "skills", "add", package, "--global", "--yes",
-                                     "--agent", "claude-code", "--agent", "codex", "--agent", "cursor",
-                                     *[flag for skill in missing for flag in ("--skill", skill)]])
-            if result.returncode:
-                print(f"kolin-skills: npx skills add {package} failed (exit {result.returncode}); continuing", file=sys.stderr)
+        print(f"kolin-skills: skipped third-party skills and tools: {problem}", file=sys.stderr)
+    else:
+        third_party.install_skills(REPO, installed)
+        failed += third_party.install_npm_tools(REPO)
     return run_apply(check=False, quiet=False) or (1 if failed else 0)
 
 
@@ -797,6 +777,7 @@ def check(files_only=False):
             failures.append("home differs from the repo; fix each line above")
         if not vendor_skills():
             failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
+        failures += third_party.npm_tool_problems(REPO)
     failures += spend_failures()
     for relative, budget in SIZE_BUDGETS.items():
         size = (REPO / relative).stat().st_size
@@ -841,7 +822,7 @@ def check(files_only=False):
         print(f"FAIL: {failure}", file=sys.stderr)
     if failures:
         return 1
-    print("Passed: home drift and strays (unless skipped above), spend caps, size budgets, 1,000-line files, skill indexes, required tools, vendored and third-party skills, Python and Node tests, feature-budget (report-only).")
+    print("Passed: home drift and strays (unless skipped above), spend caps, size budgets, 1,000-line files, skill indexes, required tools, vendored and third-party skills, pinned CLIs, Python and Node tests, feature-budget (report-only).")
     print("Live agent routing and model-role readiness are not checked.")
     return 0
 

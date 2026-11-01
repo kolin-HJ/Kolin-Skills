@@ -85,12 +85,12 @@ git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Kolin-Skills
 python3 ~/Kolin-Skills/bin/kolin-skills install
 ```
 
-1. **Run `install` once.** It fetches the pinned third-party skills, links everything into each tool, runs `check` and puts `kolin-skills` in `~/.local/bin`.
+1. **Run `install` once.** It fetches the pinned third-party skills and CLIs, links everything into each tool, runs `check` and puts `kolin-skills` in `~/.local/bin`.
 2. **Open any agent in any repo.** There is nothing to start.
 3. **Stay on `main`.** Updates are not the same on every tool. Use the matrix. Put a machine on current `main` with [`docs/stay-on-main.md`](docs/stay-on-main.md). When an update moves a third-party pin, run `kolin-skills upstream`.
 4. **Put your own rules in each project's `AGENTS.md`.** Do not edit the clone, because a local edit stops the updates.
 
-With Node older than 22.20, `install` skips the third-party skills and says so. Offline, it links what it has and exits 1.
+With Node older than 22.20, `install` skips the third-party skills and CLIs and says so. Offline, it links what it has and exits 1.
 
 ### Updates by environment
 
@@ -211,8 +211,8 @@ Each skill starts in one of two ways:
 | cursor-team-kit | `deslop`, `control-ui`, `control-cli` | 💬 To clean AI slop out of code, or to drive a UI or CLI |
 | cursor-team-kit | `thermo-nuclear-code-quality-review` | The agent reads it for the diff pass before review, or when you ask for a harsh structure review |
 | `npx skills` | `find-skills` | ⌨️ |
-| `npx skills` | `agent-browser` | The agent reads it to drive or check a web app or Electron web content. Needs the CLI: `npm install -g --allow-scripts=agent-browser agent-browser` |
-| `npx skills` | `agent-desktop` | The agent reads it to drive or check a native Mac, Windows or Linux app. Needs the CLI: `npm install -g --allow-scripts=agent-desktop agent-desktop`, then grant Accessibility with `agent-desktop permissions --guide` |
+| `npx skills` | `agent-browser` | The agent reads it to drive or check a web app or Electron web content. `upstream` also installs the CLI at its pin in `upstream/tools.json` |
+| `npx skills` | `agent-desktop` | The agent reads it to drive or check a native Mac, Windows or Linux app. `upstream` also installs the CLI at its pin. On macOS, grant Accessibility once with `agent-desktop permissions --guide` |
 
 </details>
 
@@ -231,7 +231,7 @@ hooks/                       guards and lint, run in place from the repo
 claude/                      managed settings keys, status line, output style (ste-visual)
 codex/, cursor/              hook config and the Cursor policy rule
 .githooks/                   pre-commit runs check --files; pre-push runs check; post-merge, post-checkout, post-rewrite run apply
-upstream/                    pstack and cursor-team-kit (vendor.json), npx skills (skills.json)
+upstream/                    pstack and cursor-team-kit (vendor.json), npx skills (skills.json), npm CLIs (tools.json)
 docs/                        stay-on-main, consumer-drift
 tests/                       installer, hook and repo-rule tests, run by check
 ```
@@ -250,7 +250,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `kolin-skills install` | First run on a machine: `upstream`, `apply`, then `check` |
 | `kolin-skills apply` | Links the repo into home. `--check` reports drift only. `--adopt` moves home to this checkout. `--if-wired` runs only when home is wired here |
 | `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, then applies. Runs at each Claude Code and Codex session start. Not Cursor or Grok. Prints `kolin-skills: stale setup` when it cannot update. Machines without those hooks: [`docs/stay-on-main.md`](docs/stay-on-main.md) |
-| `kolin-skills upstream` | Installs third-party skills at pinned commits. `--bump` moves the pins |
+| `kolin-skills upstream` | Installs third-party skills at pinned commits and CLIs at pinned versions. `--bump` moves the git pins; edit `upstream/tools.json` to move a CLI |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
 | `kolin-skills stacks` | Lists running native Supabase stacks. `--stop` stops the idle ones. `--notice` runs at session start and prints only when idle stacks exist |
 | `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. `--quick` checks only home, in seconds: links resolve, hooks and policy are wired, the self-invoking pstack skills carry no model lock. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor. With a path, it only runs `check-drift` |
