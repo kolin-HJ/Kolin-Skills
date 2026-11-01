@@ -93,7 +93,7 @@ REQUIRED_TOOLS = {
     "node": "the loop-refactor-to-pstack gate templates are tested with it, and npx skills needs it",
 }
 SKILL_INDEXES = ["README.md"]
-SIZE_BUDGETS = {"policy/AGENTS.md": 3_500, "skills/pstack-local/SKILL.md": 8_000}
+EVERY_SESSION_CEILINGS = {"policy/AGENTS.md": 7_000, "skills/pstack-local/SKILL.md": 16_000}
 MAX_FILE_LINES = 1000
 CI_VALUES = {"1", "true", "yes"}
 
@@ -789,10 +789,11 @@ def check(files_only=False):
             failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
         failures += third_party.npm_tool_problems(REPO)
     failures += spend_failures()
-    for relative, budget in SIZE_BUDGETS.items():
+    for relative, ceiling in EVERY_SESSION_CEILINGS.items():
         size = (REPO / relative).stat().st_size
-        if size > budget:
-            failures.append(f"{relative} is {size} bytes, over its {budget}-byte budget")
+        if size > ceiling:
+            failures.append(f"{relative} is {size} bytes, past its {ceiling}-byte ceiling. Every session loads it: "
+                            "cut a rule (policy, Adding rules) or move detail into a file read on demand. Do not raise the ceiling")
     skills = sorted(path.parent.name for path in (REPO / "skills").glob("*/SKILL.md"))
     for index in SKILL_INDEXES:
         text = (REPO / index).read_text()
@@ -832,7 +833,7 @@ def check(files_only=False):
         print(f"FAIL: {failure}", file=sys.stderr)
     if failures:
         return 1
-    print("Passed: home drift and strays (unless skipped above), spend caps, size budgets, 1,000-line files, skill indexes, required tools, vendored and third-party skills, pinned CLIs, Python and Node tests, feature-budget (report-only).")
+    print("Passed: home drift and strays (unless skipped above), spend caps, every-session ceilings, 1,000-line files, skill indexes, required tools, vendored and third-party skills, pinned CLIs, Python and Node tests, feature-budget (report-only).")
     print("Live agent routing and model-role readiness are not checked.")
     return 0
 

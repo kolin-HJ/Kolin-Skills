@@ -245,6 +245,25 @@ class ApplyTests(unittest.TestCase):
             ["FAIL: skills/no-description/SKILL.md has no frontmatter description; Claude Code cannot list it"],
         )
 
+    def test_check_allows_policy_edits_and_fails_only_when_it_grows_back_into_a_rulebook(self):
+        shutil.rmtree(self.repo / "tests")
+        (self.repo / "tests").mkdir()
+        (self.repo / "tests/test_ok.py").write_text(
+            "import unittest\nclass Ok(unittest.TestCase):\n    def test_ok(self):\n        self.assertEqual(1, 1)\n"
+        )
+        policy = self.repo / "policy/AGENTS.md"
+        policy.write_text("x" * 4_000)
+        clarified = self.run_cli("check", extra_env={"CI": "true"})
+        self.assertEqual(clarified.returncode, 0, clarified.stderr)
+        policy.write_text("x" * 7_001)
+        regrown = self.run_cli("check", extra_env={"CI": "true"})
+        self.assertEqual(regrown.returncode, 1)
+        self.assertEqual(
+            [line for line in regrown.stderr.splitlines() if line.startswith("FAIL:")],
+            ["FAIL: policy/AGENTS.md is 7001 bytes, past its 7000-byte ceiling. Every session loads it: "
+             "cut a rule (policy, Adding rules) or move detail into a file read on demand. Do not raise the ceiling"],
+        )
+
     def test_check_fails_on_a_home_skill_link_without_a_skill_file(self):
         self.assertEqual(self.run_cli("apply").returncode, 0)
         target = self.home / ".agents/vendor/cursor-plugins/pstack/skills/architect"
