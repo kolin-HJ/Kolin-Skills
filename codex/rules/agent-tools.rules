@@ -1,7 +1,14 @@
 prefix_rule(
-    pattern = [["agent-browser", "agent-desktop"]],
+    pattern = ["agent-browser-guard"],
     decision = "allow",
-    justification = "agent-browser and agent-desktop need Chrome, the window server and Accessibility, which the seatbelt sandbox blocks",
-    match = [["agent-browser", "open", "https://example.com"], ["agent-desktop", "snapshot", "-i"]],
-    not_match = [["agent-browserx"], ["npx", "agent-browser"]],
+    justification = "agent-browser needs Chrome and the window server, which the seatbelt sandbox blocks; the guard refuses program-running flags and writes outside ~/.agent-browser-evidence",
+    match = [["agent-browser-guard", "open", "https://example.com"]],
+    not_match = [["agent-browser", "open", "https://example.com"], ["agent-browser-guardx"]],
+)
+
+prefix_rule(
+    pattern = ["agent-desktop"],
+    decision = "prompt",
+    justification = "agent-desktop outside the sandbox can operate any app, including a terminal, so Kolin approves each call",
+    match = [["agent-desktop", "snapshot", "-i"]],
 )

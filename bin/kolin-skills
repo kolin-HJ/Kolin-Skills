@@ -70,6 +70,7 @@ LINKS = {
     "hooks/agent-default-model.py": [".claude/hooks/agent-default-model.py"],
     "hooks/gate/block-forbidden-git.sh": [".claude/hooks/block-forbidden-git.sh"],
     "bin/kolin-skills": [".local/bin/kolin-skills"],
+    "bin/agent-browser-guard": [".local/bin/agent-browser-guard"],
     "bin/context-audit": [".local/bin/context-audit"],
     "bin/feature-budget": [".local/bin/feature-budget"],
     "bin/pr-body": [".local/bin/pr-body"],

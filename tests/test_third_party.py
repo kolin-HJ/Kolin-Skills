@@ -95,9 +95,12 @@ class CodexRuleTests(unittest.TestCase):
                                 text=True, capture_output=True, timeout=30, check=True)
         return json.loads(result.stdout).get("decision")
 
-    def test_every_pinned_cli_runs_outside_the_sandbox(self):
-        for name in third_party.npm_tool_pins(REPO):
-            self.assertEqual(self.decision(name, "snapshot"), "allow", name)
+    def test_only_the_browser_guard_runs_outside_the_sandbox(self):
+        self.assertEqual(self.decision("agent-browser-guard", "open", "https://example.com"), "allow")
+        self.assertIsNone(self.decision("agent-browser", "--executable-path", "./x.sh", "open", "about:blank"))
+
+    def test_agent_desktop_asks_each_time(self):
+        self.assertEqual(self.decision("agent-desktop", "snapshot", "-i"), "prompt")
 
     def test_other_commands_keep_the_sandbox(self):
         self.assertIsNone(self.decision("npx", "agent-browser", "open"))

@@ -229,7 +229,7 @@ skills/                      own skills, linked flat into ~/.agents/skills, ~/.c
 agents/                      subagents; senior-reviewer.md holds the review bar
 hooks/                       guards and lint, run in place from the repo
 claude/                      managed settings keys, status line, output style (ste-visual)
-codex/, cursor/              hook config, the Codex rule that runs agent-browser and agent-desktop outside the sandbox, and the Cursor policy rule
+codex/, cursor/              hook config, the Codex rules (agent-browser-guard runs outside the sandbox, agent-desktop asks each call), and the Cursor policy rule
 .githooks/                   pre-commit runs check --files; pre-push runs check; post-merge, post-checkout, post-rewrite run apply
 upstream/                    pstack and cursor-team-kit (vendor.json), npx skills (skills.json), npm CLIs (tools.json)
 docs/                        stay-on-main, consumer-drift
@@ -256,6 +256,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `kolin-skills check` | The gate: drift, strays, pins, spend caps, size budgets, 1,000-line files, tools, tests, comments. `--files` is only the line limit. `--quick` checks only home, in seconds: links resolve, hooks and policy are wired, the self-invoking pstack skills carry no model lock. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor. With a path, it only runs `check-drift` |
 | `kolin-skills check-drift <path>` | Fails when that tree's vendored pstack SOURCE/rev or synced `senior-reviewer` differs from this repo. What it compares, and the hj-supply-chain / box follow-ups: [`docs/consumer-drift.md`](docs/consumer-drift.md) |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts. `--window START END [--top N]` reports parent-inclusive Claude sessions by inclusive UTC start date without writing state |
+| `agent-browser-guard <args>` | Runs `agent-browser` for Codex outside its sandbox. Refuses flags and commands that run a program, change the install or reuse your logins, and writes outside `~/.agent-browser-evidence` |
 | `pr-body <base>` | Prints a PR body skeleton with the policy's sections and a diff table grouped into code, tests and docs |
 | `diff-audit <base>` | Flags reward hacks and slop in a diff (skipped tests, comments, new dependencies) and lists every addition for the value check |
 | `feature-budget` | Counts files and lines under `features/<name>/` against the plan (defaults: read 5/800, edit 7/1,200, write 12/2,500, tests excluded). Lists under-40-line single-importer files except a library wrapper. Report-only in `kolin-skills check`. Over budget fails review; over twice the budget stops the wave (`repo-standard`, Layout) |

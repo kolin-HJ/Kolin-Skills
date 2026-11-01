@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+import os
+import pathlib
+import shutil
+import sys
+
+EVIDENCE = pathlib.Path.home() / ".agent-browser-evidence"
+DENIED_COMMANDS = {"install", "upgrade", "doctor", "connect", "auth", "plugin", "chat", "mcp", "dashboard", "batch", "inspect"}
+DENIED_FLAGS = {"--args", "--auto-connect", "--ca-cert", "--cdp", "--config", "--engine", "--executable-path",
+                "--extension", "--model", "--profile", "--provider", "-p"}
+READ_FLAGS = {"--state", "--baseline", "--init-script", "--action-policy", "--curl"}
+KEPT_ENV = {"AGENT_BROWSER_SESSION", "AGENT_BROWSER_DEFAULT_TIMEOUT"}
+
+
+def evidence_problem():
+    EVIDENCE.mkdir(mode=0o700, exist_ok=True)
+    if EVIDENCE.is_symlink() or not EVIDENCE.is_dir() or EVIDENCE.stat().st_uid != os.getuid():
+        return f"{EVIDENCE} must be a real directory you own"
+    return None
+
+
+def looks_like_path(value, root):
+    parts = value.split("/")
+    first = root / parts[0]
+    return value.startswith(("/", "~")) or ".." in parts or first.exists() or first.is_symlink()
+
+
+def reads_file(args, index, flag):
+    command = next((arg for arg in args if not arg.startswith("-")), "")
+    return flag in READ_FLAGS or command == "upload" or args[index - 1:index] == ["load"]
+
+
+def path_problem(value, args, index, flag, root):
+    resolved = (root / pathlib.Path(value).expanduser()).resolve()
+    if resolved.is_relative_to(root) or (reads_file(args, index, flag) and resolved.is_file()):
+        return None
+    return f"{value}: write paths must be inside {EVIDENCE}; outside it, only upload, state load and {', '.join(sorted(READ_FLAGS))} may read an existing file"
+
+
+def refusal(args, root):
+    for index, arg in enumerate(args):
+        name, _, inline = arg.partition("=")
+        if name in DENIED_FLAGS:
+            return f"{name} can run a program, attach to another browser or reuse your logins outside the sandbox"
+        if arg in DENIED_COMMANDS:
+            return f"{arg} changes the install, runs code or attaches to another browser"
+        flag, value = (name, inline) if arg.startswith("-") else (args[index - 1] if index else "", arg)
+        if value and looks_like_path(value, root):
+            problem = path_problem(value, args, index, flag, root)
+            if problem:
+                return problem
+    return None
+
+
+def main(args):
+    problem = evidence_problem()
+    root = EVIDENCE.resolve()
+    problem = problem or refusal(args, root)
+    if problem:
+        print(f"agent-browser-guard: refused: {problem}", file=sys.stderr)
+        return 2
+    binary = shutil.which("agent-browser")
+    if binary is None:
+        print("agent-browser-guard: agent-browser is not on PATH; run kolin-skills upstream", file=sys.stderr)
+        return 127
+    env = {key: value for key, value in os.environ.items() if not key.startswith("AGENT_BROWSER_") or key in KEPT_ENV}
+    os.chdir(root)
+    os.execve(binary, [binary, *args], env)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
