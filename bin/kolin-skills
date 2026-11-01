@@ -7,12 +7,16 @@ import hashlib
 import json
 import re
 import signal
+import stat
 import os
 import pathlib
 import shutil
 import subprocess
 import sys
 import time
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import third_party
 
 
 def on_disk_case(path):
@@ -61,6 +65,7 @@ LINKS = {
     "claude/output-styles/ste-visual.md": [".claude/output-styles/ste-visual.md"],
     "hooks/lint-changed-lines.py": [".codex/hooks/lint-changed-lines.py"],
     "hooks/compact-context.py": [".codex/hooks/compact-context.py"],
+    "codex/rules/agent-tools.rules": [".codex/rules/agent-tools.rules"],
     "hooks/block-env-reads.py": [".claude/hooks/block-env-reads.py"],
     "hooks/heavy-slot.py": [".kolin-skills/bin/heavy-slot.py"],
     "hooks/agent-default-model.py": [".claude/hooks/agent-default-model.py"],
@@ -77,6 +82,7 @@ MERGED_JSON = {
     "cursor/hooks.json": ".cursor/hooks.json",
 }
 RENDERED = {"cursor/agent-policy.mdc": ".cursor/rules/agent-policy.mdc"}
+READ_ONLY_EXECUTABLES = {"bin/agent-browser-guard": ".local/bin/agent-browser-guard"}
 LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in paths if path.endswith((".py", ".sh"))]
 LEGACY_HOOK_PATHS.append("pstack-local/scripts/mode-reminder")
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
@@ -175,9 +181,10 @@ class Plan:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.symlink_to(target)
 
-    def write(self, path, text):
+    def write(self, path, text, mode=None):
         self.owned.add(path)
-        if path.is_file() and not path.is_symlink() and path.read_text() == text:
+        same_mode = mode is None or (path.is_file() and stat.S_IMODE(path.stat().st_mode) == mode)
+        if path.is_file() and not path.is_symlink() and path.read_text() == text and same_mode:
             return
         self.note(f"write ~/{path.relative_to(HOME)}")
         if self.check:
@@ -188,7 +195,10 @@ class Plan:
             self.backup(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_name(f".{path.name}.kolin-skills")
+        temporary.unlink(missing_ok=True)
         temporary.write_text(text)
+        if mode is not None:
+            temporary.chmod(mode)
         temporary.replace(path)
 
     def write_json(self, path, data):
@@ -340,6 +350,8 @@ def apply(plan, roots):
         plan.write_json(path, merge_settings(current, wanted, roots))
     for source, destination in RENDERED.items():
         plan.write(HOME / destination, render_template((REPO / source).read_text()))
+    for source, destination in READ_ONLY_EXECUTABLES.items():
+        plan.write(HOME / destination, (REPO / source).read_text(), mode=0o555)
 
     hooks_path = subprocess.run(["git", "-C", str(REPO), "config", "core.hooksPath"], text=True, capture_output=True).stdout.strip()
     if (REPO / ".git").exists() and hooks_path != ".githooks":
@@ -523,23 +535,6 @@ def vendor_pin_problems():
     return problems
 
 
-MIN_NODE = (22, 20)
-
-
-def node_problem():
-    node = shutil.which("node")
-    if node is None:
-        return f"Node is missing from PATH; third-party skills need Node >= {MIN_NODE[0]}.{MIN_NODE[1]}"
-    try:
-        raw = subprocess.run([node, "--version"], text=True, capture_output=True, timeout=10).stdout.strip()
-        version = tuple(int(part) for part in raw.lstrip("v").split(".")[:2])
-    except (OSError, ValueError, subprocess.TimeoutExpired):
-        return f"could not read the Node version; third-party skills need Node >= {MIN_NODE[0]}.{MIN_NODE[1]}"
-    if version < MIN_NODE:
-        return f"Node {raw} is too old; third-party skills need Node >= {MIN_NODE[0]}.{MIN_NODE[1]}. Upgrade Node, then run kolin-skills upstream"
-    return None
-
-
 def upstream(bump=False):
     manifest_file = REPO / "upstream/vendor.json"
     manifest = json.loads(manifest_file.read_text())
@@ -552,17 +547,12 @@ def upstream(bump=False):
             print(f"kolin-skills: could not fetch {name} ({error.stderr or 'git clone failed'}); continuing", file=sys.stderr)
     manifest_file.write_text(json.dumps(manifest, indent=2) + "\n")
     installed = {path.name for path in (HOME / ".agents/skills").iterdir()} if (HOME / ".agents/skills").is_dir() else set()
-    problem = node_problem()
+    problem = third_party.node_problem()
     if problem:
-        print(f"kolin-skills: skipped third-party skills: {problem}", file=sys.stderr)
-    for package, skills in ({} if problem else json.loads((REPO / "upstream/skills.json").read_text())).items():
-        missing = [skill for skill in skills if skill not in installed]
-        if missing:
-            result = subprocess.run(["npx", "--yes", "skills", "add", package, "--global", "--yes",
-                                     "--agent", "claude-code", "--agent", "codex", "--agent", "cursor",
-                                     *[flag for skill in missing for flag in ("--skill", skill)]])
-            if result.returncode:
-                print(f"kolin-skills: npx skills add {package} failed (exit {result.returncode}); continuing", file=sys.stderr)
+        print(f"kolin-skills: skipped third-party skills and tools: {problem}", file=sys.stderr)
+    else:
+        third_party.install_skills(REPO, installed)
+        failed += third_party.install_npm_tools(REPO)
     return run_apply(check=False, quiet=False) or (1 if failed else 0)
 
 
@@ -797,6 +787,7 @@ def check(files_only=False):
             failures.append("home differs from the repo; fix each line above")
         if not vendor_skills():
             failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
+        failures += third_party.npm_tool_problems(REPO)
     failures += spend_failures()
     for relative, budget in SIZE_BUDGETS.items():
         size = (REPO / relative).stat().st_size
@@ -841,7 +832,7 @@ def check(files_only=False):
         print(f"FAIL: {failure}", file=sys.stderr)
     if failures:
         return 1
-    print("Passed: home drift and strays (unless skipped above), spend caps, size budgets, 1,000-line files, skill indexes, required tools, vendored and third-party skills, Python and Node tests, feature-budget (report-only).")
+    print("Passed: home drift and strays (unless skipped above), spend caps, size budgets, 1,000-line files, skill indexes, required tools, vendored and third-party skills, pinned CLIs, Python and Node tests, feature-budget (report-only).")
     print("Live agent routing and model-role readiness are not checked.")
     return 0
 

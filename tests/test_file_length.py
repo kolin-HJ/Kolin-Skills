@@ -25,6 +25,7 @@ class FileLengthGateTests(unittest.TestCase):
         git(self.root, "init", "-q", "-b", "main")
         (self.root / "bin").mkdir()
         shutil.copy(CLI, self.root / "bin/kolin-skills")
+        shutil.copy(REPO / "bin/third_party.py", self.root / "bin/third_party.py")
 
     def write_tracked(self, name, lines):
         path = self.root / name
