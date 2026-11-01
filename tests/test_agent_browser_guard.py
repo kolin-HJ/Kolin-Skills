@@ -46,19 +46,21 @@ class AgentBrowserGuardTests(unittest.TestCase):
         result = self.run_guard(*args)
         self.assertEqual(result.returncode, 0, (args, result.stderr))
         recorded = json.loads(self.record.read_text())
-        self.assertEqual(recorded["args"], list(args))
+        self.assertEqual(recorded["args"], ["--namespace", "codex-guard", *args])
         return recorded
 
     def test_flags_that_run_a_program_or_reuse_logins_are_refused(self):
         for args in [("--executable-path", "./x.sh", "open", "about:blank"), ("--executable-path=./x.sh", "open", "a"),
                      ("--args", "--renderer-cmd-prefix=/bin/sh", "open", "a"), ("--extension", "ext", "open", "a"),
                      ("--config", "c.json", "open", "a"), ("--profile", "Default", "open", "a"), ("-p", "ios", "open", "a"),
-                     ("--cdp", "9222", "snapshot"), ("--auto-connect", "snapshot"), ("--engine", "x", "open", "a")]:
+                     ("--cdp", "9222", "snapshot"), ("--auto-connect", "snapshot"), ("--engine", "x", "open", "a"),
+                     ("open", "a", "--executable-path", "./x.sh"), ("open", "a", "--profile=Default")]:
             self.assert_refused(*args)
 
     def test_commands_that_change_the_install_or_run_code_are_refused(self):
         for args in [("install",), ("upgrade",), ("doctor", "--fix"), ("connect", "9222"), ("auth", "login", "x"),
-                     ("plugin", "run", "x", "y"), ("chat", "hi"), ("mcp",), ("dashboard",), ("batch", "open x", "screenshot /etc/x")]:
+                     ("plugin", "run", "x", "y"), ("chat", "hi"), ("mcp",), ("dashboard",), ("batch", "open x", "screenshot /etc/x"),
+                     ("stream", "enable"), ("--session", "upgrade"), ()]:
             self.assert_refused(*args)
 
     def test_writes_outside_the_evidence_root_are_refused(self):
@@ -67,7 +69,10 @@ class AgentBrowserGuardTests(unittest.TestCase):
         for args in [("screenshot", "~/.zshrc"), ("screenshot", str(self.home / "a.png")), ("download", "@e1", "../x"),
                      ("screenshot", "sub/../../x.png"), ("--screenshot-dir", str(self.home), "screenshot"),
                      ("--screenshot-dir=/tmp/x", "screenshot"), ("screenshot", "link/x.png"), ("state", "save", str(self.outside)),
-                     ("upload", "@e1", str(self.home / "missing.txt"))]:
+                     ("upload", "@e1", str(self.home / "missing.txt")),
+                     ("--session", "upload", "download", "@e1", str(self.outside)), ("--session", "upload", "screenshot", str(self.outside)),
+                     ("--namespace", "upload", "state", "save", str(self.outside)), ("upload", str(self.outside), "@e1"),
+                     ("network", "har", "stop", "load", str(self.outside)), ("pdf", str(self.outside))]:
             self.assert_refused(*args)
 
     def test_normal_use_passes_with_a_clean_env_in_the_evidence_root(self):
@@ -77,8 +82,15 @@ class AgentBrowserGuardTests(unittest.TestCase):
         for args in [("snapshot", "-i"), ("open", "localhost:3000/a/b"), ("screenshot", "shot.png"),
                      ("screenshot", str(self.root / "a.png")), ("fill", "@e1", "hello world"),
                      ("upload", "@e1", str(self.outside)), ("state", "load", str(self.outside)),
-                     ("--state", str(self.outside), "open", "a"), ("diff", "screenshot", "--baseline", str(self.outside))]:
+                     ("open", "a", "--state", str(self.outside)), ("diff", "screenshot", "--baseline", str(self.outside))]:
             self.assert_passed(*args)
+
+    def test_caller_cannot_pick_another_namespace_or_restore_state(self):
+        for args in [("--namespace", "default", "snapshot"), ("snapshot", "--namespace=default"), ("open", "a", "--restore", "x"),
+                     ("open", "a", "--session-name", "x"), ("open", "a", "--restore-save", "always")]:
+            self.assert_refused(*args)
+        recorded = self.assert_passed("--session", "default", "cookies", "get")
+        self.assertEqual(recorded["args"][:2], ["--namespace", "codex-guard"])
 
     def test_a_symlinked_evidence_root_is_refused(self):
         self.root.symlink_to(self.home)

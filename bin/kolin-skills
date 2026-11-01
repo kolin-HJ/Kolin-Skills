@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 import signal
+import stat
 import os
 import pathlib
 import shutil
@@ -70,7 +71,6 @@ LINKS = {
     "hooks/agent-default-model.py": [".claude/hooks/agent-default-model.py"],
     "hooks/gate/block-forbidden-git.sh": [".claude/hooks/block-forbidden-git.sh"],
     "bin/kolin-skills": [".local/bin/kolin-skills"],
-    "bin/agent-browser-guard": [".local/bin/agent-browser-guard"],
     "bin/context-audit": [".local/bin/context-audit"],
     "bin/feature-budget": [".local/bin/feature-budget"],
     "bin/pr-body": [".local/bin/pr-body"],
@@ -82,6 +82,7 @@ MERGED_JSON = {
     "cursor/hooks.json": ".cursor/hooks.json",
 }
 RENDERED = {"cursor/agent-policy.mdc": ".cursor/rules/agent-policy.mdc"}
+READ_ONLY_EXECUTABLES = {"bin/agent-browser-guard": ".local/bin/agent-browser-guard"}
 LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in paths if path.endswith((".py", ".sh"))]
 LEGACY_HOOK_PATHS.append("pstack-local/scripts/mode-reminder")
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
@@ -180,9 +181,10 @@ class Plan:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.symlink_to(target)
 
-    def write(self, path, text):
+    def write(self, path, text, mode=None):
         self.owned.add(path)
-        if path.is_file() and not path.is_symlink() and path.read_text() == text:
+        same_mode = mode is None or (path.is_file() and stat.S_IMODE(path.stat().st_mode) == mode)
+        if path.is_file() and not path.is_symlink() and path.read_text() == text and same_mode:
             return
         self.note(f"write ~/{path.relative_to(HOME)}")
         if self.check:
@@ -193,7 +195,10 @@ class Plan:
             self.backup(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_name(f".{path.name}.kolin-skills")
+        temporary.unlink(missing_ok=True)
         temporary.write_text(text)
+        if mode is not None:
+            temporary.chmod(mode)
         temporary.replace(path)
 
     def write_json(self, path, data):
@@ -345,6 +350,8 @@ def apply(plan, roots):
         plan.write_json(path, merge_settings(current, wanted, roots))
     for source, destination in RENDERED.items():
         plan.write(HOME / destination, render_template((REPO / source).read_text()))
+    for source, destination in READ_ONLY_EXECUTABLES.items():
+        plan.write(HOME / destination, (REPO / source).read_text(), mode=0o555)
 
     hooks_path = subprocess.run(["git", "-C", str(REPO), "config", "core.hooksPath"], text=True, capture_output=True).stdout.strip()
     if (REPO / ".git").exists() and hooks_path != ".githooks":

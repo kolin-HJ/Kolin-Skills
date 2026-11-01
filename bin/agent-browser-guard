@@ -1,13 +1,22 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3 -I
 import os
 import pathlib
 import shutil
 import sys
 
 EVIDENCE = pathlib.Path.home() / ".agent-browser-evidence"
-DENIED_COMMANDS = {"install", "upgrade", "doctor", "connect", "auth", "plugin", "chat", "mcp", "dashboard", "batch", "inspect"}
+NAMESPACE = "codex-guard"
+ALLOWED_COMMANDS = {
+    "open", "goto", "navigate", "read", "click", "dblclick", "type", "fill", "press", "key", "keyboard", "hover",
+    "focus", "check", "uncheck", "select", "drag", "upload", "download", "scroll", "scrollintoview", "scrollinto",
+    "wait", "screenshot", "pdf", "snapshot", "eval", "close", "quit", "exit", "back", "forward", "reload", "get",
+    "is", "find", "mouse", "set", "network", "cookies", "storage", "tab", "frame", "dialog", "diff", "trace",
+    "profiler", "record", "console", "errors", "highlight", "state", "session", "vitals", "a11y", "react",
+    "pushstate", "removeinitscript", "webmcp", "skills", "confirm", "deny",
+}
 DENIED_FLAGS = {"--args", "--auto-connect", "--ca-cert", "--cdp", "--config", "--engine", "--executable-path",
-                "--extension", "--model", "--profile", "--provider", "-p"}
+                "--extension", "--model", "--namespace", "--profile", "--provider", "-p", "--restore",
+                "--restore-save", "--session-name"}
 READ_FLAGS = {"--state", "--baseline", "--init-script", "--action-policy", "--curl"}
 KEPT_ENV = {"AGENT_BROWSER_SESSION", "AGENT_BROWSER_DEFAULT_TIMEOUT"}
 
@@ -19,43 +28,67 @@ def evidence_problem():
     return None
 
 
+def split_command(args):
+    index = 0
+    while index < len(args) and args[index].startswith("-"):
+        if args[index] == "--session" and index + 1 < len(args):
+            index += 2
+        elif args[index].startswith("--session=") or args[index] == "--json":
+            index += 1
+        else:
+            return None, f"{args[index]}: before the command only --session <name> and --json are allowed"
+    if index == len(args):
+        return None, "no command given"
+    if args[index] not in ALLOWED_COMMANDS:
+        return None, f"{args[index]} is not an allowed command; allowed: {', '.join(sorted(ALLOWED_COMMANDS))}"
+    return index, None
+
+
+def read_positions(args, command):
+    name = args[command]
+    rest = range(command + 1, len(args))
+    positions = {index for index in rest if args[index - 1] in READ_FLAGS}
+    if name == "upload":
+        positions |= {index for index in rest if index >= command + 2 and not args[index].startswith("-")}
+    if name == "state" and args[command + 1:command + 2] == ["load"]:
+        positions.add(command + 2)
+    return positions
+
+
 def looks_like_path(value, root):
     parts = value.split("/")
     first = root / parts[0]
     return value.startswith(("/", "~")) or ".." in parts or first.exists() or first.is_symlink()
 
 
-def reads_file(args, index, flag):
-    command = next((arg for arg in args if not arg.startswith("-")), "")
-    return flag in READ_FLAGS or command == "upload" or args[index - 1:index] == ["load"]
-
-
-def path_problem(value, args, index, flag, root):
+def path_problem(value, readable, root):
     resolved = (root / pathlib.Path(value).expanduser()).resolve()
-    if resolved.is_relative_to(root) or (reads_file(args, index, flag) and resolved.is_file()):
+    if resolved.is_relative_to(root) or (readable and resolved.is_file()):
         return None
-    return f"{value}: write paths must be inside {EVIDENCE}; outside it, only upload, state load and {', '.join(sorted(READ_FLAGS))} may read an existing file"
+    return f"{value}: write paths must be inside {EVIDENCE}; outside it, only the files of upload, state load and {', '.join(sorted(READ_FLAGS))} may be read"
 
 
 def refusal(args, root):
-    for index, arg in enumerate(args):
+    command, problem = split_command(args)
+    if problem:
+        return problem
+    reads = read_positions(args, command)
+    for index in range(command + 1, len(args)):
+        arg = args[index]
         name, _, inline = arg.partition("=")
         if name in DENIED_FLAGS:
-            return f"{name} can run a program, attach to another browser or reuse your logins outside the sandbox"
-        if arg in DENIED_COMMANDS:
-            return f"{arg} changes the install, runs code or attaches to another browser"
-        flag, value = (name, inline) if arg.startswith("-") else (args[index - 1] if index else "", arg)
+            return f"{name} can run a program, reach another browser session or reuse your logins outside the sandbox"
+        value, readable = (inline, name in READ_FLAGS) if arg.startswith("-") else (arg, index in reads)
         if value and looks_like_path(value, root):
-            problem = path_problem(value, args, index, flag, root)
+            problem = path_problem(value, readable, root)
             if problem:
                 return problem
     return None
 
 
 def main(args):
-    problem = evidence_problem()
     root = EVIDENCE.resolve()
-    problem = problem or refusal(args, root)
+    problem = evidence_problem() or refusal(args, root)
     if problem:
         print(f"agent-browser-guard: refused: {problem}", file=sys.stderr)
         return 2
@@ -65,7 +98,7 @@ def main(args):
         return 127
     env = {key: value for key, value in os.environ.items() if not key.startswith("AGENT_BROWSER_") or key in KEPT_ENV}
     os.chdir(root)
-    os.execve(binary, [binary, *args], env)
+    os.execve(binary, [binary, "--namespace", NAMESPACE, *args], env)
 
 
 if __name__ == "__main__":

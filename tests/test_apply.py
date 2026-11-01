@@ -271,6 +271,16 @@ class ApplyTests(unittest.TestCase):
         self.assertNotIn("home differs", result.stderr)
         self.assertFalse((self.home / ".claude/skills/only-in-worktree").exists())
 
+    def test_browser_guard_is_a_read_only_copy_that_repo_edits_do_not_reach(self):
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        installed = self.home / ".local/bin/agent-browser-guard"
+        self.assertFalse(installed.is_symlink())
+        self.assertEqual(installed.stat().st_mode & 0o777, 0o555)
+        (self.repo / "bin/agent-browser-guard").write_text("#!/bin/sh\necho edited\n")
+        self.assertNotIn("edited", installed.read_text())
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        self.assertEqual(installed.read_text(), "#!/bin/sh\necho edited\n")
+
     def test_codex_agent_mirror_keeps_backslashes_and_quotes_and_is_read_only_without_write_tools(self):
         body = 'Match \\d+ in C:\\path and say "hi" """ twice.'
         (self.repo / "agents/escape-probe.md").write_text(
