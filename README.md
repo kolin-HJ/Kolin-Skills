@@ -78,7 +78,7 @@ Claude Code runs every guard. Codex runs the git guard, the `.env` guard (shell 
 
 ## Install
 
-You need **git**, **`jq`**, **Python ≥ 3.9** and **Node ≥ 22.20**. Without `jq`, the git guard blocks every shell command. The repo is public, so the clone needs no credentials.
+You need **git**, **`jq`**, **Python ≥ 3.9** and **Node ≥ 22.20** with a global npm prefix you can write to (Homebrew, nvm, fnm or Volta Node). Without `jq`, the git guard blocks every shell command. The repo is public, so the clone needs no credentials.
 
 ```sh
 git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Kolin-Skills

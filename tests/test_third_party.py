@@ -23,7 +23,15 @@ class PinnedCliTests(unittest.TestCase):
         self.global_root.mkdir()
         fake_bin = self.root / "bin"
         fake_bin.mkdir()
-        (fake_bin / "npm").write_text(f"#!/bin/sh\necho {self.global_root}\n")
+        self.calls = self.root / "npm-calls"
+        self.root_exit = self.root / "root-exit"
+        self.install_exit = self.root / "install-exit"
+        (fake_bin / "npm").write_text(
+            "#!/bin/sh\n"
+            f"echo \"$@\" >> {self.calls}\n"
+            f"if [ \"$1\" = root ]; then [ -f {self.root_exit} ] && {{ echo 'npm ERR! prefix broken' >&2; exit 2; }}; echo {self.global_root}; exit 0; fi\n"
+            f"[ -f {self.install_exit} ] && exit 1\n"
+            "exit 0\n")
         (fake_bin / "npm").chmod(0o755)
         self.path = mock.patch.dict(os.environ, {"PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}"})
         self.path.start()
@@ -49,6 +57,29 @@ class PinnedCliTests(unittest.TestCase):
     def test_pinned_version_passes(self):
         self.install("0.41.0")
         self.assertEqual(third_party.npm_tool_problems(self.repo), [])
+
+    def installs(self):
+        lines = self.calls.read_text().splitlines() if self.calls.exists() else []
+        return [line for line in lines if line.startswith("install")]
+
+    def test_npm_root_failure_shows_npm_error(self):
+        self.root_exit.touch()
+        self.assertEqual(third_party.npm_tool_problems(self.repo),
+                         ["pinned CLIs in upstream/tools.json not checked: npm root --global failed (exit 2): npm ERR! prefix broken"])
+
+    def test_install_skips_a_cli_at_its_pin(self):
+        self.install("0.41.0")
+        self.assertEqual(third_party.install_npm_tools(self.repo), [])
+        self.assertEqual(self.installs(), [])
+
+    def test_install_moves_a_cli_to_its_pin_with_its_script_allowed(self):
+        self.install("0.40.0")
+        self.assertEqual(third_party.install_npm_tools(self.repo), [])
+        self.assertEqual(self.installs(), ["install --global --allow-scripts=agent-browser agent-browser@0.41.0"])
+
+    def test_failed_install_is_reported(self):
+        self.install_exit.touch()
+        self.assertEqual(third_party.install_npm_tools(self.repo), ["agent-browser"])
 
     def test_repo_manifest_pins_exact_versions(self):
         pins = third_party.npm_tool_pins(REPO)

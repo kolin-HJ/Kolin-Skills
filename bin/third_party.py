@@ -39,31 +39,49 @@ def npm_tool_pins(repo):
     return json.loads((repo / "upstream/tools.json").read_text())["npm"]
 
 
-def installed_npm_version(name):
-    root = subprocess.run(["npm", "root", "--global"], text=True, capture_output=True, timeout=30)
-    manifest = pathlib.Path(root.stdout.strip()) / name / "package.json"
-    return json.loads(manifest.read_text())["version"] if root.returncode == 0 and manifest.is_file() else None
+def npm_global_versions(names):
+    try:
+        result = subprocess.run(["npm", "root", "--global"], text=True, capture_output=True, timeout=30)
+    except subprocess.TimeoutExpired:
+        return None, "npm root --global timed out after 30s"
+    if result.returncode:
+        return None, f"npm root --global failed (exit {result.returncode}): {result.stderr.strip()}"
+    root = pathlib.Path(result.stdout.strip())
+    manifests = {name: root / name / "package.json" for name in names}
+    return {name: json.loads(path.read_text())["version"] if path.is_file() else None
+            for name, path in manifests.items()}, None
 
 
 def install_npm_tools(repo):
+    pins = npm_tool_pins(repo)
+    versions, problem = npm_global_versions(pins)
+    if problem:
+        print(f"kolin-skills: skipped pinned CLIs: {problem}", file=sys.stderr)
+        return list(pins)
     failed = []
-    for name, version in npm_tool_pins(repo).items():
-        if installed_npm_version(name) == version:
+    for name, version in pins.items():
+        if versions[name] == version:
             continue
         result = subprocess.run(["npm", "install", "--global", f"--allow-scripts={name}", f"{name}@{version}"])
         if result.returncode:
             failed.append(name)
-            print(f"kolin-skills: npm install {name}@{version} failed (exit {result.returncode}); continuing", file=sys.stderr)
+            print(f"kolin-skills: npm install {name}@{version} failed (exit {result.returncode}); a global prefix you cannot write needs Node from Homebrew, nvm, fnm or Volta", file=sys.stderr)
     return failed
 
 
 def npm_tool_problems(repo):
+    problem = node_problem()
+    if problem:
+        return [f"pinned CLIs in upstream/tools.json not checked: {problem}"]
     if shutil.which("npm") is None:
-        return ["npm is missing from PATH; upstream/tools.json CLIs need it. Install Node, then run kolin-skills upstream"]
+        return ["npm is missing from PATH; upstream/tools.json CLIs need it. Install Node with npm, then run kolin-skills upstream"]
+    pins = npm_tool_pins(repo)
+    versions, problem = npm_global_versions(pins)
+    if problem:
+        return [f"pinned CLIs in upstream/tools.json not checked: {problem}"]
     problems = []
-    for name, version in npm_tool_pins(repo).items():
-        found = installed_npm_version(name)
-        if found != version:
-            state = "not installed" if found is None else f"{found} installed"
+    for name, version in pins.items():
+        if versions[name] != version:
+            state = "not installed" if versions[name] is None else f"{versions[name]} installed"
             problems.append(f"{name} is {state}, pinned at {version} in upstream/tools.json; run kolin-skills upstream")
     return problems
