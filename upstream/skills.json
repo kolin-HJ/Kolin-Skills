@@ -1,5 +1,8 @@
 {
   "vercel-labs/skills": [
     "find-skills"
+  ],
+  "vercel-labs/agent-desktop": [
+    "agent-desktop"
   ]
 }

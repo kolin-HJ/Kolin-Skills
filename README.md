@@ -211,6 +211,7 @@ Each skill starts in one of two ways:
 | cursor-team-kit | `deslop`, `control-ui`, `control-cli` | 💬 To clean AI slop out of code, or to drive a UI or CLI |
 | cursor-team-kit | `thermo-nuclear-code-quality-review` | The agent reads it for the diff pass before review, or when you ask for a harsh structure review |
 | `npx skills` | `find-skills` | ⌨️ |
+| `npx skills` | `agent-desktop` | The agent reads it to drive or check a native or Electron desktop app. Needs the CLI: `npm install -g --allow-scripts=agent-desktop agent-desktop`, then grant Accessibility with `agent-desktop permissions --guide` |
 
 </details>
 
