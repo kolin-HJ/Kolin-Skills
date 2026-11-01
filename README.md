@@ -172,7 +172,7 @@ Each skill starts in one of two ways:
 
 | Skill | Starts | Say | What it does |
 |---|---|---|---|
-| `full-send` | ⌨️ | "full send" or `/full-send` | Takes a task to a polished PR against the base: build, polish, `senior-reviewer` when the policy needs it, fixes, then drives CI and bots to `READY`. Never merges. You merge |
+| `full-send` | ⌨️ | "full send" or `/full-send` | Takes a task to a polished PR against the base: build, polish, `senior-reviewer` over 150 lines plus `interrogate` on schema, auth, access, money or migrations, fixes, then drives CI and bots to `READY`. Never merges. You merge |
 | `council` | ⌨️ | "council" or `/council` | Gets a review from three models on three providers, in rounds, until they agree. Scores go in the PR body |
 | `modernize` | 💬 | "Modernize this PR", "take over #42" | Decides if an old PR should still land (modernize, rework or close), then updates it and keeps the authors' credit |
 | `loop-refactor-to-pstack` | ⌨️ | `/loop-refactor-to-pstack` | Refactors a whole repo to the standard over many sessions on one branch |

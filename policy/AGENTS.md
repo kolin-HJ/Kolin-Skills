@@ -39,7 +39,7 @@ Test what a caller relies on, and a bug before its fix. No snapshots, no mocks o
 
 ## Pull requests
 
-Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. A fresh review reads the diff before the PR opens when it changes over 150 lines or touches schema, auth, access, money or a migration: `interrogate` in a pstack run, else `senior-reviewer`. Start the body from `pr-body <base>` or the repo's template. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`.
+Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. A fresh `senior-reviewer` reads the diff before the PR opens when it changes over 150 lines. A diff that touches schema, auth, access, money or a migration gets `senior-reviewer` and `interrogate`. Start the body from `pr-body <base>` or the repo's template. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`.
 
 ## Writing
 
