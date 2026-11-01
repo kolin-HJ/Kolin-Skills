@@ -50,7 +50,7 @@ In Claude Code, `models.md` assigns native agent roles. `apply` renders `agents/
 The global policy and the repo's `AGENTS.md` win every conflict with pstack. This adapter adds only how they land on pstack's own steps:
 
 - **Autonomy.** pstack lets external actions (team chat, tickets, evals) run without asking. Here they need Kolin's yes (policy, Approvals). Opening a PR acts without asking in pstack. Shipping, Autopilot and Babysit `drive` merge nothing without an explicit ask (policy, Approvals). `autopilot-full` is not used.
-- **PR title and body** use the repo's template. Where the repo has none, start from `pr-body <base>` (policy, Pull requests) in place of pstack's Why, Scope and Tradeoffs.
+- **PR title and body** use the repo's template. Where the repo has none, start from `pr-body <base> --feature <name>=<paths>` (policy, Pull requests) in place of pstack's Why, Scope and Tradeoffs.
 - **Tests** in `tdd`, Refactoring step 1 and the multi-phase plan's unit box follow the policy's Done. A new test only for a named behavior a caller relies on. A unit box may read "No test: <why>". No snapshot. Delete a characterization pin that a kept test duplicates. No sibling-coverage sweep.
 - **Comments.** poteto-mode's Comments section keeps a non-obvious why. Here no comment survives except a lint directive with `-- <reason>`.
 - **Builder brief.** poteto-mode says to put its path in every `poteto-agent` prompt. Here the brief names the files and the done check, quotes any principle the unit depends on, and the builder does not read poteto-mode.

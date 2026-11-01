@@ -26,46 +26,63 @@ class PrBodyTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
 
-    def body(self):
+    def run_pr_body(self, *features):
         self.git("add", "-A")
         self.git("commit", "-qm", "work")
-        result = subprocess.run([sys.executable, str(PR_BODY), "main"], cwd=self.repo,
-                                text=True, capture_output=True, timeout=20)
+        flags = [arg for feature in features for arg in ("--feature", feature)]
+        return subprocess.run([sys.executable, str(PR_BODY), "main", *flags], cwd=self.repo,
+                              text=True, capture_output=True, timeout=20)
+
+    def body(self, *features):
+        result = self.run_pr_body(*features)
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout
 
-    def test_each_file_lands_in_its_group_with_its_line_counts_and_no_code(self):
+    def test_each_feature_lists_its_files_and_counts_and_the_rest_goes_to_other(self):
         self.write("src/price.ts", "export const price = 2;\n")
         self.write("src/price.test.ts", "it('prices', () => {});\n")
-        self.write("README.md", "Run it with `pr-body`.\n```sh\npr-body main\n```\n")
-        self.write("docs/café.md", "Prix\n")
-        self.write("docs/a.md", "plain\n")
+        self.write("docs/price.md", "Prix\n")
+        self.write("README.md", "Run it.\n")
         self.write("package-lock.json", "{}\n")
-        self.write("src/a|b.ts", "x\n")
-        body = self.body()
-        self.assertTrue(body.endswith(
-            "## Diff\n\n"
-            "| Group / file | Lines |\n|---|---|\n"
-            "| **Code** · 3 files | **+2 -1** |\n"
-            "| &emsp;`package-lock.json` | +1 -0, lockfile |\n"
-            "| &emsp;`src/a\\|b.ts` | +1 -0 |\n"
-            "| &emsp;`src/price.ts` | +1 -1 |\n"
-            "| **Tests** · 1 file | **+1 -0** |\n"
-            "| &emsp;`src/price.test.ts` | +1 -0 |\n"
-            "| **Docs** · 3 files | **+6 -0** |\n"
-            "| &emsp;`README.md` | +4 -0 |\n"
-            "| &emsp;`docs/a.md` | +1 -0 |\n"
-            "| &emsp;`docs/café.md` | +1 -0 |\n"), body)
+        (self.repo / "img.png").write_bytes(b"\x00\x01\x02")
+        body = self.body("Pricing=src/price.ts,src/price.test.ts,docs/")
+        self.assertRegex(body, r"(?m)^- \*\*Pricing:\*\* .*`3 files · code \+1 -1 · tests \+1 -0 · docs \+1 -0`$")
+        self.assertRegex(body, r"(?m)^- \*\*Other:\*\* .*`3 files · docs \+1 -0`$")
+        self.assertIn(
+            "**Pricing**\n"
+            "- `docs/price.md` +1 -0\n"
+            "- `src/price.test.ts` +1 -0\n"
+            "- `src/price.ts` +1 -1\n\n"
+            "**Other**\n"
+            "- `README.md` +1 -0\n"
+            "- `img.png` binary\n"
+            "- `package-lock.json` +1 -0, lockfile\n", body)
 
-    def test_many_files_keep_every_group_and_stay_under_the_github_limit(self):
+    def test_a_body_without_a_feature_fails(self):
+        self.write("src/price.ts", "export const price = 2;\n")
+        result = self.run_pr_body()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--feature", result.stderr)
+
+    def test_a_feature_path_that_matches_no_changed_file_fails(self):
+        self.write("src/price.ts", "export const price = 2;\n")
+        result = self.run_pr_body("Pricing=src/prices.ts")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("src/prices.ts", result.stderr)
+
+    def test_a_file_in_two_features_fails(self):
+        self.write("src/price.ts", "export const price = 2;\n")
+        result = self.run_pr_body("Pricing=src/", "Checkout=src/price.ts")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("src/price.ts", result.stderr)
+
+    def test_many_files_keep_every_feature_and_stay_under_the_github_limit(self):
         for n in range(2_500):
             self.write(f"src/f{n:04}.ts", f"export const a{n} = 1;\n")
         self.write("tests/test_t.py", "assert 1\n")
-        body = self.body()
-        self.assertIn("| **Code** · 2500 files | **+2500 -0** |", body)
-        self.assertRegex(body, r"\| &emsp;Not shown: \d+ files, see Files changed \| \|\n\| \*\*Tests\*\*")
-        self.assertIn("| **Tests** · 1 file | **+1 -0** |\n| &emsp;`tests/test_t.py` | +1 -0 |", body)
-        self.assertTrue(body.endswith("| **Docs** · 0 files | **+0 -0** |\n"), body[-200:])
+        body = self.body("Source=src/", "Checks=tests/")
+        self.assertRegex(body, r"(?m)^- \*\*Source:\*\* .*`2500 files · code \+2500 -0`$")
+        self.assertRegex(body, r"- Not shown: \d+ files, see Files changed\n\n\*\*Checks\*\*\n- `tests/test_t.py` \+1 -0\n")
         self.assertLess(len(body), 65_536 - 8_000)
 
 
