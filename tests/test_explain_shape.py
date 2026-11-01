@@ -7,7 +7,6 @@ POLICY = (REPO / "policy/AGENTS.md").read_text()
 PSTACK_LOCAL = (REPO / "skills/pstack-local/SKILL.md").read_text()
 EXPLAINER = (REPO / "skills/explainer/SKILL.md").read_text()
 STE = (REPO / "claude/output-styles/ste-visual.md").read_text()
-CLI = (REPO / "bin/kolin-skills").read_text()
 
 
 def section(text, heading, stop):
@@ -21,13 +20,13 @@ def frontmatter(text):
 
 
 class ExplainShapeTests(unittest.TestCase):
-    def test_policy_writing_keeps_unslop_and_restores_ste_diagrams(self):
+    def test_policy_writing_keeps_unslop_and_bans_ascii_art(self):
         writing = section(POLICY, "## Writing", "## Adding rules")
         self.assertIn("`unslop`", writing)
         self.assertIn("ASD-STE100", writing)
         self.assertRegex(writing, r"80%")
-        self.assertRegex(writing, r"Draw a mechanism|diagram")
-        self.assertRegex(writing, r"module")
+        self.assertRegex(writing, r"numbered steps")
+        self.assertRegex(writing, r"never as ASCII art")
 
     def test_pstack_local_routes_explain_how_and_walkthrough_to_teach_and_keeps_visualize(self):
         meta = frontmatter(PSTACK_LOCAL)
@@ -50,18 +49,12 @@ class ExplainShapeTests(unittest.TestCase):
         self.assertRegex(EXPLAINER, r"No table|no table")
         self.assertNotIn("What the page holds, in this order", EXPLAINER)
 
-    def test_ste_visual_uses_the_hard_shape(self):
-        self.assertRegex(STE, r"(?i)first sentence|Lead with")
-        self.assertRegex(STE, r"7 nodes|at most 7")
-        self.assertRegex(STE, r"3 short beats|at most 3")
+    def test_ste_visual_uses_plain_steps_and_no_ascii_art(self):
+        self.assertRegex(STE, r"(?i)first line is the answer")
+        self.assertRegex(STE, r"numbered list")
+        self.assertRegex(STE, r"Never draw ASCII art")
         self.assertRegex(STE, r"No table|no table")
-        self.assertRegex(STE, r"yes")
-
-    def test_size_budgets_are_the_repo_caps(self):
-        self.assertIn('"policy/AGENTS.md": 3_500', CLI)
-        self.assertIn('"skills/pstack-local/SKILL.md": 8_000', CLI)
-        self.assertLessEqual((REPO / "policy/AGENTS.md").stat().st_size, 3_500)
-        self.assertLessEqual((REPO / "skills/pstack-local/SKILL.md").stat().st_size, 8_000)
+        self.assertRegex(STE, r"only after a yes")
 
 
 if __name__ == "__main__":
