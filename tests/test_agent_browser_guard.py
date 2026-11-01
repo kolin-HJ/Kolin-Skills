@@ -72,7 +72,10 @@ class AgentBrowserGuardTests(unittest.TestCase):
                      ("upload", "@e1", str(self.home / "missing.txt")),
                      ("--session", "upload", "download", "@e1", str(self.outside)), ("--session", "upload", "screenshot", str(self.outside)),
                      ("--namespace", "upload", "state", "save", str(self.outside)), ("upload", str(self.outside), "@e1"),
-                     ("network", "har", "stop", "load", str(self.outside)), ("pdf", str(self.outside))]:
+                     ("network", "har", "stop", "load", str(self.outside)), ("pdf", str(self.outside)),
+                     ("screenshot", "--baseline", str(self.outside)), ("screenshot", "--curl", str(self.outside)),
+                     ("download", "--baseline", str(self.outside)), ("screenshot", f"--baseline={self.outside}"),
+                     ("upload", "@e1", "--screenshot-dir", str(self.outside))]:
             self.assert_refused(*args)
 
     def test_normal_use_passes_with_a_clean_env_in_the_evidence_root(self):
@@ -82,7 +85,8 @@ class AgentBrowserGuardTests(unittest.TestCase):
         for args in [("snapshot", "-i"), ("open", "localhost:3000/a/b"), ("screenshot", "shot.png"),
                      ("screenshot", str(self.root / "a.png")), ("fill", "@e1", "hello world"),
                      ("upload", "@e1", str(self.outside)), ("state", "load", str(self.outside)),
-                     ("open", "a", "--state", str(self.outside)), ("diff", "screenshot", "--baseline", str(self.outside))]:
+                     ("open", "a", "--state", str(self.outside)), ("diff", "screenshot", "--baseline", str(self.outside)),
+                     ("cookies", "set", "--curl", str(self.outside)), ("upload", "@e1", str(self.outside), str(self.outside))]:
             self.assert_passed(*args)
 
     def test_caller_cannot_pick_another_namespace_or_restore_state(self):
@@ -91,6 +95,13 @@ class AgentBrowserGuardTests(unittest.TestCase):
             self.assert_refused(*args)
         recorded = self.assert_passed("--session", "default", "cookies", "get")
         self.assertEqual(recorded["args"][:2], ["--namespace", "codex-guard"])
+
+    def test_session_names_cannot_leave_the_namespace(self):
+        for args in [("--session", "../../../default", "cookies", "get"), ("--session=../default", "snapshot"),
+                     ("snapshot", "--session", "a/b"), ("--session", "", "snapshot")]:
+            self.assert_refused(*args)
+        self.env["AGENT_BROWSER_SESSION"] = "../../default"
+        self.assert_refused("snapshot")
 
     def test_a_symlinked_evidence_root_is_refused(self):
         self.root.symlink_to(self.home)

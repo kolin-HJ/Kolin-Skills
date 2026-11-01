@@ -1,6 +1,7 @@
 #!/usr/bin/env -S python3 -I
 import os
 import pathlib
+import re
 import shutil
 import sys
 
@@ -17,7 +18,9 @@ ALLOWED_COMMANDS = {
 DENIED_FLAGS = {"--args", "--auto-connect", "--ca-cert", "--cdp", "--config", "--engine", "--executable-path",
                 "--extension", "--model", "--namespace", "--profile", "--provider", "-p", "--restore",
                 "--restore-save", "--session-name"}
-READ_FLAGS = {"--state", "--baseline", "--init-script", "--action-policy", "--curl"}
+GLOBAL_READ_FLAGS = {"--state", "--init-script", "--action-policy"}
+SUBCOMMAND_READ_FLAGS = {("diff", "screenshot"): {"--baseline"}, ("cookies", "set"): {"--curl"}}
+SESSION_NAME = re.compile(r"[A-Za-z0-9_-]{1,64}")
 KEPT_ENV = {"AGENT_BROWSER_SESSION", "AGENT_BROWSER_DEFAULT_TIMEOUT"}
 
 
@@ -26,6 +29,17 @@ def evidence_problem():
     if EVIDENCE.is_symlink() or not EVIDENCE.is_dir() or EVIDENCE.stat().st_uid != os.getuid():
         return f"{EVIDENCE} must be a real directory you own"
     return None
+
+
+def session_problem(args, env):
+    names = [env["AGENT_BROWSER_SESSION"]] if "AGENT_BROWSER_SESSION" in env else []
+    for index, arg in enumerate(args):
+        if arg == "--session":
+            names.append(args[index + 1] if index + 1 < len(args) else "")
+        elif arg.startswith("--session="):
+            names.append(arg.partition("=")[2])
+    bad = [name for name in names if not SESSION_NAME.fullmatch(name)]
+    return f"session name {bad[0]!r} must be 1 to 64 letters, digits, - or _" if bad else None
 
 
 def split_command(args):
@@ -44,12 +58,18 @@ def split_command(args):
     return index, None
 
 
+def read_flags(args, command):
+    return GLOBAL_READ_FLAGS | SUBCOMMAND_READ_FLAGS.get(tuple(args[command:command + 2]), set())
+
+
 def read_positions(args, command):
     name = args[command]
     rest = range(command + 1, len(args))
-    positions = {index for index in rest if args[index - 1] in READ_FLAGS}
+    flags = read_flags(args, command)
+    positions = {index for index in rest if args[index - 1] in flags}
     if name == "upload":
-        positions |= {index for index in rest if index >= command + 2 and not args[index].startswith("-")}
+        positions |= {index for index in rest if index >= command + 2
+                      and not args[index].startswith("-") and not args[index - 1].startswith("-")}
     if name == "state" and args[command + 1:command + 2] == ["load"]:
         positions.add(command + 2)
     return positions
@@ -65,20 +85,22 @@ def path_problem(value, readable, root):
     resolved = (root / pathlib.Path(value).expanduser()).resolve()
     if resolved.is_relative_to(root) or (readable and resolved.is_file()):
         return None
-    return f"{value}: write paths must be inside {EVIDENCE}; outside it, only the files of upload, state load and {', '.join(sorted(READ_FLAGS))} may be read"
+    return f"{value}: write paths must be inside {EVIDENCE}; outside it, only the files of upload, state load, diff screenshot --baseline, cookies set --curl and {', '.join(sorted(GLOBAL_READ_FLAGS))} may be read"
 
 
-def refusal(args, root):
+def refusal(args, root, env):
     command, problem = split_command(args)
+    problem = problem or session_problem(args, env)
     if problem:
         return problem
     reads = read_positions(args, command)
+    flags = read_flags(args, command)
     for index in range(command + 1, len(args)):
         arg = args[index]
         name, _, inline = arg.partition("=")
         if name in DENIED_FLAGS:
             return f"{name} can run a program, reach another browser session or reuse your logins outside the sandbox"
-        value, readable = (inline, name in READ_FLAGS) if arg.startswith("-") else (arg, index in reads)
+        value, readable = (inline, name in flags) if arg.startswith("-") else (arg, index in reads)
         if value and looks_like_path(value, root):
             problem = path_problem(value, readable, root)
             if problem:
@@ -88,7 +110,7 @@ def refusal(args, root):
 
 def main(args):
     root = EVIDENCE.resolve()
-    problem = evidence_problem() or refusal(args, root)
+    problem = evidence_problem() or refusal(args, root, os.environ)
     if problem:
         print(f"agent-browser-guard: refused: {problem}", file=sys.stderr)
         return 2
