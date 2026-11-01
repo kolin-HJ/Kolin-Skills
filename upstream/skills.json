@@ -4,5 +4,8 @@
   ],
   "vercel-labs/agent-desktop": [
     "agent-desktop"
+  ],
+  "vercel-labs/agent-browser": [
+    "agent-browser"
   ]
 }
