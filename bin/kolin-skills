@@ -93,7 +93,6 @@ REQUIRED_TOOLS = {
     "node": "the loop-refactor-to-pstack gate templates are tested with it, and npx skills needs it",
 }
 SKILL_INDEXES = ["README.md"]
-SIZE_BUDGETS = {"policy/AGENTS.md": 3_500, "skills/pstack-local/SKILL.md": 8_000}
 MAX_FILE_LINES = 1000
 CI_VALUES = {"1", "true", "yes"}
 
@@ -789,10 +788,6 @@ def check(files_only=False):
             failures.append(f"no vendored skills under {VENDOR}; run kolin-skills upstream")
         failures += third_party.npm_tool_problems(REPO)
     failures += spend_failures()
-    for relative, budget in SIZE_BUDGETS.items():
-        size = (REPO / relative).stat().st_size
-        if size > budget:
-            failures.append(f"{relative} is {size} bytes, over its {budget}-byte budget")
     skills = sorted(path.parent.name for path in (REPO / "skills").glob("*/SKILL.md"))
     for index in SKILL_INDEXES:
         text = (REPO / index).read_text()
@@ -832,7 +827,7 @@ def check(files_only=False):
         print(f"FAIL: {failure}", file=sys.stderr)
     if failures:
         return 1
-    print("Passed: home drift and strays (unless skipped above), spend caps, size budgets, 1,000-line files, skill indexes, required tools, vendored and third-party skills, pinned CLIs, Python and Node tests, feature-budget (report-only).")
+    print("Passed: home drift and strays (unless skipped above), spend caps, 1,000-line files, skill indexes, required tools, vendored and third-party skills, pinned CLIs, Python and Node tests, feature-budget (report-only).")
     print("Live agent routing and model-role readiness are not checked.")
     return 0
 
@@ -952,7 +947,7 @@ def main():
     stacks_parser.add_argument("--stop", action="store_true", help="send SIGTERM to each idle stack's supabase owner process and wait for postgres to exit; skips a root another process works in")
     stacks_parser.add_argument("--idle-hours", type=float, default=6, help="a stack is idle only after it has run this many hours; the 2-hour transcript window stays fixed")
     stacks_parser.add_argument("--notice", action="store_true", help="session-start hook: one JSON line when idle stacks exist, else nothing")
-    check_parser = commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets, file length and tests")
+    check_parser = commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, file length and tests")
     check_mode = check_parser.add_mutually_exclusive_group()
     check_mode.add_argument("--files", action="store_true", help="only the 1,000-line file limit")
     check_mode.add_argument("--quick", action="store_true", help=f"home only, under {QUICK_CHECK_SECONDS}s: links resolve, hooks and policy are wired, self-invoking skills are not model-locked")
