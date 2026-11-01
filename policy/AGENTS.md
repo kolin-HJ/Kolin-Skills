@@ -43,7 +43,7 @@ Base branch: the integration branch the repo names, else `staging` if it exists,
 
 ## Writing
 
-Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code names, paths and domain terms exact. Draw a mechanism with its real module and function names.
+Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code names, paths and domain terms exact. Explain in plain words first, with real names only where I need them to act. Show a flow as a short numbered list, never as ASCII art.
 
 ## Adding rules
 
