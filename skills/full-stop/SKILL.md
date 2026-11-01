@@ -26,7 +26,7 @@ You may not:
 The method is pstack's `poteto-mode`, read through `pstack-local`:
 
 1. The playbook that matches the task (Bug fix, Feature, Refactoring and the rest), on a work branch off the base the policy names. When you take over someone's PR, keep their commits or credit them with `Co-authored-by:`.
-2. The fresh review the policy names (Pull requests), then **Opening a PR**, with the body from the repo's template or `pr-body <base>`.
+2. The fresh review the policy names (Pull requests), then **Opening a PR**, with the body from the repo's template or `pr-body <base> --feature <name>=<paths>`.
 3. **Babysit** in `drive` mode until the watcher reports `READY`. Invoking full stop is the babysit ask. When the base moves or conflicts, merge it in (never rebase), rerun the proof and push; this wins over Babysit steps 4 and 5. In T3 Code, the watcher is `watch_pull_request` in the thread that owns the PR; end the turn after you arm it. If you end a turn with nothing set to wake you, the work stops.
 
 Before you report ready, also check at the current head:

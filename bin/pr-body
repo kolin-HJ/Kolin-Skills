@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import dataclasses
 import importlib.machinery
 import importlib.util
 import os
@@ -8,17 +9,42 @@ import sys
 
 GITHUB_BODY_LIMIT = 65_536
 FILLED_TEXT_RESERVE = 8_000
-GROUPS = ("Code", "Tests", "Docs")
+KINDS = ("code", "tests", "docs")
+OTHER = "Other"
 
-SECTIONS = (
-    ("Summary", "<The problem in the user's words, then what ships, for whom, and what changes for them, in two to four sentences. "
-                "A release lists each merged PR in one line; PRs that cancel each other share one line.>"),
-    ("Review this", "- [ ] <file:line: a decision or risky hunk to double check, and why>"),
-    ("Blast Radius", "<Migrations, config, deploy order, user-visible changes and how to revert, or \"None.\">"),
-    ("Verification", "- Ran: `<command>` <result>\n- Not run: <check>, because <why>"),
+HEAD = (
+    "**What:** <one sentence: what changes for the person who uses it>\n"
+    "**Why:** <one sentence: the problem, in their words>\n"
+    "**Risk:** <Low, medium or high. Name any migration, config or deploy order, and how to revert.>\n\n"
+    "<A mermaid flowchart with real module names if the PR changes a flow. "
+    "Before and after screenshots if it changes UI. Else delete this line.>\n\n"
+    "## Changes\n\n"
 )
-SKELETON = "Value: <kind> — <one sentence>\n\n" + "".join(
-    f"## {title}\n\n{placeholder}\n\n" for title, placeholder in SECTIONS) + "## Diff\n"
+TAIL = (
+    "## Check these\n\n"
+    "- [ ] `<file:line>`: <a question the reviewer should answer>\n\n"
+    "## Verification\n\n"
+    "- Ran: `<command>`, <result>\n"
+    "- Not run: <check>, because <why>\n"
+)
+DETAILS_OPEN = "<details><summary>Files per feature</summary>\n\n"
+DETAILS_CLOSE = "\n</details>\n\n"
+
+
+@dataclasses.dataclass(frozen=True)
+class FileChange:
+    path: str
+    added: int
+    removed: int
+    kind: str
+    lock: bool
+    binary: bool
+
+
+@dataclasses.dataclass(frozen=True)
+class Feature:
+    name: str
+    files: tuple
 
 
 def load_audit():
@@ -29,16 +55,12 @@ def load_audit():
     return module
 
 
-def group_of(path, audit):
+def kind_of(path, audit):
     if audit.TEST.search(path):
-        return "Tests"
+        return "tests"
     if audit.DOC.search(path):
-        return "Docs"
-    return "Code"
-
-
-def files_label(n):
-    return f"{n} file{'' if n == 1 else 's'}"
+        return "docs"
+    return "code"
 
 
 def changes(base, audit):
@@ -47,50 +69,97 @@ def changes(base, audit):
         if not record:
             continue
         added, removed, path = record.split("\t", 2)
-        binary, lock = added == "-", bool(audit.LOCK.search(path))
-        lines = "binary" if binary else f"+{added} -{removed}" + (", lockfile" if lock else "")
-        cell = path.replace("|", "\\|")
-        files.append({"added": 0 if binary else int(added), "removed": 0 if binary else int(removed),
-                      "group": group_of(path, audit), "lock": lock, "row": f"| &emsp;`{cell}` | {lines} |"})
+        binary = added == "-"
+        files.append(FileChange(path, 0 if binary else int(added), 0 if binary else int(removed),
+                                kind_of(path, audit), bool(audit.LOCK.search(path)), binary))
     return files
 
 
-def count(files):
-    counted = [f for f in files if not f["lock"]]
-    return f"+{sum(f['added'] for f in counted)} -{sum(f['removed'] for f in counted)}"
+def feature_arg(text):
+    name, separator, paths = text.partition("=")
+    patterns = tuple(p.strip() for p in paths.split(",") if p.strip())
+    if not separator or not name.strip() or not patterns:
+        raise argparse.ArgumentTypeError(f"expected NAME=PATH[,PATH...], got {text!r}")
+    return name.strip(), patterns
 
 
-def group_rows(group, members, shown):
-    rows = [f"| **{group}** · {files_label(len(members))} | **{count(members)}** |"] + [f["row"] for f in shown]
-    if len(members) > len(shown):
-        rows.append(f"| &emsp;Not shown: {files_label(len(members) - len(shown))}, see Files changed | |")
-    return rows
+def matches(path, pattern):
+    return path == pattern or (pattern.endswith("/") and path.startswith(pattern))
 
 
-def render(files):
-    groups = {group: [f for f in files if f["group"] == group] for group in GROUPS}
-    shown = {group: list(members) for group, members in groups.items()}
-    budget = GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE - len(SKELETON)
+def assign(files, declared, fail):
+    names = [name for name, _ in declared]
+    if OTHER in names:
+        fail(f"{OTHER!r} is reserved for files no feature names")
+    for name in names:
+        if names.count(name) > 1:
+            fail(f"feature {name!r} is declared twice")
+    owner = {}
+    for name, patterns in declared:
+        for pattern in patterns:
+            matched = [f for f in files if matches(f.path, pattern)]
+            if not matched:
+                fail(f"feature {name!r}: {pattern!r} matches no changed file (a folder needs a trailing /)")
+            for f in matched:
+                if owner.setdefault(f.path, name) != name:
+                    fail(f"{f.path} is in both {owner[f.path]!r} and {name!r}")
+    features = [Feature(name, tuple(f for f in files if owner.get(f.path) == name)) for name in names]
+    rest = tuple(f for f in files if f.path not in owner)
+    return features + ([Feature(OTHER, rest)] if rest else [])
 
-    def table():
-        rows = ["| Group / file | Lines |", "|---|---|"]
-        for group, members in groups.items():
-            rows += group_rows(group, members, shown[group])
-        return "\n" + "\n".join(rows) + "\n"
 
-    while len(table()) > budget:
-        shown[max(shown, key=lambda group: len(shown[group]))].pop()
-    return SKELETON + table()
+def files_label(n):
+    return f"{n} file{'' if n == 1 else 's'}"
+
+
+def stats(files):
+    parts = [files_label(len(files))]
+    for kind in KINDS:
+        counted = [f for f in files if f.kind == kind and not f.lock and not f.binary]
+        if counted:
+            parts.append(f"{kind} +{sum(f.added for f in counted)} -{sum(f.removed for f in counted)}")
+    return " · ".join(parts)
+
+
+def file_line(f):
+    lines = "binary" if f.binary else f"+{f.added} -{f.removed}" + (", lockfile" if f.lock else "")
+    return f"- `{f.path}` {lines}"
+
+
+def render(features):
+    summary = "".join(f"- **{feature.name}:** <what now behaves differently> `{stats(feature.files)}`\n"
+                      for feature in features)
+    kept = {feature.name: [file_line(f) for f in feature.files] for feature in features}
+    not_shown_room = len(f"- Not shown: {files_label(GITHUB_BODY_LIMIT)}, see Files changed\n")
+    size = (len(HEAD) + len(summary) + len(TAIL) + len(DETAILS_OPEN) + len(DETAILS_CLOSE)
+            + sum(len(f"**{name}**\n\n") + not_shown_room + sum(len(row) + 1 for row in rows)
+                  for name, rows in kept.items()))
+    while size > GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE:
+        size -= len(max(kept.values(), key=len).pop()) + 1
+    blocks = []
+    for feature in features:
+        rows = kept[feature.name]
+        hidden = len(feature.files) - len(rows)
+        rows = [f"**{feature.name}**", *rows] + ([f"- Not shown: {files_label(hidden)}, see Files changed"] if hidden else [])
+        blocks.append("\n".join(rows) + "\n")
+    return HEAD + summary + "\n" + DETAILS_OPEN + "\n".join(blocks) + DETAILS_CLOSE + TAIL
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Print the PR body skeleton with each changed file's line counts grouped into code, tests and docs.")
+    parser = argparse.ArgumentParser(
+        description="Print a PR body skeleton with the changed files grouped by feature.")
     parser.add_argument("base", nargs="?", default="origin/HEAD")
+    parser.add_argument("--feature", action="append", required=True, type=feature_arg, metavar="NAME=PATH[,PATH...]",
+                        help="Name a feature and its files, once per feature. A PATH ending in / takes the whole folder. "
+                             f"Files no feature names go under {OTHER}.")
     args = parser.parse_args()
     audit = load_audit()
     os.chdir(audit.git("rev-parse", "--show-toplevel").strip())
     base = audit.git("merge-base", args.base, "HEAD").strip()
-    sys.stdout.write(render(changes(base, audit)))
+    files = changes(base, audit)
+    if not files:
+        parser.error(f"no changes between {args.base} and HEAD")
+    sys.stdout.write(render(assign(files, args.feature, parser.error)))
     return 0
 
 
