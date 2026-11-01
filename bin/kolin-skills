@@ -947,7 +947,7 @@ def main():
     stacks_parser.add_argument("--stop", action="store_true", help="send SIGTERM to each idle stack's supabase owner process and wait for postgres to exit; skips a root another process works in")
     stacks_parser.add_argument("--idle-hours", type=float, default=6, help="a stack is idle only after it has run this many hours; the 2-hour transcript window stays fixed")
     stacks_parser.add_argument("--notice", action="store_true", help="session-start hook: one JSON line when idle stacks exist, else nothing")
-    check_parser = commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, budgets, file length and tests")
+    check_parser = commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, file length and tests")
     check_mode = check_parser.add_mutually_exclusive_group()
     check_mode.add_argument("--files", action="store_true", help="only the 1,000-line file limit")
     check_mode.add_argument("--quick", action="store_true", help=f"home only, under {QUICK_CHECK_SECONDS}s: links resolve, hooks and policy are wired, self-invoking skills are not model-locked")

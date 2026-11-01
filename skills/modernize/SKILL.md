@@ -1,6 +1,6 @@
 ---
 name: modernize
-description: Bring an old PR or branch up to date, or take over someone else's PR, branch or agent thread, and decide first if it should still land. Use when Kolin says "modernize", "rebase this PR", "update this old PR", "port this PR" or "take over". Not for finishing Kolin's own PR (full-stop).
+description: Bring an old PR or branch up to date, or take over someone else's PR, branch or agent thread, and decide first if it should still land. Use when Kolin says "modernize", "rebase this PR", "update this old PR", "port this PR" or "take over". Not for finishing Kolin's own PR (full-send).
 ---
 # Modernize
 
