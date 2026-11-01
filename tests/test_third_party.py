@@ -2,6 +2,7 @@ import json
 import os
 import pathlib
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -54,6 +55,22 @@ class PinnedCliTests(unittest.TestCase):
         self.assertEqual(set(pins), {"agent-browser", "agent-desktop"})
         for version in pins.values():
             self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+
+
+@unittest.skipIf(shutil.which("codex") is None, "codex is not installed")
+class CodexRuleTests(unittest.TestCase):
+    def decision(self, *command):
+        result = subprocess.run(["codex", "execpolicy", "check", "--rules", str(REPO / "codex/rules/agent-tools.rules"), *command],
+                                text=True, capture_output=True, timeout=30, check=True)
+        return json.loads(result.stdout).get("decision")
+
+    def test_every_pinned_cli_runs_outside_the_sandbox(self):
+        for name in third_party.npm_tool_pins(REPO):
+            self.assertEqual(self.decision(name, "snapshot"), "allow", name)
+
+    def test_other_commands_keep_the_sandbox(self):
+        self.assertIsNone(self.decision("npx", "agent-browser", "open"))
+        self.assertIsNone(self.decision("rm", "-rf", "/"))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,7 @@
+prefix_rule(
+    pattern = [["agent-browser", "agent-desktop"]],
+    decision = "allow",
+    justification = "agent-browser and agent-desktop need Chrome, the window server and Accessibility, which the seatbelt sandbox blocks",
+    match = [["agent-browser", "open", "https://example.com"], ["agent-desktop", "snapshot", "-i"]],
+    not_match = [["agent-browserx"], ["npx", "agent-browser"]],
+)

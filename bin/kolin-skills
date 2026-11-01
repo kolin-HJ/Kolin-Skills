@@ -63,6 +63,7 @@ LINKS = {
     "claude/output-styles/ste-visual.md": [".claude/output-styles/ste-visual.md"],
     "hooks/lint-changed-lines.py": [".codex/hooks/lint-changed-lines.py"],
     "hooks/compact-context.py": [".codex/hooks/compact-context.py"],
+    "codex/rules/agent-tools.rules": [".codex/rules/agent-tools.rules"],
     "hooks/block-env-reads.py": [".claude/hooks/block-env-reads.py"],
     "hooks/heavy-slot.py": [".kolin-skills/bin/heavy-slot.py"],
     "hooks/agent-default-model.py": [".claude/hooks/agent-default-model.py"],

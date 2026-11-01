@@ -229,7 +229,7 @@ skills/                      own skills, linked flat into ~/.agents/skills, ~/.c
 agents/                      subagents; senior-reviewer.md holds the review bar
 hooks/                       guards and lint, run in place from the repo
 claude/                      managed settings keys, status line, output style (ste-visual)
-codex/, cursor/              hook config and the Cursor policy rule
+codex/, cursor/              hook config, the Codex rule that runs agent-browser and agent-desktop outside the sandbox, and the Cursor policy rule
 .githooks/                   pre-commit runs check --files; pre-push runs check; post-merge, post-checkout, post-rewrite run apply
 upstream/                    pstack and cursor-team-kit (vendor.json), npx skills (skills.json), npm CLIs (tools.json)
 docs/                        stay-on-main, consumer-drift
