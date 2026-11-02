@@ -31,6 +31,17 @@ class DiffAuditTests(unittest.TestCase):
         return subprocess.run([sys.executable, str(AUDIT), "main", *args], cwd=self.repo,
                               text=True, capture_output=True, timeout=20)
 
+    def test_naming_a_head_reads_that_commit_and_ignores_the_working_tree(self):
+        self.git("checkout", "-qb", "work")
+        self.write("package.json", '{"dependencies": {"kept": "1"}}\n')
+        self.git("add", "-A")
+        self.git("commit", "-qm", "add a dependency")
+        self.write("package.json", '{"dependencies": {"scratch": "1"}}\n')
+        self.write("src/scratch.test.ts", "it." + "skip('x', () => {});\n")
+        output = self.audit("HEAD").stdout
+        self.assertIn("kept", output)
+        self.assertNotIn("scratch", output)
+
     def test_each_reward_hack_and_slop_shape_blocks(self):
         cases = {
             "skip": ("src/price.test.ts", "it.skip('doubles', () => {\n  expect(price(2)).toBe(4);\n});\n"

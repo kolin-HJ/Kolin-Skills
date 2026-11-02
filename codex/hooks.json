@@ -41,16 +41,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 '{{REPO}}/hooks/pr-proof.py'",
-            "timeout": 90
-          }
-        ]
       }
     ],
     "PostToolUse": [
@@ -61,6 +51,16 @@
             "type": "command",
             "command": "python3 '{{REPO}}/hooks/lint-changed-lines.py'",
             "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/pr-proof.py'",
+            "timeout": 120
           }
         ]
       }

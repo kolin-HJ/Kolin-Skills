@@ -73,7 +73,7 @@ In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all 
 | Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge | Protected branches change only through a PR you merge. An agent may create a missing one with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
 | Reading a `.env` file | Secrets stay out of the context |
 | Docker databases | Agents use the native Supabase CLI instead |
-| Opening a PR with no `## Verification`, a reward hack such as a skipped test, or no fresh review on a large or risky diff | You can trust what reaches you. `Not run: <check>, because <why>` and `Allowed <kind>: <why>` stay open as honest, visible exits |
+| Marking a PR ready with no `## Verification`, a reward hack such as a skipped test, or no fresh review on a large or risky diff | The PR goes back to draft, so a PR that claims nothing does not reach you. This catches missing proof, not false proof: a made-up `Ran:` line still looks real, so read the diff on anything that matters. `Not run: <check>, because <why>` and `Allowed <kind>: <why>` stay open as visible exits |
 
 Claude Code runs every guard. Codex runs the git guard, the `.env` guard (shell commands only), the PR proof check, the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
 
@@ -261,7 +261,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks protected-branch pushes and merges, force push, `--no-verify`, auto-merge, edits to hook files |
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
 | `hooks/agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus when a repo copy pins lower |
-| `hooks/pr-proof.py` | Claude Code, Codex | On `gh pr create`, blocks a body with no `## Verification`, a `diff-audit` block, or a missing fresh review on a large or risky diff. Notes `Ran:` lines that match no command in the session |
+| `hooks/pr-proof.py` | Claude Code, Codex | After `gh pr create` or `gh pr ready`, reads the real PR. A draft and a `staging` to `main` release are skipped. A ready PR with no `## Verification`, a `diff-audit` block, or a missing fresh review on a large or risky diff goes back to draft. Notes `Ran:` lines that match no command in the session. On Codex it cannot read session tool calls, so it only notes a due review and skips the `Ran:` match |
 | `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks Docker databases, strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
 | `hooks/lint-changed-lines.py` | All but Grok | Lints the JS and TS lines the agent just changed |
 | `hooks/compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through compaction |

@@ -133,7 +133,7 @@ class ApplyTests(unittest.TestCase):
         self.git(self.repo, "init", "-q", "-b", "main")
         self.git(self.repo, "add", "-A")
         self.git(self.repo, "commit", "-qm", "init")
-        self.git(self.home, "clone", "-q", "--bare", str(self.repo), str(remote))
+        self.git(self.home, "clone", "-q", "--bare", "--no-local", str(self.repo), str(remote))
         self.git(self.repo, "remote", "add", "origin", str(remote))
         self.git(self.home, "clone", "-q", str(remote), str(other))
         (other / "skills/pushed-skill").mkdir()

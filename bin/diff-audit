@@ -35,7 +35,7 @@ DEP_KEYS = ("dependencies", "devDependencies", "peerDependencies", "optionalDepe
 
 
 def git(*args):
-    return subprocess.run(["git", *args], text=True, capture_output=True, check=True).stdout
+    return subprocess.run(["git", *args], text=True, errors="replace", capture_output=True, check=True).stdout
 
 
 def parse(diff):
@@ -69,7 +69,7 @@ def untracked(files):
         files[path] = {"added": list(enumerate(text.splitlines(), 1)), "removed": [], "new": True, "deleted": False}
 
 
-def dependency_findings(path, base):
+def dependency_findings(path, base, head):
     if path.endswith("package.json"):
         def deps(text):
             data = json.loads(text) if text.strip() else {}
@@ -79,13 +79,13 @@ def dependency_findings(path, base):
         except subprocess.CalledProcessError:
             before = ""
         try:
-            return sorted(deps(open(path).read()) - deps(before))
-        except (OSError, ValueError):
+            return sorted(deps(git("show", f"{head}:{path}") if head else open(path).read()) - deps(before))
+        except (OSError, ValueError, subprocess.CalledProcessError):
             return []
     return []
 
 
-def audit(files, base):
+def audit(files, base, head):
     blocks, info, added_total, removed_total = [], [], 0, 0
     for path, change in sorted(files.items()):
         is_test, is_code = bool(TEST.search(path)), bool(CODE.search(path))
@@ -103,7 +103,7 @@ def audit(files, base):
         if ALWAYS_LOADED.search(path) and grown > 0:
             blocks.append(("instructions-grew", f"{path} grows by {grown} characters and loads into every session: "
                                                 "name the repeated mistake the new text prevents, or cut as much as you add"))
-        for name in dependency_findings(path, base):
+        for name in dependency_findings(path, base, head):
             blocks.append(("dependency", f"{path} adds {name}: state why no installed package or platform API does it, and prove it exists (npm view {name})"))
         if path.endswith("requirements.txt") or path.endswith("go.mod"):
             for number, line in change["added"]:
@@ -140,13 +140,15 @@ def audit(files, base):
 def main():
     parser = argparse.ArgumentParser(description="Flag reward hacks and slop in a diff, and list every addition for the value check.")
     parser.add_argument("base", nargs="?", default="origin/HEAD")
+    parser.add_argument("head", nargs="?", help="audit this commit only; with no head, audit the working tree and untracked files")
     parser.add_argument("--allow", action="append", default=[], help="a finding kind the PR body justifies")
     args = parser.parse_args()
     os.chdir(git("rev-parse", "--show-toplevel").strip())
     base = git("merge-base", args.base, "HEAD").strip()
-    files = parse(git("diff", "-U0", "--no-color", "--no-renames", base))
-    untracked(files)
-    blocks, info, added, removed = audit(files, base)
+    files = parse(git("diff", "-U0", "--no-color", "--no-renames", base, *filter(None, [args.head])))
+    if not args.head:
+        untracked(files)
+    blocks, info, added, removed = audit(files, base, args.head)
     allowed = {kind for value in args.allow for kind in value.split(",")}
     for line in info:
         print(line)
