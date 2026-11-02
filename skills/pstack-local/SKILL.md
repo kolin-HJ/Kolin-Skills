@@ -18,7 +18,7 @@ pstack ([upstream](https://github.com/cursor/plugins/tree/main/pstack)) is writt
 | `Task` with `subagent_type: generalPurpose` | Claude Code: the Agent tool with `general-purpose`. Codex: a spawned agent. |
 | `subagent_type: "poteto-agent"` | Builder: `poteto-agent`. Read-only search: Claude `Explore`, Codex `explorer`. Use a repo's named implementer only in that repo. |
 | `subagent_type: "comment-sicko"` (was `Comment Sicko`) | `comment-sicko`, pstack's own agent, linked by `apply` |
-| `readonly: true`, or any role `models.md` runs on Opus | Claude: `judge` for judgment, `Explore` for search. Codex: `judge` for judgment, `senior-reviewer` for review, `explorer` for search; tell `explorer` the scope is read-only. |
+| `readonly: true`, or any role `models.md` runs on Opus | Claude: `judge` for judgment, `Explore` for search. Codex: `judge` for judgment, `senior-reviewer` for review, `explorer` for search. |
 | `environment: "cloud"`, `cloud_base_branch` | T3 Code: `delegate_task` with `isolation: "worktree"`; never create a child checkout in the shell. Else use the harness's worktree support, or `git worktree add <path> -b <branch> <base>`. |
 | `model: <slug>` | Claude: the role line in `models.md`. Codex: inherit the session model unless the user or harness directs otherwise. |
 | `~/.cursor/rules/pstack-models.mdc`, `/setup-pstack` | `models.md` next to this file. Never write `~/.claude/rules/pstack-models.md`. |
@@ -43,7 +43,7 @@ pstack ([upstream](https://github.com/cursor/plugins/tree/main/pstack)) is writt
 
 ## Model roles
 
-In Claude Code, `models.md` assigns native agent roles. `apply` renders `agents/*.md` as `~/.codex/agents/*.toml`: `poteto-agent` builds, `haiku-worker` sweeps, `judge` judges, and `senior-reviewer` reviews. In Codex, use these when the harness exposes them; seats inherit the session model unless configured otherwise. Do not claim model diversity. Follow session delegation rules. A subagent's output is a lead: open the code it cites before a finding becomes yours.
+In Claude Code, `models.md` assigns native agent roles. `apply` renders `agents/*.md` as `~/.codex/agents/*.toml`: `poteto-agent` builds, `judge` judges, and `senior-reviewer` reviews. In Codex, use these when the harness exposes them; seats inherit the session model unless configured otherwise. Do not claim model diversity. Follow session delegation rules. A subagent's output is a lead: open the code it cites before a finding becomes yours.
 
 ## Where Kolin's rules win
 
@@ -62,4 +62,4 @@ Read `thermo-nuclear-code-quality-review` when Kolin asks for a harsh structure 
 
 ## Verify the setup
 
-`kolin-skills check` proves wiring, not behavior. For a routing or model-role change, use `poteto-mode/playbooks/eval.md` with organic tasks and transcript evidence. To see if a skill still earns its place, run the same realistic prompts with it and with `skillOverrides` set to `"off"`, and cut or trim it if the output is no worse. `/doctor prompt-audit` flags instruction text written for older models.
+`kolin-skills check` proves wiring, not behavior. For a routing or model-role change, use `poteto-mode/playbooks/eval.md` with organic tasks and transcript evidence.

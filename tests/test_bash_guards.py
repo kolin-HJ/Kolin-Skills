@@ -10,7 +10,6 @@ import unittest
 REPO = pathlib.Path(__file__).resolve().parent.parent
 BASH_GUARD = REPO / "hooks/bash-guard.py"
 ENV_HOOK = REPO / "hooks/block-env-reads.py"
-NESTED_POLL = "for i in $(seq 1 16); do p=$(for n in 874 857; do gh pr view $n; done); echo $p; sleep 30; done"
 
 
 def invoke(hook, tool_input, **payload):
@@ -126,27 +125,6 @@ class HeavyJobsGuardTests(unittest.TestCase):
                 rewritten = updated["command"] if updated else command
                 self.assertEqual(prefix_pattern.sub("", rewritten), expected)
                 self.assertEqual(bool(prefix_pattern.match(rewritten)), takes_slot)
-
-    def test_poll_loop_nested_in_a_command_substitution_is_blocked(self):
-        blocked = invoke(BASH_GUARD, {"command": NESTED_POLL})
-        self.assertEqual(blocked.returncode, 2)
-        self.assertIn("run_in_background: true", blocked.stderr)
-        self.assertEqual(invoke(BASH_GUARD, {"command": NESTED_POLL, "run_in_background": True}).returncode, 0)
-        self.assertEqual(invoke(BASH_GUARD, {"command": "p=$(for n in 1 2; do gh pr view $n; done); echo $p"}).returncode, 0)
-
-    def test_long_foreground_curl_retry_is_blocked(self):
-        cases = [
-            ({"command": "curl --retry 60 --retry-connrefused localhost:3000"}, 2),
-            ({"command": "curl --retry=30 localhost:3000"}, 2),
-            ({"command": "curl --retry 60 localhost:3000", "run_in_background": True}, 0),
-            ({"command": "curl --retry 3 localhost:3000"}, 0),
-            ({"command": "curl --retry-delay 30 localhost:3000"}, 0),
-        ]
-        for tool_input, code in cases:
-            with self.subTest(tool_input=tool_input):
-                result = invoke(BASH_GUARD, tool_input)
-                self.assertEqual(result.returncode, code, result.stderr)
-        self.assertIn("Monitor", invoke(BASH_GUARD, cases[0][0]).stderr)
 
     def test_unquoted_include_globs_are_quoted_for_zsh(self):
         cases = [

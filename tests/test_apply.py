@@ -84,12 +84,12 @@ class ApplyTests(unittest.TestCase):
 
     def test_removing_a_skill_or_agent_from_the_repo_removes_it_everywhere(self):
         self.assertEqual(self.run_cli("apply").returncode, 0)
-        self.assertTrue((self.home / ".codex/agents/haiku-worker.toml").is_file())
+        self.assertIn('sandbox_mode = "read-only"', (self.home / ".codex/agents/judge.toml").read_text())
         shutil.rmtree(self.repo / "skills/explainer")
-        (self.repo / "agents/haiku-worker.md").unlink()
+        (self.repo / "agents/judge.md").unlink()
         self.assertEqual(self.run_cli("apply").returncode, 0)
         for relative in [".agents/skills/explainer", ".claude/skills/explainer", ".cursor/skills/explainer",
-                         ".claude/agents/haiku-worker.md", ".codex/agents/haiku-worker.toml"]:
+                         ".claude/agents/judge.md", ".codex/agents/judge.toml"]:
             path = self.home / relative
             self.assertFalse(path.exists() or path.is_symlink(), relative)
 

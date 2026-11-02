@@ -564,7 +564,7 @@ def spend_failures():
     if not isinstance(window, int) or window > SPEND_CAPS["max_compact_window"]:
         failures.append(f"claude settings autoCompactWindow must be at most {SPEND_CAPS['max_compact_window']}")
     if "agent-default-model.py" not in json.dumps(settings.get("hooks", {}).get("PreToolUse", [])):
-        failures.append("claude settings PreToolUse must run hooks/agent-default-model.py so Explore skips Opus")
+        failures.append("claude settings PreToolUse must run hooks/agent-default-model.py so a repo copy of senior-reviewer cannot pin below Opus")
     return failures
 
 

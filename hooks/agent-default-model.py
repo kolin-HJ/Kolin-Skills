@@ -3,16 +3,8 @@ import os
 import re
 import sys
 
-SUBAGENT_MODEL_IGNORED_BY = {"Explore": "sonnet"}
-EDITING_BUILTINS = {"general-purpose", "claude"}
-OPUS_REASON = (
-    "Blocked: agents that can edit run on Sonnet. "
-    "For an Opus judgment role, spawn `judge` (no edit tools). For a builder, drop `model`."
-)
 SEAT_MODELS = {"senior-reviewer": "opus"}
 PINNED = re.compile(r"^model:[ \t]*(\S+)", re.M)
-TOOLS = re.compile(r"^tools:(.*)$", re.M)
-WRITERS = {"Edit", "Write", "NotebookEdit", "*"}
 
 
 def definition(agent, cwd):
@@ -35,51 +27,29 @@ def definition(agent, cwd):
     return None
 
 
-def frontmatter(text):
-    return text.split("---", 2)[1] if text.startswith("---") else ""
-
-
 def pinned_model(text):
-    match = PINNED.search(frontmatter(text))
+    header = text.split("---", 2)[1] if text.startswith("---") else ""
+    match = PINNED.search(header)
     return match.group(1) if match else None
-
-
-def edit_capable(agent, text):
-    if agent in EDITING_BUILTINS:
-        return True
-    if text is None:
-        return False
-    tools = TOOLS.search(frontmatter(text))
-    return tools is None or bool(WRITERS & {t.strip() for t in tools.group(1).split(",")})
-
-
-def decide(agent, tool_input, text):
-    passed = tool_input.get("model")
-    seat = SEAT_MODELS.get(agent)
-    pinned = pinned_model(text) if text else None
-    if seat and not passed and pinned and seat not in pinned.lower():
-        return "allow", f"{agent} runs on {seat} in pstack-local/models.md; this definition pins a lower model", seat
-    if not passed and agent in SUBAGENT_MODEL_IGNORED_BY:
-        model = SUBAGENT_MODEL_IGNORED_BY[agent]
-        return "allow", f"{agent} ignores CLAUDE_CODE_SUBAGENT_MODEL; defaulted to {model}", model
-    if passed and "opus" in passed.lower() and edit_capable(agent, text) and os.environ.get("KOLIN_OPUS_BUILDERS") != "1":
-        return "deny", OPUS_REASON, None
-    return None
 
 
 def main():
     event = json.load(sys.stdin)
     tool_input = event.get("tool_input") or {}
-    agent = tool_input.get("subagent_type") or "general-purpose"
-    text = definition(agent, event.get("cwd") or os.getcwd())
-    verdict = decide(agent, tool_input, text)
-    if verdict is None:
+    agent = tool_input.get("subagent_type") or ""
+    seat = SEAT_MODELS.get(agent)
+    if not seat or tool_input.get("model"):
         return 0
-    decision, reason, model = verdict
-    output = {"hookEventName": "PreToolUse", "permissionDecision": decision, "permissionDecisionReason": reason}
-    if model:
-        output["updatedInput"] = {**tool_input, "model": model}
-    json.dump({"hookSpecificOutput": output}, sys.stdout)
+    text = definition(agent, event.get("cwd") or os.getcwd())
+    pinned = pinned_model(text) if text else None
+    if not pinned or seat in pinned.lower():
+        return 0
+    json.dump({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "allow",
+        "permissionDecisionReason": f"{agent} runs on {seat}; this repo's copy pins a lower model",
+        "updatedInput": {**tool_input, "model": seat},
+    }}, sys.stdout)
     return 0
 
 

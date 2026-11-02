@@ -18,12 +18,6 @@ Read the repo's `AGENTS.md` and each skill the brief names.
 - Prove the unit: run the repo's gate for your files and the check in the brief's **Done when**. A new test fails first on an assertion.
 - Report once, at the end: files changed, each command with its literal result, what you inferred without running, and any open decision.
 
-## Spend
-
-Start from the files and lines the brief names. Batch independent reads. Run targeted tests while you build and the full gate once at the end.
-
-Change a file with Edit, never with a heredoc script. For one mechanical change across many files, a `sed -i` or codemod is fine; then read `git diff`.
-
 ## Stop and report, without a workaround
 
 - A guard blocks you and the fix is outside your files.

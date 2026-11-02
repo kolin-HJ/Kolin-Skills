@@ -34,8 +34,8 @@ flowchart TB
 |---|---|
 | 📜 **Policy** | A short rule book on top of pstack: only what a model gets wrong untold — approvals, code preferences, security, done, PR format |
 | 🧰 **Skills** | pstack is the method. Own skills add what Claude can't work out alone (the repo standard, local Supabase, release notes) and the full-send permissions |
-| 🤖 **Subagents** | A builder, a judge, a reviewer and a sweeper. The builder never reviews its own code |
-| 🛡️ **Guardrails** | Hooks that block a risky action before it runs |
+| 🤖 **Subagents** | A builder, a judge and a reviewer. The builder never reviews its own code |
+| 🛡️ **Guardrails** | Hooks that block a risky action, or a PR with no proof, before it goes out |
 | ✅ **Gate** | `kolin-skills check`, run on pre-commit (file length), pre-push, and Linux CI |
 
 ## Why use it
@@ -64,7 +64,7 @@ flowchart LR
   pr --> merge([👍 You merge])
 ```
 
-In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all four subagents on its default model. A worktree the harness makes for a subagent branches from the current commit (`worktree.baseRef: head`), so the subagent sees unpushed work.
+In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all three subagents on its default model. A worktree the harness makes for a subagent branches from the current commit (`worktree.baseRef: head`), so the subagent sees unpushed work.
 
 **Guardrails block. They do not ask.** The blocked agent gets the reason and the fix.
 
@@ -72,9 +72,10 @@ In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all 
 |---|---|
 | Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge | Protected branches change only through a PR you merge. An agent may create a missing one with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
 | Reading a `.env` file | Secrets stay out of the context |
-| Foreground sleep loops, long curl retries, Docker databases | Agents use background jobs, Monitor and the native Supabase CLI instead |
+| Docker databases | Agents use the native Supabase CLI instead |
+| Opening a PR with no `## Verification`, a reward hack such as a skipped test, or no fresh review on a large or risky diff | You can trust what reaches you. `Not run: <check>, because <why>` and `Allowed <kind>: <why>` stay open as honest, visible exits |
 
-Claude Code runs every guard. Codex runs the git guard, the `.env` guard (shell commands only), the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
+Claude Code runs every guard. Codex runs the git guard, the `.env` guard (shell commands only), the PR proof check, the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
 
 ## Install
 
@@ -190,7 +191,6 @@ Each skill starts in one of two ways:
 | `poteto-agent` | Sonnet | A large, independent unit of code can run in parallel with other work |
 | `judge` | Opus | One design or judgment call, such as an architect runner or a synthesizer. It has no edit tools, and it loads the policy, unlike the built-in `Plan` |
 | `senior-reviewer` | Opus | Before a PR over 150 changed lines or one that touches schema, auth, access, money or a migration; also the seats of pstack's `interrogate` |
-| `haiku-worker` | Haiku | A mechanical sweep: a rename, a codemod, a read-only search |
 
 <details>
 <summary><b>Third-party skills that install also adds</b></summary>
@@ -260,10 +260,9 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 |---|---|---|
 | `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks protected-branch pushes and merges, force push, `--no-verify`, auto-merge, edits to hook files |
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
-| `hooks/agent-default-model.py` | Claude Code | Denies Opus on an editing subagent and names `judge`. Runs `Explore` on Sonnet, which ignores `CLAUDE_CODE_SUBAGENT_MODEL`. Runs `senior-reviewer` on Opus when a repo copy pins lower |
-| `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks polling loops, Docker databases and long curl retries, strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
-| `hooks/context-budget.py` | Claude Code | In a subagent, warns at 200,000 context tokens to wrap up and blocks at 260,000 until it reports |
-| `hooks/mcp-access.py` | Claude Code | When an MCP tool fails with an access error, tells the agent this account lacks the connector, to stop calling it and to use the CLI |
+| `hooks/agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus when a repo copy pins lower |
+| `hooks/pr-proof.py` | Claude Code, Codex | On `gh pr create`, blocks a body with no `## Verification`, a `diff-audit` block, or a missing fresh review on a large or risky diff. Notes `Ran:` lines that match no command in the session |
+| `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks Docker databases, strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
 | `hooks/lint-changed-lines.py` | All but Grok | Lints the JS and TS lines the agent just changed |
 | `hooks/compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through compaction |
 | `hooks/keep-awake.py` | Claude Code | Holds `caffeinate` from each prompt or subagent spawn, so a long turn does not let the Mac sleep |

@@ -62,15 +62,6 @@
     ],
     "PreToolUse": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 '{{REPO}}/hooks/context-budget.py'",
-            "timeout": 5
-          }
-        ]
-      },
-      {
         "matcher": "Bash|Write|Edit|MultiEdit",
         "hooks": [
           {
@@ -118,16 +109,14 @@
             "timeout": 5
           }
         ]
-      }
-    ],
-    "PostToolUseFailure": [
+      },
       {
-        "matcher": "mcp__.*",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 '{{REPO}}/hooks/mcp-access.py'",
-            "timeout": 5
+            "command": "python3 '{{REPO}}/hooks/pr-proof.py'",
+            "timeout": 90
           }
         ]
       }
