@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+
+PACKAGE = "@electric-sql/pglite"
+VERSION = "0.5.14"
+RUNNER = """
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+const { PGlite } = await import(pathToFileURL(join(process.env.PGLITE_ROOT, 'node_modules/@electric-sql/pglite/dist/index.js')).href)
+const files = JSON.parse(process.env.PGLITE_FILES)
+const db = await PGlite.create()
+for (const file of files.migrations) await db.exec(readFileSync(file, 'utf8'))
+for (const file of files.tests) await db.exec(readFileSync(file, 'utf8'))
+console.log(`pglite-replay: applied ${files.migrations.length}, tested ${files.tests.length}`)
+""".strip()
+
+
+def sql_files(folder):
+    if not folder.is_dir():
+        return []
+    return sorted(path for path in folder.iterdir() if path.suffix == ".sql" and path.is_file())
+
+
+def ensure_runtime():
+    runtime = pathlib.Path.home() / ".kolin-skills/pglite-runtime"
+    if (runtime / "node_modules" / PACKAGE / "package.json").is_file():
+        return runtime
+    runtime.mkdir(parents=True, exist_ok=True)
+    if not (runtime / "package.json").is_file():
+        (runtime / "package.json").write_text('{"private":true}\n')
+    install = subprocess.run(
+        ["npm", "install", "--prefix", str(runtime), "--no-fund", "--no-audit", "--omit=dev",
+         f"{PACKAGE}@{VERSION}"],
+        capture_output=True, text=True,
+    )
+    if install.returncode:
+        print(install.stderr or install.stdout, file=sys.stderr)
+        raise SystemExit(install.returncode)
+    return runtime
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Replay supabase/migrations into PGlite, then supabase/tests.")
+    parser.add_argument("root", nargs="?", default=".", help="app checkout (default: cwd)")
+    args = parser.parse_args()
+    root = pathlib.Path(args.root).resolve()
+    migrations = sql_files(root / "supabase" / "migrations")
+    if not migrations:
+        print(f"pglite-replay: no supabase/migrations/*.sql in {root}", file=sys.stderr)
+        return 2
+    if shutil.which("node") is None:
+        print("pglite-replay needs node on PATH", file=sys.stderr)
+        return 2
+    runtime = ensure_runtime()
+    files = {
+        "migrations": [str(path) for path in migrations],
+        "tests": [str(path) for path in sql_files(root / "supabase" / "tests")],
+    }
+    env = {**os.environ, "PGLITE_ROOT": str(runtime), "PGLITE_FILES": json.dumps(files)}
+    return subprocess.run(["node", "--input-type=module", "-e", RUNNER], env=env).returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())
