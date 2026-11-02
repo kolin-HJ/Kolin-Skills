@@ -186,7 +186,7 @@ class NativeHookPayloadTests(unittest.TestCase):
         self.assertEqual(blocked_size.returncode, 2, blocked_size.stderr)
         self.assertIn("file too long", blocked_size.stderr)
 
-    def test_agent_model_runs_builders_on_sonnet_and_leaves_fork_alone(self):
+    def test_agent_model_denies_opus_on_builders_and_runs_explore_on_sonnet(self):
         with tempfile.TemporaryDirectory() as directory:
             agents = pathlib.Path(directory) / ".claude/agents"
             agents.mkdir(parents=True)
@@ -201,8 +201,8 @@ class NativeHookPayloadTests(unittest.TestCase):
             sonnet = ("allow", "sonnet")
             denied = ("deny", None)
             cases = [
-                ({"subagent_type": "repo-builder"}, {}, sonnet),
-                ({"subagent_type": "general-purpose"}, {}, sonnet),
+                ({"subagent_type": "repo-builder"}, {}, None),
+                ({"subagent_type": "general-purpose"}, {}, None),
                 ({"subagent_type": "repo-reviewer"}, {}, None),
                 ({"subagent_type": "repo-builder", "model": "opus"}, {}, denied),
                 ({"subagent_type": "seat", "model": "opus"}, {}, denied),
@@ -212,7 +212,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                 ({"subagent_type": "senior-reviewer"}, {}, ("allow", "opus")),
                 ({"subagent_type": "senior-reviewer", "model": "sonnet"}, {}, None),
                 ({"subagent_type": "Plan", "model": "opus"}, {}, None),
-                ({}, {}, sonnet),
+                ({}, {}, None),
                 ({"subagent_type": "fork"}, {}, None),
                 ({"subagent_type": "Explore", "model": "opus"}, {}, None),
                 ({"subagent_type": "Explore"}, {}, sonnet),
@@ -236,7 +236,7 @@ class NativeHookPayloadTests(unittest.TestCase):
                     got = None if output is None else (output["permissionDecision"], output.get("updatedInput", {}).get("model"))
                     self.assertEqual(got, expected)
                     if expected == denied and tool_input.get("model"):
-                        self.assertIn("`Plan`", output["permissionDecisionReason"])
+                        self.assertIn("`judge`", output["permissionDecisionReason"])
 
     def test_agent_model_leaves_an_opus_pinned_reviewer_seat_alone(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -246,25 +246,6 @@ class NativeHookPayloadTests(unittest.TestCase):
                 "---\nname: senior-reviewer\ntools: Read, Grep\nmodel: claude-opus-5-5\n---\n")
             result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": {"subagent_type": "senior-reviewer"}}, directory)
             self.assertEqual((result.returncode, result.stdout), (0, ""))
-
-    def test_agent_model_denies_worktree_isolation_for_editing_agents_only(self):
-        with tempfile.TemporaryDirectory() as directory:
-            agents = pathlib.Path(directory) / ".claude/agents"
-            agents.mkdir(parents=True)
-            (agents / "poteto-agent.md").write_text("---\nname: poteto-agent\n---\n")
-            cases = [
-                ({"subagent_type": "poteto-agent", "isolation": "worktree"}, "deny"),
-                ({"subagent_type": "Explore", "isolation": "worktree"}, "allow"),
-                ({"subagent_type": "poteto-agent"}, "allow"),
-            ]
-            for tool_input, expected in cases:
-                with self.subTest(tool_input=tool_input):
-                    result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": tool_input}, directory)
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    output = json.loads(result.stdout)["hookSpecificOutput"]
-                    self.assertEqual(output["permissionDecision"], expected)
-                    if expected == "deny":
-                        self.assertIn("git worktree add", output["permissionDecisionReason"])
 
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
         with tempfile.TemporaryDirectory() as directory:

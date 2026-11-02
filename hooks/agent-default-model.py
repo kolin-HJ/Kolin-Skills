@@ -3,18 +3,12 @@ import os
 import re
 import sys
 
-UNPINNED_BUILTINS = {"Explore", "claude-code-guide", "general-purpose"}
+SUBAGENT_MODEL_IGNORED_BY = {"Explore": "sonnet"}
 EDITING_BUILTINS = {"general-purpose", "claude"}
-ISOLATION_REASON = (
-    "Blocked: isolation: worktree makes the harness refuse the builder's gate commands. "
-    "Create the worktree with `git worktree add <path> -b <branch> <base>`, name the path in the brief, "
-    "and spawn without isolation."
-)
 OPUS_REASON = (
     "Blocked: agents that can edit run on Sonnet. "
-    "For an Opus judgment role, spawn `Plan` with model opus (read-only, keeps MCP). For a builder, drop `model`."
+    "For an Opus judgment role, spawn `judge` (read-only). For a builder, drop `model`."
 )
-DEFAULT_MODEL = "sonnet"
 SEAT_MODELS = {"senior-reviewer": "opus"}
 PINNED = re.compile(r"^model:[ \t]*(\S+)", re.M)
 TOOLS = re.compile(r"^tools:(.*)$", re.M)
@@ -59,20 +53,15 @@ def edit_capable(agent, text):
     return tools is None or bool(WRITERS & {t.strip() for t in tools.group(1).split(",")})
 
 
-def effective_model(tool_input, text):
-    return tool_input.get("model") or (pinned_model(text) if text else None)
-
-
 def decide(agent, tool_input, text):
-    if tool_input.get("isolation") == "worktree" and edit_capable(agent, text):
-        return "deny", ISOLATION_REASON, None
     passed = tool_input.get("model")
     seat = SEAT_MODELS.get(agent)
     pinned = pinned_model(text) if text else None
     if seat and not passed and pinned and seat not in pinned.lower():
         return "allow", f"{agent} runs on {seat} in pstack-local/models.md; this definition pins a lower model", seat
-    if not effective_model(tool_input, text) and (agent in UNPINNED_BUILTINS or edit_capable(agent, text)):
-        return "allow", f"{agent} pins no model; defaulted to {DEFAULT_MODEL}", DEFAULT_MODEL
+    if not passed and agent in SUBAGENT_MODEL_IGNORED_BY:
+        model = SUBAGENT_MODEL_IGNORED_BY[agent]
+        return "allow", f"{agent} ignores CLAUDE_CODE_SUBAGENT_MODEL; defaulted to {model}", model
     if passed and "opus" in passed.lower() and edit_capable(agent, text) and os.environ.get("KOLIN_OPUS_BUILDERS") != "1":
         return "deny", OPUS_REASON, None
     return None

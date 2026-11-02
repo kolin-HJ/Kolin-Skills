@@ -14,7 +14,7 @@ PSTACK_SKILLS = "cursor-plugins/pstack/skills"
 LOCKED_FRONTMATTER = "---\nname: {name}\ndescription: test {name}\ndisable-model-invocation: true\nicon: crown\n---\n\n# {name}\n"
 SELF_INVOKING = ["poteto-mode", "how", "architect", "tdd", "interrogate", "correct", "principle-fix-root-causes", "principle-prove-it-works"]
 USER_ONLY = ["swarm", "reflect"]
-OWN_USER_ONLY_SKILLS = ["full-send", "council", "loop-refactor-to-pstack"]
+OWN_USER_ONLY_SKILLS = ["full-send", "council"]
 
 
 def has_model_lock(skill_file):

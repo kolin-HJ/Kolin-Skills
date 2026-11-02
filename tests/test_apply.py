@@ -66,12 +66,21 @@ class ApplyTests(unittest.TestCase):
         merged = json.loads(settings.read_text())
         self.assertEqual(merged["permissions"], {"allow": ["Bash(ls)"]})
         self.assertEqual(merged["env"]["MINE"], "1")
-        self.assertEqual(merged["env"]["CLAUDE_CODE_SUBAGENT_MODEL"], "claude-sonnet-5-5")
+        self.assertEqual(merged["env"]["CLAUDE_CODE_SUBAGENT_MODEL"], "sonnet")
         self.assertIn("herdr.sh", json.dumps(merged["hooks"]["SessionStart"]))
         post = json.dumps(merged["hooks"]["PostToolUse"])
         self.assertNotIn(legacy, post)
         self.assertEqual(post.count("lint-changed-lines.py"), 1)
         self.assertIn(str(self.repo), post)
+
+    def test_apply_drops_a_retired_setting_but_keeps_the_users_own_choice(self):
+        settings = self.home / ".claude/settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(json.dumps({"model": "opus[1m]", "modelSettings": {"claude-opus-5-5": {"effortLevel": "high"}}}))
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        merged = json.loads(settings.read_text())
+        self.assertNotIn("model", merged)
+        self.assertEqual(merged["modelSettings"], {"claude-opus-5-5": {"effortLevel": "high"}})
 
     def test_a_real_file_in_the_way_is_backed_up_not_lost(self):
         target = self.home / ".codex/AGENTS.md"

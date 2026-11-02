@@ -2,8 +2,8 @@
 
 Replaces `~/.cursor/rules/pstack-models.mdc`. Role labels match the ones pstack skills name. Claude is the only provider. Every role runs as a native Claude subagent through the Agent tool, and no other provider's CLI or API is called.
 
-- `default`: a native subagent with no `model` passed. The Kolin-Skills hook `hooks/agent-default-model.py` sets Sonnet 5.5 on every Agent call with no `model` whose definition pins none: `general-purpose`, `Explore`, `claude-code-guide`, and any user or repo agent with no `model:` line that can edit (no `tools:` line, or one with `Edit` or `Write`), such as a repo's own implementer. A read-only agent with no pin (a repo's reviewer) inherits the session's Opus. `CLAUDE_CODE_SUBAGENT_MODEL` alone does not reach a repo agent, so the hook is the guarantee. A definition's `model` and the Agent tool's `model` still win.
-- `haiku-worker`: the `haiku-worker` agent definition (Haiku 5.5, medium). Bounded mechanical work only. The orchestrator writes its brief and reads every hunk. Route to it only when a site-by-site recipe exists, the scope is about 30 sites or one folder, and a gate or test proves each site. A rename, renumber or codemod from a census goes to `haiku-worker`, not `poteto-agent`. Anything that needs a decision goes to `poteto-agent`, and a Haiku lane that fails its check twice moves to Sonnet. A pure location search goes to `Explore`. A doc sync that needs facts beyond the brief stays with the orchestrator.
+- `default`: a native subagent with no `model` passed. `CLAUDE_CODE_SUBAGENT_MODEL` runs it on Sonnet, including a repo's agents, read-only or not. A definition's `model` and the Agent tool's `model` win. `Explore` ignores the variable, so `hooks/agent-default-model.py` sets Sonnet on it.
+- `haiku-worker`: the `haiku-worker` agent definition (Haiku, medium). Bounded mechanical work only. The orchestrator writes its brief and reads every hunk. Route to it only when a site-by-site recipe exists, the scope is about 30 sites or one folder, and a gate or test proves each site. A rename, renumber or codemod from a census goes to `haiku-worker`, not `poteto-agent`. Anything that needs a decision goes to `poteto-agent`, and a Haiku lane that fails its check twice moves to Sonnet. A pure location search goes to `Explore`. A doc sync that needs facts beyond the brief stays with the orchestrator.
 - `opus`, `sonnet`: a native subagent with that model passed as the Agent tool's `model`.
 
 No role runs on Grok, GPT or any non-Claude model, and no role runs above high effort. Read an upstream `grok-*` default as `sonnet` and an `xhigh` or `max` default as high.
@@ -34,7 +34,7 @@ interrogate reviewers: opus, opus, sonnet
 fork: inherits Opus and the parent's whole context; use it when that context is the point
 ```
 
-Edit-capable agents run Sonnet; the hook denies an Opus request on one, because a silent rewrite once ran 180 "Opus" interrogate reviewers on Sonnet in 14 days. Env `KOLIN_OPUS_BUILDERS=1` lets Kolin allow Opus builders. An Opus judgment role runs as a read-only agent: `Plan`, `Explore` or `senior-reviewer`. The judgment roles are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
+Edit-capable agents run Sonnet; the hook denies an Opus request on one. Env `KOLIN_OPUS_BUILDERS=1` lets Kolin allow Opus builders. An Opus judgment role runs as `judge`, or `senior-reviewer` for a diff; a Sonnet seat passes `model: "sonnet"`. Never use `Plan` for judgment, because `Plan` and `Explore` start without `CLAUDE.md` or `AGENTS.md`. The judgment roles are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
 
 Interrogate is the fresh review before a pstack PR opens (policy, Pull requests). Run each Opus seat as `senior-reviewer` and the Sonnet seat as `senior-reviewer` with `model: "sonnet"`, with the lens in the brief. Interrogate gives each reviewer one lens:
 
@@ -47,11 +47,12 @@ Plan, build and review are separate roles:
 | Role | Runs as | Model | Does |
 |---|---|---|---|
 | Orchestrator | the main session | Opus | Plan, Kolin's asks, briefs, reads every delegated hunk. Builds small work itself |
-| Builder | `poteto-agent`, or the repo's implementer | Sonnet 5.5, medium (hook default when the agent pins no model and can edit) | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
-| Sweeper | `haiku-worker` | Haiku 5.5, medium | Recipe work: renames, codemods, fixtures, searches the brief spells out |
+| Builder | `poteto-agent`, or the repo's implementer | Sonnet, medium | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
+| Sweeper | `haiku-worker` | Haiku, medium | Recipe work: renames, codemods, fixtures, searches the brief spells out |
 | Searcher | `Explore` | Sonnet (hook default) | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
-| Reviewer | `senior-reviewer` | Opus 5.5, high, read-only | The policy's fresh review and interrogate's seats; never the builder. A Lite re-review of follow-up fix hunks passes `model: "sonnet"` |
-| Comment sweep | `comment-sicko` (pstack) | Sonnet (hook default) | Deletes comments before review |
+| Judge | `judge` | Opus, read-only | One design or judgment call, with the policy and the repo's `AGENTS.md` loaded |
+| Reviewer | `senior-reviewer` | Opus, high, read-only | The policy's fresh review and interrogate's seats; never the builder. A Lite re-review of follow-up fix hunks passes `model: "sonnet"` |
+| Comment sweep | `comment-sicko` (pstack) | Sonnet | Deletes comments before review |
 
 ## Spend
 

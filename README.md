@@ -34,7 +34,7 @@ flowchart TB
 |---|---|
 | 📜 **Policy** | A short rule book on top of pstack: only what a model gets wrong untold — approvals, code preferences, security, done, PR format |
 | 🧰 **Skills** | pstack is the method. Own skills add knowledge it lacks (the repo standard, UI craft, local Supabase) and the full-send permissions |
-| 🤖 **Subagents** | A builder, a reviewer and a sweeper. The builder never reviews its own code |
+| 🤖 **Subagents** | A builder, a judge, a reviewer and a sweeper. The builder never reviews its own code |
 | 🛡️ **Guardrails** | Hooks that block a risky action before it runs |
 | ✅ **Gate** | `kolin-skills check`, run on pre-commit (file length), pre-push, and Linux CI |
 
@@ -64,7 +64,7 @@ flowchart LR
   pr --> merge([👍 You merge])
 ```
 
-In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all three subagents on its default model.
+In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all four subagents on its default model.
 
 **Guardrails block. They do not ask.** The blocked agent gets the reason and the fix.
 
@@ -175,7 +175,6 @@ Each skill starts in one of two ways:
 | `full-send` | ⌨️ | "full send" or `/full-send` | Takes a task to a polished PR against the base: build, polish, `senior-reviewer` when the policy needs it, fixes, then drives CI and bots to `READY`. Never merges. You merge |
 | `council` | ⌨️ | "council" or `/council` | Gets a review from three models on three providers, in rounds, until they agree. Scores go in the PR body |
 | `modernize` | 💬 | "Modernize this PR", "take over #42" | Decides if an old PR should still land (modernize, rework or close), then updates it and keeps the authors' credit |
-| `loop-refactor-to-pstack` | ⌨️ | `/loop-refactor-to-pstack` | Refactors a whole repo to the standard over many sessions on one branch |
 
 **UI craft**
 
@@ -198,6 +197,7 @@ Each skill starts in one of two ways:
 | Agent | Model | Spawned when |
 |---|---|---|
 | `poteto-agent` | Sonnet | A large, independent unit of code can run in parallel with other work |
+| `judge` | Opus | One design or judgment call, such as an architect runner or a synthesizer. Read-only, and it loads the policy, unlike the built-in `Plan` |
 | `senior-reviewer` | Opus | Before a PR over 150 changed lines or one that touches schema, auth, access, money or a migration; also the seats of pstack's `interrogate` |
 | `haiku-worker` | Haiku | A mechanical sweep: a rename, a codemod, a read-only search |
 
@@ -269,7 +269,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 |---|---|---|
 | `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks protected-branch pushes and merges, force push, `--no-verify`, auto-merge, edits to hook files |
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
-| `hooks/agent-default-model.py` | Claude Code | Blocks editing subagents spawned with `isolation: "worktree"`. Denies Opus on an editing subagent and names `Plan`. Runs `senior-reviewer` on Opus when a repo copy pins lower |
+| `hooks/agent-default-model.py` | Claude Code | Denies Opus on an editing subagent and names `judge`. Runs `Explore` on Sonnet, which ignores `CLAUDE_CODE_SUBAGENT_MODEL`. Runs `senior-reviewer` on Opus when a repo copy pins lower |
 | `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks polling loops, Docker databases and long curl retries, strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
 | `hooks/context-budget.py` | Claude Code | In a subagent, warns at 200,000 context tokens to wrap up and blocks at 260,000 until it reports |
 | `hooks/mcp-access.py` | Claude Code | When an MCP tool fails with an access error, tells the agent this account lacks the connector, to stop calling it and to use the CLI |

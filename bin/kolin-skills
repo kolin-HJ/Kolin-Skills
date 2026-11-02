@@ -86,11 +86,16 @@ READ_ONLY_EXECUTABLES = {"bin/agent-browser-guard": ".local/bin/agent-browser-gu
 LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in paths if path.endswith((".py", ".sh"))]
 LEGACY_HOOK_PATHS.append("pstack-local/scripts/mode-reminder")
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
-SPEND_CAPS = {"subagent_model": "claude-sonnet-5-5", "max_compact_window": 400_000}
+SPEND_CAPS = {"subagent_model": "sonnet", "max_compact_window": 400_000}
+RETIRED_SETTINGS = {
+    "model": "opus[1m]",
+    "modelSettings": {"claude-opus-5-5": {"effortLevel": "medium"}},
+    "extraKnownMarketplaces": {"typesafe-ai": {"source": {"source": "github", "repo": "typesafe-ai/skills"}}},
+}
 TRUNK = "main"
 REQUIRED_TOOLS = {
     "jq": "hooks/gate/block-forbidden-git.sh reads the tool call with it, and without it blocks every shell command",
-    "node": "the loop-refactor-to-pstack gate templates are tested with it, and npx skills needs it",
+    "node": "the repo-standard PR proof script is tested with it, and npx skills needs it",
 }
 SKILL_INDEXES = ["README.md"]
 MAX_FILE_LINES = 1000
@@ -122,7 +127,7 @@ def merge_hooks(current, wanted, roots):
 
 
 def merge_settings(current, wanted, roots):
-    merged = dict(current)
+    merged = {key: value for key, value in current.items() if RETIRED_SETTINGS.get(key) != value}
     for key, value in wanted.items():
         if key == "hooks":
             merged[key] = merge_hooks(current.get(key, {}), value, roots)
@@ -809,13 +814,13 @@ def check(files_only=False):
     except subprocess.TimeoutExpired:
         failures.append("python tests timed out after 300s; run python3 -m unittest discover -s tests to find the hang")
     try:
-        template_tests = subprocess.CompletedProcess([], 0) if shutil.which("node") is None else subprocess.run(["node", "--test", "skills/loop-refactor-to-pstack/assets/**/*.test.mjs"],
+        template_tests = subprocess.CompletedProcess([], 0) if shutil.which("node") is None else subprocess.run(["node", "--test", "skills/*/assets/**/*.test.mjs"],
                                         cwd=REPO, env=test_env, text=True, capture_output=True, timeout=300)
         if template_tests.returncode:
             print(template_tests.stdout, file=sys.stderr)
-            failures.append("loop-refactor-to-pstack gate template tests failed")
+            failures.append("skill asset tests failed")
     except subprocess.TimeoutExpired:
-        failures.append("loop-refactor-to-pstack gate template tests timed out after 300s; run node --test on skills/loop-refactor-to-pstack/assets to find the hang")
+        failures.append("skill asset tests timed out after 300s; run node --test on skills/*/assets to find the hang")
     try:
         budget = subprocess.run([sys.executable, str(REPO / "bin/feature-budget"), str(REPO)],
                                 cwd=REPO, env=test_env, text=True, capture_output=True, timeout=60)
