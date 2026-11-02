@@ -27,8 +27,7 @@ TAIL = (
     "- Ran: `<command>`, <result>\n"
     "- Not run: <check>, because <why>\n"
 )
-DETAILS_OPEN = "<details><summary>Files per feature</summary>\n\n"
-DETAILS_CLOSE = "\n</details>\n\n"
+DIFF_HEADING = "## Diff\n\n"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -112,42 +111,54 @@ def files_label(n):
     return f"{n} file{'' if n == 1 else 's'}"
 
 
+def delta(files):
+    counted = [f for f in files if not f.lock and not f.binary]
+    return f"+{sum(f.added for f in counted)} -{sum(f.removed for f in counted)}"
+
+
 def stats(files):
     parts = [files_label(len(files))]
     for kind in KINDS:
         counted = [f for f in files if f.kind == kind and not f.lock and not f.binary]
         if counted:
-            parts.append(f"{kind} +{sum(f.added for f in counted)} -{sum(f.removed for f in counted)}")
+            parts.append(f"{kind} {delta(counted)}")
     return " · ".join(parts)
 
 
-def file_line(f):
+def file_line(f, feature_name):
     lines = "binary" if f.binary else f"+{f.added} -{f.removed}" + (", lockfile" if f.lock else "")
-    return f"- `{f.path}` {lines}"
+    return f"- `{f.path}` {lines}" + (f" · {feature_name}" if feature_name else "")
 
 
 def render(features):
     summary = "".join(f"- **{feature.name}:** <what now behaves differently> `{stats(feature.files)}`\n"
                       for feature in features)
-    kept = {feature.name: [file_line(f) for f in feature.files] for feature in features}
+    files = sorted((f for feature in features for f in feature.files), key=lambda f: f.path)
+    tags = {f.path: feature.name for feature in features for f in feature.files} if len(features) > 1 else {}
+    groups = {kind: [f for f in files if f.kind == kind] for kind in KINDS}
+    groups = {kind: group for kind, group in groups.items() if group}
+    headers = {kind: f"**{kind.capitalize()}** · {files_label(len(group))} · {delta(group)}"
+               for kind, group in groups.items()}
+    total = f"**{files_label(len(files))} touched · {delta(files)}**\n\n"
+    kept = {kind: [file_line(f, tags.get(f.path)) for f in group] for kind, group in groups.items()}
     not_shown_room = len(f"- Not shown: {files_label(GITHUB_BODY_LIMIT)}, see Files changed\n")
-    size = (len(HEAD) + len(summary) + len(TAIL) + len(DETAILS_OPEN) + len(DETAILS_CLOSE)
-            + sum(len(f"**{name}**\n\n") + not_shown_room + sum(len(row) + 1 for row in rows)
-                  for name, rows in kept.items()))
+    size = (len(HEAD) + len(summary) + len(TAIL) + len(DIFF_HEADING) + len(total)
+            + sum(len(headers[kind]) + 2 + not_shown_room + sum(len(row) + 1 for row in rows)
+                  for kind, rows in kept.items()))
     while size > GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE:
         size -= len(max(kept.values(), key=len).pop()) + 1
     blocks = []
-    for feature in features:
-        rows = kept[feature.name]
-        hidden = len(feature.files) - len(rows)
-        rows = [f"**{feature.name}**", *rows] + ([f"- Not shown: {files_label(hidden)}, see Files changed"] if hidden else [])
+    for kind, group in groups.items():
+        rows = kept[kind]
+        hidden = len(group) - len(rows)
+        rows = [headers[kind], *rows] + ([f"- Not shown: {files_label(hidden)}, see Files changed"] if hidden else [])
         blocks.append("\n".join(rows) + "\n")
-    return HEAD + summary + "\n" + DETAILS_OPEN + "\n".join(blocks) + DETAILS_CLOSE + TAIL
+    return HEAD + summary + "\n" + DIFF_HEADING + total + "\n".join(blocks) + "\n" + TAIL
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Print a PR body skeleton with the changed files grouped by feature.")
+        description="Print a PR body skeleton with the diff size and the files touched, grouped by code, tests and docs.")
     parser.add_argument("base", nargs="?", default="origin/HEAD")
     parser.add_argument("--feature", action="append", required=True, type=feature_arg, metavar="NAME=PATH[,PATH...]",
                         help="Name a feature and its files, once per feature. A PATH ending in / takes the whole folder. "
