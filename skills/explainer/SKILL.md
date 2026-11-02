@@ -1,6 +1,6 @@
 ---
 name: explainer
-description: Build a one-page HTML explainer of a change, PR, subsystem or decision. Use only when the user asks for an explainer page, a visual walkthrough page, or "explain this visually" as a page, or says yes to your one-line offer. Never build one unasked. A spoken explain, how, or walk-me-through goes to pstack `teach` via `pstack-local`. Not for UI craft (emil-design-eng) or UI testing (break-ui).
+description: Build a one-page HTML explainer of a change, PR, subsystem or decision. Use only when the user asks for an explainer page, a visual walkthrough page, or "explain this visually" as a page, or says yes to your one-line offer. Never build one unasked. A spoken explain, how, or walk-me-through goes to pstack `teach` via `pstack-local`.
 ---
 
 # Explainer
@@ -23,4 +23,4 @@ An explainer is one page a person can review in a few minutes. It is not the in-
 
 ## Publish
 
-Where the harness has an Artifact tool, load its design skill first (for UI craft, `emil-design-eng`), then publish the page as a private artifact and give the user the link. Otherwise write a single self-contained `.html` file in the session's folder and give its path. Draw diagrams as inline SVG, with colors from CSS variables so the page reads in light and dark mode. Evidence, risks and what is not verified go on the page as short beats, or after a yes for more depth.
+Where the harness has an Artifact tool, load its design skill first, then publish the page as a private artifact and give the user the link. Otherwise write a single self-contained `.html` file in the session's folder and give its path. Draw diagrams as inline SVG, with colors from CSS variables so the page reads in light and dark mode. Evidence, risks and what is not verified go on the page as short beats, or after a yes for more depth.

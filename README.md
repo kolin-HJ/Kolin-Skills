@@ -33,7 +33,7 @@ flowchart TB
 | Part | What it gives you |
 |---|---|
 | 📜 **Policy** | A short rule book on top of pstack: only what a model gets wrong untold — approvals, code preferences, security, done, PR format |
-| 🧰 **Skills** | pstack is the method. Own skills add knowledge it lacks (the repo standard, UI craft, local Supabase) and the full-send permissions |
+| 🧰 **Skills** | pstack is the method. Own skills add what Claude can't work out alone (the repo standard, local Supabase, release notes) and the full-send permissions |
 | 🤖 **Subagents** | A builder, a judge, a reviewer and a sweeper. The builder never reviews its own code |
 | 🛡️ **Guardrails** | Hooks that block a risky action before it runs |
 | ✅ **Gate** | `kolin-skills check`, run on pre-commit (file length), pre-push, and Linux CI |
@@ -174,15 +174,6 @@ Each skill starts in one of two ways:
 |---|---|---|---|
 | `full-send` | ⌨️ | "full send" or `/full-send` | Takes a task to a polished PR against the base: build, polish, `senior-reviewer` when the policy needs it, fixes, then drives CI and bots to `READY`. Never merges. You merge |
 | `council` | ⌨️ | "council" or `/council` | Gets a review from three models on three providers, in rounds, until they agree. Scores go in the PR body |
-| `modernize` | 💬 | "Modernize this PR", "take over #42" | Decides if an old PR should still land (modernize, rework or close), then updates it and keeps the authors' credit |
-
-**UI craft**
-
-| Skill | Starts | Say | What it does |
-|---|---|---|---|
-| `break-ui` | 💬 | "Stress-test this table" | Feeds worst-case data to a UI, fixes the clear breaks and reports the rest |
-| `emil-design-eng` | 💬 | "Make this drawer feel polished" | Motion and polish: easing, springs, transitions, gestures |
-| `mobile-native` | 💬 | "It feels wrong on my phone" | Fixes the tells that make a web app feel like a website on a phone |
 
 **Utilities**
 
@@ -282,4 +273,4 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 
 ## Credits
 
-The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. `emil-design-eng` follows Emil Kowalski's UI craft. `council`, `modernize` and the babysit and review-scope rules in `full-send` adapt Theo Browne's [tstack](https://github.com/t3dotgg/tstack).
+The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. `council` and the babysit and review-scope rules in `full-send` adapt Theo Browne's [tstack](https://github.com/t3dotgg/tstack).
