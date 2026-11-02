@@ -75,6 +75,23 @@ class NativeHookPayloadTests(unittest.TestCase):
             self.assertNotEqual(bad_payload.returncode, 0)
             self.assertIn("JSONDecodeError", bad_payload.stderr)
 
+    def test_lint_is_silent_when_a_package_has_eslint_but_no_eslint_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "package.json").write_text("{}")
+            (root / "edited.ts").write_text("const value = 1;\n")
+            executable = root / "node_modules/.bin/eslint"
+            executable.parent.mkdir(parents=True)
+            executable.write_text(
+                f"#!{sys.executable}\nimport sys\n"
+                "print('Oops! Something went wrong! :(', file=sys.stderr)\n"
+                "print(\"ESLint couldn't find an eslint.config.* file.\", file=sys.stderr)\n"
+                "sys.exit(2)\n"
+            )
+            executable.chmod(0o755)
+            result = invoke(LINT_HOOK, {"cwd": directory, "tool_input": {"file_path": "edited.ts"}}, directory)
+            self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+
     def test_lint_covers_files_a_shell_command_wrote(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)

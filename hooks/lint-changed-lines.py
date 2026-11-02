@@ -22,6 +22,7 @@ METRIC_RULES = {
     "max-nested-callbacks", "max-params", "cognitive-complexity",
 }
 OXLINT_IGNORED_FILE = "No files found to lint"
+ESLINT_NO_CONFIG = "ESLint couldn't find an eslint.config"
 MAX_REPORT = 12
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 PATCH_FILE = re.compile(r"^\*\*\* (?:Add|Update) File: (.+?)\s*$", re.M)
@@ -149,6 +150,8 @@ def eslint_messages(path, root):
                          cwd=root, capture_output=True, text=True, timeout=LINT_TIMEOUT_SECONDS)
     if run.returncode == 2 and "pass-on-unpruned-suppressions" in run.stderr:
         run = subprocess.run(base + [path], cwd=root, capture_output=True, text=True, timeout=LINT_TIMEOUT_SECONDS)
+    if run.returncode == 2 and ESLINT_NO_CONFIG in run.stderr:
+        return []
     if run.returncode not in (0, 1):
         return [lint_did_not_run("eslint", "exited {}".format(run.returncode), run.stderr or run.stdout)]
     try:
@@ -255,10 +258,10 @@ def main(argv):
     if skipped:
         footer += " Not linted, so run the repo's lint for: {}.".format(
             ", ".join(os.path.relpath(os.path.realpath(p), os.path.realpath(cwd)) for p in skipped))
-    if not reports and not skipped:
+    if not reports:
         return 0
 
-    text = "\n\n".join(r["text"] for r in reports) or "Lint: no problems in the files checked."
+    text = "\n\n".join(r["text"] for r in reports)
     has_errors = any(r["errors"] for r in reports)
 
     if emit == "cursor":
