@@ -31,5 +31,6 @@ supabase stack destroy --yes                           # deletes this checkout's
 - The `db`, `migration`, `gen` and `test` commands route to the stack. They cannot target a `--stack` name.
 - Stop your stack (`supabase stop`) when your unit's proof is done. macOS allows 32 shared-memory segments (`kern.sysv.shmmni`), each running stack holds some, and a new start fails with `could not create shared memory segment` when they run out. `kolin-skills stacks --stop` stops every idle stack.
 - Before you remove a worktree, run `supabase stack destroy --yes` in it. Stack data lives in `~/.supabase/stacks/<id>/`, and the shared download cache in `~/.supabase/cache/stack`.
-- Native runs on macOS 14 or later on Apple silicon and Linux with glibc 2.35 or later, not as `root`. A cold first start downloads about 360 MB.
+- Native runs on Linux amd64/arm64 (glibc 2.35+) and macOS 14+ Apple silicon, not as `root`. A cold first start downloads about 360 MB.
+- Darwin x86_64 (`uname -s` Darwin, `uname -m` x86_64): native is unsupported ([docs](https://supabase.com/docs/guides/local-development/docker-and-native-runtimes): "macOS on Intel | Not supported. Use Docker."). Docker is blocked here. Run `pglite-replay` in the app checkout (name-order `supabase/migrations/*.sql` into PGlite, then `supabase/tests/*.sql`). Do not stop for a human. Do not invent a Docker workaround.
 - Native stacks share the process table, so stop idle ones with `kolin-skills stacks --stop`.

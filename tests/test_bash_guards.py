@@ -150,6 +150,8 @@ class HeavyJobsGuardTests(unittest.TestCase):
         blocked = invoke(BASH_GUARD, {"command": "docker compose up -d postgres"})
         self.assertEqual(blocked.returncode, 2)
         self.assertIn("carry on with the task", blocked.stderr)
+        self.assertIn("pglite-replay", blocked.stderr)
+        self.assertIn("never in Docker", blocked.stderr)
 
 
 class EnvGuardEmbeddedPathTests(unittest.TestCase):

@@ -76,6 +76,7 @@ LINKS = {
     "bin/feature-budget": [".local/bin/feature-budget"],
     "bin/pr-body": [".local/bin/pr-body"],
     "bin/diff-audit": [".local/bin/diff-audit"],
+    "bin/pglite-replay": [".local/bin/pglite-replay"],
 }
 MERGED_JSON = {
     "claude/settings.json": ".claude/settings.json",

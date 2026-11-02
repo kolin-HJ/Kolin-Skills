@@ -45,7 +45,8 @@ DOCKER_DB = re.compile(
 )
 DOCKER_DB_MESSAGE = (
     "Blocked: local Supabase and Postgres run in the Supabase CLI's native runtime, never in Docker "
-    "(see the local-supabase skill). Run `supabase start --runtime native --output-format json`, "
+    "(see the local-supabase skill). On Darwin x86_64, native is unsupported; run `pglite-replay` and "
+    "carry on with the task. Elsewhere, run `supabase start --runtime native --output-format json`, "
     "connect with its env.DB_URL, and carry on with the task."
 )
 
