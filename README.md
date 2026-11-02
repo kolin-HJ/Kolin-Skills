@@ -70,16 +70,17 @@ In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all 
 
 | 🚫 Blocked | Why |
 |---|---|
-| Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge | Protected branches change only through a PR you merge. An agent may create a missing one with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
 | Reading a `.env` file | Secrets stay out of the context |
 | Docker databases | Agents use the native Supabase CLI instead |
 | Marking a PR ready with no `## Verification`, a reward hack such as a skipped test, or no fresh review on a large or risky diff | The PR goes back to draft, so a PR that claims nothing does not reach you. This catches missing proof, not false proof: a made-up `Ran:` line still looks real, so read the diff on anything that matters. `Not run: <check>, because <why>` and `Allowed <kind>: <why>` stay open as visible exits |
 
-Claude Code runs every guard. Codex runs the git guard, the `.env` guard (shell commands only), the PR proof check, the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
+Nothing blocks a merge or a push to a protected branch. The policy says they need your yes, and only GitHub branch protection can enforce that.
+
+Claude Code runs every guard. Codex runs the `.env` guard (shell commands only), the PR proof check, the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
 
 ## Install
 
-You need **git**, **`jq`**, **Python ≥ 3.9** and **Node ≥ 22.20** with a global npm prefix you can write to (Homebrew, nvm, fnm or Volta Node). Without `jq`, the git guard blocks every shell command. The repo is public, so the clone needs no credentials.
+You need **git**, **`jq`**, **Python ≥ 3.9** and **Node ≥ 22.20** with a global npm prefix you can write to (Homebrew, nvm, fnm or Volta Node). The status line reads its input with `jq`. The repo is public, so the clone needs no credentials.
 
 ```sh
 git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Kolin-Skills
@@ -174,7 +175,6 @@ Each skill starts in one of two ways:
 | Skill | Starts | Say | What it does |
 |---|---|---|---|
 | `full-send` | ⌨️ | "full send" or `/full-send` | Takes a task to a polished PR against the base: build, polish, `senior-reviewer` when the policy needs it, fixes, then drives CI and bots to `READY`. Never merges. You merge |
-| `council` | ⌨️ | "council" or `/council` | Gets a review from three models on three providers, in rounds, until they agree. Scores go in the PR body |
 
 **Utilities**
 
@@ -258,7 +258,6 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 
 | Hook | Tools | Does |
 |---|---|---|
-| `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks protected-branch pushes and merges, force push, `--no-verify`, auto-merge, edits to hook files |
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
 | `hooks/agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus when a repo copy pins lower |
 | `hooks/pr-proof.py` | Claude Code, Codex | After `gh pr create` or `gh pr ready`, reads the real PR. A draft and a `staging` to `main` release are skipped. A ready PR with no `## Verification`, a `diff-audit` block, or a missing fresh review on a large or risky diff goes back to draft. Notes `Ran:` lines that match no command in the session. On Codex it cannot read session tool calls, so it only notes a due review and skips the `Ran:` match |

@@ -44,6 +44,23 @@ class ApplyTests(unittest.TestCase):
         skill = self.home / ".claude/skills/full-send/SKILL.md"
         self.assertEqual(skill.resolve(), (self.repo / "skills/full-send/SKILL.md").resolve())
 
+    def test_apply_drops_overrides_for_retired_skills_and_keeps_the_rest(self):
+        settings = self.home / ".claude/settings.json"
+        settings.parent.mkdir(parents=True, exist_ok=True)
+        settings.write_text(json.dumps({"skillOverrides": {"full-stop": "off", "council": "off", "mine": "name-only"}}))
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        overrides = json.loads(settings.read_text())["skillOverrides"]
+        self.assertEqual(overrides["mine"], "name-only")
+        self.assertNotIn("full-stop", overrides)
+        self.assertNotIn("council", overrides)
+
+    def test_apply_removes_the_retired_git_guard_link(self):
+        link = self.home / ".claude/hooks/block-forbidden-git.sh"
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(self.repo / "hooks/gate/block-forbidden-git.sh")
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        self.assertFalse(link.is_symlink())
+
     def test_second_apply_changes_nothing_and_check_passes(self):
         self.assertEqual(self.run_cli("apply").returncode, 0)
         again = self.run_cli("apply")

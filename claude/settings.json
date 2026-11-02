@@ -62,15 +62,6 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Write|Edit|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "'{{REPO}}/hooks/gate/block-forbidden-git.sh'"
-          }
-        ]
-      },
-      {
         "matcher": "Bash|Read|Grep",
         "hooks": [
           {
@@ -173,7 +164,6 @@
     "dataviz": "name-only",
     "anthropic-skills:computer-use": "name-only",
     "reverse-engineer-anything": "user-invocable-only",
-    "code-review": "name-only",
-    "council": "user-invocable-only"
+    "code-review": "name-only"
   }
 }
