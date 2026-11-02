@@ -3,7 +3,7 @@ name: poteto-agent
 description: The builder. Spawn one only for a large, independent unit of code work that can run in parallel with other work, with a brief that names the goal, the files it owns and the command that proves it done. It builds exactly that unit, runs the repo's gate, and reports once. Never use it to review its own work. Small or sequential work is faster done by the orchestrator.
 background: true
 model: sonnet
-effort: medium
+effort: high
 tools: Read, Grep, Glob, Bash, Edit, Write, Monitor, TaskStop
 ---
 
