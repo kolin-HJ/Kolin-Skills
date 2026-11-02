@@ -22,7 +22,7 @@ METRIC_RULES = {
     "max-nested-callbacks", "max-params", "cognitive-complexity",
 }
 OXLINT_IGNORED_FILE = "No files found to lint"
-ESLINT_NO_CONFIG = "ESLint couldn't find an eslint.config"
+ESLINT_NO_CONFIG = "ESLint couldn't find a"
 MAX_REPORT = 12
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 PATCH_FILE = re.compile(r"^\*\*\* (?:Add|Update) File: (.+?)\s*$", re.M)
@@ -254,25 +254,27 @@ def main(argv):
         report = report_for(path, cwd)
         if report:
             reports.append(report)
-    footer = "Problems on lines you did not touch are not shown."
-    if skipped:
-        footer += " Not linted, so run the repo's lint for: {}.".format(
-            ", ".join(os.path.relpath(os.path.realpath(p), os.path.realpath(cwd)) for p in skipped))
-    if not reports:
+    if not reports and not skipped:
         return 0
 
-    text = "\n\n".join(r["text"] for r in reports)
+    not_linted = "Not linted, so run the repo's lint for: {}.".format(
+        ", ".join(os.path.relpath(os.path.realpath(p), os.path.realpath(cwd)) for p in skipped))
+    if not reports:
+        text, footer = not_linted, ""
+    else:
+        text = "\n\n".join(r["text"] for r in reports)
+        footer = "Problems on lines you did not touch are not shown." + (" " + not_linted if skipped else "")
     has_errors = any(r["errors"] for r in reports)
 
     if emit == "cursor":
-        print(json.dumps({"additional_context": text + "\n" + footer}))
+        print(json.dumps({"additional_context": (text + "\n" + footer).strip()}))
         return 0
     if has_errors:
         print(text + "\nFix these in the lines you changed. " + footer, file=sys.stderr)
         return 2
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "PostToolUse",
-        "additionalContext": text + "\n" + footer,
+        "additionalContext": (text + "\n" + footer).strip(),
     }}))
     return 0
 

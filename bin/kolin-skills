@@ -56,6 +56,7 @@ OTHER_INSTALLERS = {
     "claude.ai skill sync": ["synced"],
     "herdr": ["herdr-agent-state.sh"],
 }
+STACK_NOTICE_AT = 24
 RETIRED_LINKS = [".claude/hooks/block-forbidden-git.sh"]
 DROPPED_SKILLS = {"break-ui", "council", "full-stop", "emil-design-eng", "loop-refactor-to-pstack", "mobile-native", "modernize", "firecrawl", "firecrawl-crawl", "firecrawl-map", "firecrawl-scrape", "firecrawl-search", "improve", "ponytail", "ponytail-audit"}
 NPX_SKILL_LOCK = HOME / ".agents/.skill-lock.json"
@@ -911,14 +912,14 @@ def busy_roots(roots):
     return busy
 
 
-def stacks(stop, idle_hours, notice, notice_at):
+def stacks(stop, idle_hours, notice):
     found = running_stacks()
     for stack in found:
         stack["transcript_hours"] = hours_since_transcript(stack["root"])
         stack["idle"] = is_idle(stack, idle_hours)
     idle = [stack for stack in found if stack["idle"]]
     if notice:
-        if idle and len(found) >= notice_at:
+        if idle and len(found) >= STACK_NOTICE_AT:
             message = f"{len(idle)} idle local Supabase stacks hold shared-memory segments (macOS allows 32). Run: kolin-skills stacks --stop"
             print(json.dumps({"systemMessage": message}))
         return 0
@@ -952,8 +953,7 @@ def main():
     stacks_parser = commands.add_parser("stacks", help="list running native Supabase stacks; --stop stops the idle ones")
     stacks_parser.add_argument("--stop", action="store_true", help="send SIGTERM to each idle stack's supabase owner process and wait for postgres to exit; skips a root another process works in")
     stacks_parser.add_argument("--idle-hours", type=float, default=6, help="a stack is idle only after it has run this many hours; the 2-hour transcript window stays fixed")
-    stacks_parser.add_argument("--notice", action="store_true", help="session-start hook: one JSON line when idle stacks exist and the running count reaches --notice-at, else nothing")
-    stacks_parser.add_argument("--notice-at", type=int, default=24, help="running stacks at which --notice speaks; macOS allows 32 shared-memory segments")
+    stacks_parser.add_argument("--notice", action="store_true", help="session-start hook: one JSON line when idle stacks exist and 24 or more stacks run, else nothing")
     check_parser = commands.add_parser("check", help="the gate: drift, strays, missing skills, spend caps, file length and tests")
     check_mode = check_parser.add_mutually_exclusive_group()
     check_mode.add_argument("--files", action="store_true", help="only the 1,000-line file limit")
@@ -972,7 +972,7 @@ def main():
     if args.command == "upstream":
         return upstream(args.bump)
     if args.command == "stacks":
-        return stacks(args.stop, args.idle_hours, args.notice, args.notice_at)
+        return stacks(args.stop, args.idle_hours, args.notice)
     if args.command == "check":
         if args.quick:
             return check_quick()

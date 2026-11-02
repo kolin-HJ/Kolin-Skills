@@ -82,15 +82,36 @@ class NativeHookPayloadTests(unittest.TestCase):
             (root / "edited.ts").write_text("const value = 1;\n")
             executable = root / "node_modules/.bin/eslint"
             executable.parent.mkdir(parents=True)
-            executable.write_text(
-                f"#!{sys.executable}\nimport sys\n"
-                "print('Oops! Something went wrong! :(', file=sys.stderr)\n"
-                "print(\"ESLint couldn't find an eslint.config.* file.\", file=sys.stderr)\n"
-                "sys.exit(2)\n"
-            )
+            for message in ["ESLint couldn't find an eslint.config.* file.", "ESLint couldn't find a configuration file."]:
+                with self.subTest(message=message):
+                    executable.write_text(
+                        f"#!{sys.executable}\nimport sys\n"
+                        "print('Oops! Something went wrong! :(', file=sys.stderr)\n"
+                        f"print({message!r}, file=sys.stderr)\n"
+                        "sys.exit(2)\n"
+                    )
+                    executable.chmod(0o755)
+                    result = invoke(LINT_HOOK, {"cwd": directory, "tool_input": {"file_path": "edited.ts"}}, directory)
+                    self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+
+    def test_lint_names_unchecked_files_when_the_checked_ones_are_clean(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            subprocess.run(["git", "init", "-q", directory], check=True)
+            (root / ".gitignore").write_text("node_modules\n")
+            (root / "package.json").write_text("{}")
+            names = ["a.ts", "b.ts", "c.ts", "d.ts", "e.ts"]
+            for name in names:
+                (root / name).write_text("const value = 1;\n")
+            executable = root / "node_modules/.bin/eslint"
+            executable.parent.mkdir(parents=True)
+            executable.write_text(f"#!{sys.executable}\nprint('[]')\n")
             executable.chmod(0o755)
-            result = invoke(LINT_HOOK, {"cwd": directory, "tool_input": {"file_path": "edited.ts"}}, directory)
-            self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+            command = "sed -i '' s/1/2/ " + " ".join(names)
+            result = invoke(LINT_HOOK, {"cwd": directory, "tool_name": "Bash", "tool_input": {"command": command}}, directory)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+            self.assertEqual(context, "Not linted, so run the repo's lint for: e.ts.")
 
     def test_lint_covers_files_a_shell_command_wrote(self):
         with tempfile.TemporaryDirectory() as directory:

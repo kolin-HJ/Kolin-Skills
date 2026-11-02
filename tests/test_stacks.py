@@ -138,18 +138,15 @@ class StacksTests(unittest.TestCase):
         self.stack("a1", 30, root="/work/my_app.v2", transcript_hours=0.5)
         self.assertIn("keep  /work/my_app.v2", self.run_cli().stdout)
 
-    def test_notice_stays_silent_while_running_stacks_are_below_the_limit_it_warns_about(self):
-        self.stack("a1", 30)
-        self.stack("a2", 30)
-        self.assertEqual(self.run_cli("--notice", "--notice-at", "3").stdout, "")
-
-    def test_notice_prints_one_line_or_nothing(self):
-        self.stack("a1", 30)
-        self.stack("a2", 30)
-        result = self.run_cli("--notice", "--notice-at", "2")
+    def test_notice_speaks_only_when_24_stacks_run(self):
+        for number in range(23):
+            self.stack(f"a{number}", 30)
+        self.assertEqual(self.run_cli("--notice").stdout, "")
+        self.stack("a23", 30)
+        result = self.run_cli("--notice")
         self.assertEqual(len(result.stdout.splitlines()), 1)
         message = json.loads(result.stdout)["systemMessage"]
-        self.assertIn("2 idle", message)
+        self.assertIn("24 idle", message)
         self.assertIn("kolin-skills stacks --stop", message)
         self.assertFalse(self.signalled("a1"))
 

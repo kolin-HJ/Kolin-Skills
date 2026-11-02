@@ -5,6 +5,7 @@ This repo is the source of truth for Kolin's agent setup on every machine: the g
 ## Rules
 
 - Never create a skill, agent, command or rule straight in a home folder. `apply` reports it, `check` fails on it, and `kolin-skills import <path>` moves it here.
+- Work in a worktree: the wired checkout is live for every session, and a branch switch there applies that branch to home.
 - Edit files here, never the copy in home. A file in home that `kolin-skills apply` links or renders is replaced on the next apply. A replaced real file goes to `~/.kolin-skills/backup/`.
 - One CLI owns the wiring: `bin/kolin-skills`. A new harness path goes into its `LINKS`, `MERGED_JSON` or `RENDERED` table, not into a new script. A new harness folder for skills, agents, commands or rules goes into `WATCHED_HOMES`. A tool that installs into a watched folder by itself goes into `OTHER_INSTALLERS`.
 - Hook commands and machine paths use `{{HOME}}` and `{{REPO}}` in the templates under `claude/`, `codex/` and `cursor/`. Never commit a literal home path.

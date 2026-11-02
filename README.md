@@ -74,7 +74,7 @@ In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all 
 | Docker databases | Agents use the native Supabase CLI instead |
 | Marking a PR ready with no `## Verification`, a reward hack such as a skipped test, or no fresh review on a large or risky diff | The PR goes back to draft, so a PR that claims nothing does not reach you. This catches missing proof, not false proof: a made-up `Ran:` line still looks real, so read the diff on anything that matters. `Not run: <check>, because <why>` and `Allowed <kind>: <why>` stay open as visible exits |
 
-Nothing blocks a merge or a push to a protected branch. The policy says they need your yes, and only GitHub branch protection can enforce that.
+Nothing blocks a merge, a push to a protected branch, a force push, `--no-verify`, or an edit to a hook file or the live install. The policy asks for your yes on merges and protected branches, but that is text, not enforcement. GitHub branch protection enforces it only for an account that cannot bypass it.
 
 Claude Code runs every guard. Codex runs the `.env` guard (shell commands only), the PR proof check, the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
 
@@ -271,4 +271,4 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 
 ## Credits
 
-The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. `council` and the babysit and review-scope rules in `full-send` adapt Theo Browne's [tstack](https://github.com/t3dotgg/tstack).
+The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. The babysit and review-scope rules in `full-send` adapt Theo Browne's [tstack](https://github.com/t3dotgg/tstack).
