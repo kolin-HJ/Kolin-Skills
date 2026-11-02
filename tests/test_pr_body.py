@@ -38,7 +38,7 @@ class PrBodyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout
 
-    def test_each_feature_lists_its_files_and_counts_and_the_rest_goes_to_other(self):
+    def test_the_diff_groups_files_by_code_tests_and_docs_and_names_each_feature(self):
         self.write("src/price.ts", "export const price = 2;\n")
         self.write("src/price.test.ts", "it('prices', () => {});\n")
         self.write("docs/price.md", "Prix\n")
@@ -49,14 +49,32 @@ class PrBodyTests(unittest.TestCase):
         self.assertRegex(body, r"(?m)^- \*\*Pricing:\*\* .*`3 files · code \+1 -1 · tests \+1 -0 · docs \+1 -0`$")
         self.assertRegex(body, r"(?m)^- \*\*Other:\*\* .*`3 files · docs \+1 -0`$")
         self.assertIn(
-            "**Pricing**\n"
-            "- `docs/price.md` +1 -0\n"
-            "- `src/price.test.ts` +1 -0\n"
-            "- `src/price.ts` +1 -1\n\n"
-            "**Other**\n"
-            "- `README.md` +1 -0\n"
-            "- `img.png` binary\n"
-            "- `package-lock.json` +1 -0, lockfile\n", body)
+            "## Diff\n\n"
+            "**6 files touched · +4 -1**\n\n"
+            "**Code** · 3 files · +1 -1\n"
+            "- `img.png` binary · Other\n"
+            "- `package-lock.json` +1 -0, lockfile · Other\n"
+            "- `src/price.ts` +1 -1 · Pricing\n\n"
+            "**Tests** · 1 file · +1 -0\n"
+            "- `src/price.test.ts` +1 -0 · Pricing\n\n"
+            "**Docs** · 2 files · +2 -0\n"
+            "- `README.md` +1 -0 · Other\n"
+            "- `docs/price.md` +1 -0 · Pricing\n\n"
+            "## Check these\n", body)
+
+    def test_a_single_feature_does_not_repeat_its_name_on_each_file(self):
+        self.write("src/price.ts", "export const price = 2;\n")
+        self.write("docs/price.md", "Prix\n")
+        body = self.body("Pricing=src/,docs/")
+        self.assertIn("- `src/price.ts` +1 -1\n", body)
+        self.assertIn("- `docs/price.md` +1 -0\n", body)
+
+    def test_a_group_with_no_files_is_left_out(self):
+        self.write("src/price.ts", "export const price = 2;\n")
+        body = self.body("Pricing=src/")
+        self.assertIn("**Code** · 1 file · +1 -1\n", body)
+        self.assertNotIn("**Tests**", body)
+        self.assertNotIn("**Docs**", body)
 
     def test_a_body_without_a_feature_fails(self):
         self.write("src/price.ts", "export const price = 2;\n")
@@ -76,13 +94,13 @@ class PrBodyTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("src/price.ts", result.stderr)
 
-    def test_many_files_keep_every_feature_and_stay_under_the_github_limit(self):
+    def test_many_files_keep_every_group_and_stay_under_the_github_limit(self):
         for n in range(2_500):
             self.write(f"src/f{n:04}.ts", f"export const a{n} = 1;\n")
         self.write("tests/test_t.py", "assert 1\n")
         body = self.body("Source=src/", "Checks=tests/")
         self.assertRegex(body, r"(?m)^- \*\*Source:\*\* .*`2500 files · code \+2500 -0`$")
-        self.assertRegex(body, r"- Not shown: \d+ files, see Files changed\n\n\*\*Checks\*\*\n- `tests/test_t.py` \+1 -0\n")
+        self.assertRegex(body, r"- Not shown: \d+ files, see Files changed\n\n\*\*Tests\*\* · 1 file · \+1 -0\n- `tests/test_t.py` \+1 -0 · Checks\n")
         self.assertLess(len(body), 65_536 - 8_000)
 
 
