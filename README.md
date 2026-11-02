@@ -70,16 +70,17 @@ In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all 
 
 | 🚫 Blocked | Why |
 |---|---|
-| Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge | Protected branches change only through a PR you merge. An agent may create a missing one with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
 | Reading a `.env` file | Secrets stay out of the context |
 | Docker databases | Agents use the native Supabase CLI instead |
 | Marking a PR ready with no `## Verification`, a reward hack such as a skipped test, or no fresh review on a large or risky diff | The PR goes back to draft, so a PR that claims nothing does not reach you. This catches missing proof, not false proof: a made-up `Ran:` line still looks real, so read the diff on anything that matters. `Not run: <check>, because <why>` and `Allowed <kind>: <why>` stay open as visible exits |
 
-Claude Code runs every guard. Codex runs the git guard, the `.env` guard (shell commands only), the PR proof check, the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
+Nothing blocks a merge, a push to a protected branch, a force push, `--no-verify`, or an edit to a hook file or the live install. The policy asks for your yes on merges and protected branches, but that is text, not enforcement. GitHub branch protection enforces it only for an account that cannot bypass it.
+
+Claude Code runs every guard. Codex runs the `.env` guard (shell commands only), the PR proof check, the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
 
 ## Install
 
-You need **git**, **`jq`**, **Python ≥ 3.9** and **Node ≥ 22.20** with a global npm prefix you can write to (Homebrew, nvm, fnm or Volta Node). Without `jq`, the git guard blocks every shell command. The repo is public, so the clone needs no credentials.
+You need **git**, **`jq`**, **Python ≥ 3.9** and **Node ≥ 22.20** with a global npm prefix you can write to (Homebrew, nvm, fnm or Volta Node). The status line reads its input with `jq`. The repo is public, so the clone needs no credentials.
 
 ```sh
 git clone https://github.com/kolin-HJ/Kolin-Skills.git ~/Kolin-Skills
@@ -174,7 +175,6 @@ Each skill starts in one of two ways:
 | Skill | Starts | Say | What it does |
 |---|---|---|---|
 | `full-send` | ⌨️ | "full send" or `/full-send` | Takes a task to a polished PR against the base: build, polish, `senior-reviewer` when the policy needs it, fixes, then drives CI and bots to `READY`. Never merges. You merge |
-| `council` | ⌨️ | "council" or `/council` | Gets a review from three models on three providers, in rounds, until they agree. Scores go in the PR body |
 
 **Utilities**
 
@@ -242,7 +242,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, then applies. Runs at each Claude Code and Codex session start. Not Cursor or Grok. Prints `kolin-skills: stale setup` when it cannot update. Machines without those hooks: [`docs/stay-on-main.md`](docs/stay-on-main.md) |
 | `kolin-skills upstream` | Installs third-party skills at pinned commits and CLIs at pinned versions. `--bump` moves the git pins; edit `upstream/tools.json` to move a CLI |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
-| `kolin-skills stacks` | Lists running native Supabase stacks. `--stop` stops the idle ones. `--notice` runs at session start and prints only when idle stacks exist |
+| `kolin-skills stacks` | Lists running native Supabase stacks. `--stop` stops the idle ones. `--notice` runs at session start and prints only when idle stacks exist and 24 or more stacks run |
 | `kolin-skills check` | The gate: drift, strays, pins, spend caps, 1,000-line files, tools, tests, comments. `--files` is only the line limit. `--quick` checks only home, in seconds: links resolve, hooks and policy are wired, the self-invoking pstack skills carry no model lock. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor. With a path, it only runs `check-drift` |
 | `kolin-skills check-drift <path>` | Fails when that tree's vendored pstack SOURCE/rev or synced `senior-reviewer` differs from this repo. What it compares, and the hj-supply-chain / box follow-ups: [`docs/consumer-drift.md`](docs/consumer-drift.md) |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts. `--window START END [--top N]` reports parent-inclusive Claude sessions by inclusive UTC start date without writing state |
@@ -258,7 +258,6 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 
 | Hook | Tools | Does |
 |---|---|---|
-| `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks protected-branch pushes and merges, force push, `--no-verify`, auto-merge, edits to hook files |
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
 | `hooks/agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus when a repo copy pins lower |
 | `hooks/pr-proof.py` | Claude Code, Codex | After `gh pr create` or `gh pr ready`, reads the real PR. A draft and a `staging` to `main` release are skipped. A ready PR with no `## Verification`, a `diff-audit` block, or a missing fresh review on a large or risky diff goes back to draft. Notes `Ran:` lines that match no command in the session. On Codex it cannot read session tool calls, so it only notes a due review and skips the `Ran:` match |
@@ -272,4 +271,4 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 
 ## Credits
 
-The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. `council` and the babysit and review-scope rules in `full-send` adapt Theo Browne's [tstack](https://github.com/t3dotgg/tstack).
+The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. The babysit and review-scope rules in `full-send` adapt Theo Browne's [tstack](https://github.com/t3dotgg/tstack).

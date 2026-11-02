@@ -26,4 +26,4 @@ Stop vendoring pstack in that repo. Point the machine at a Kolin-Skills checkout
 
 ## Box re-apply (later PR)
 
-Own-skill links still target `/tmp/kolin-skills-main` (stale, still names `foundation` and `gap-audit`, missing `repo-standard` / `council`). Follow [`stay-on-main.md`](stay-on-main.md). Do not rewire the box in this PR.
+Own-skill links still target `/tmp/kolin-skills-main` (stale, still names `foundation` and `gap-audit`, missing `repo-standard`). Follow [`stay-on-main.md`](stay-on-main.md). Do not rewire the box in this PR.

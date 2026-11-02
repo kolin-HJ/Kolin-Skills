@@ -25,7 +25,7 @@ REVIEW_LINES = 150
 WORD_BREAK = re.compile(r"(?<=[a-z])(?=[A-Z])")
 RISKY_PATH = re.compile(r"(?:^|[/_.-])(?:auth|authz|permissions?|access|roles?|rls|polic(?:y|ies)|schema|migrations?|billing|payments?|stripe)(?:[/_.-]|$)|\.sql$", re.IGNORECASE)
 GENERATED_PATH = re.compile(r"(?:^|/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|Cargo\.lock|poetry\.lock)$|\.generated\.|(?:^|/)dist/")
-REVIEW_SKILLS = {"interrogate", "council"}
+REVIEW_SKILLS = {"interrogate"}
 PR_FIELDS = "url,body,baseRefName,headRefName,headRefOid,isCrossRepository,isDraft,state"
 NO_PR = "no pull requests found"
 FORMAT = "`- Ran: `the command` the result` or `- Not run: the check, because the reason`"

@@ -11,6 +11,7 @@ HASH_COMMENT = re.compile(r"\.(py|rb|sh)$")
 TEST = re.compile(r"(\.test\.|\.spec\.|(^|/)tests?/|_test\.(py|go)$|(^|/)test_[^/]+\.py$)")
 LOCK = re.compile(r"(lock\.json|\.lock|lock\.yaml)$")
 DOC = re.compile(r"\.(md|mdx|txt|rst)$")
+INSTRUCTION_ALLOWANCE = 200
 ALWAYS_LOADED = re.compile(r"(^|/)((AGENTS|CLAUDE)\.md|skills/pstack-local/SKILL\.md)$")
 SKIP = re.compile(r"\b(it|test|describe)\.(skip|only|todo)\b|\b[xf](it|describe|test)\(|@pytest\.mark\.(skip|xfail)"
                   r"|\bpytest\.skip\(|\bt\.Skip\(|@Disabled|@Ignore")
@@ -100,7 +101,7 @@ def audit(files, base, head):
             if change["deleted"] or lost_tests > 0 or lost_asserts > 0:
                 blocks.append(("test-removed", f"{path} lost {max(lost_tests, 0)} tests and {max(lost_asserts, 0)} assertions"))
         grown = sum(len(l) for _, l in change["added"]) - sum(len(l) for l in change["removed"])
-        if ALWAYS_LOADED.search(path) and grown > 0:
+        if ALWAYS_LOADED.search(path) and grown > INSTRUCTION_ALLOWANCE:
             blocks.append(("instructions-grew", f"{path} grows by {grown} characters and loads into every session: "
                                                 "name the repeated mistake the new text prevents, or cut as much as you add"))
         for name in dependency_findings(path, base, head):

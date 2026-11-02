@@ -46,7 +46,7 @@ Plan, build and review are separate roles:
 | Role | Runs as | Model | Does |
 |---|---|---|---|
 | Orchestrator | the main session | Opus | Plan, Kolin's asks, briefs, reads every delegated hunk. Builds small work itself |
-| Builder | `poteto-agent`, or the repo's implementer | Sonnet, medium | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
+| Builder | `poteto-agent`, or the repo's implementer | Sonnet, high | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
 | Searcher | `Explore` | The session's model | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
 | Judge | `judge` | Opus, no edit tools | One design or judgment call, with the policy and the repo's `AGENTS.md` loaded |
 | Reviewer | `senior-reviewer` | Opus, high, read-only | The policy's fresh review and interrogate's seats; never the builder. A Lite re-review of follow-up fix hunks passes `model: "sonnet"` |
