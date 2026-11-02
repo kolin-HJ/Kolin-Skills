@@ -108,9 +108,13 @@ def audit_problems(base, body, cwd):
     return [f"diff-audit: {block}. Fix it, or add a filled-in line `Allowed <kind>: ...`." for block in blocks]
 
 
+def without_quoted_text(command):
+    return QUOTED.sub(" ", HEREDOC.sub(" ", command))
+
+
 def unseen_ran_lines(section, uses):
-    commands = [QUOTED.sub(" ", HEREDOC.sub(" ", str(tool_input.get("command") or ""))) for name, tool_input in uses if name == "Bash"]
-    return [ran for ran in RAN_COMMAND.findall(section) if not any(ran in command for command in commands)] if commands else []
+    commands = [without_quoted_text(str(tool_input.get("command") or "")) for name, tool_input in uses if name == "Bash"]
+    return [ran for ran in RAN_COMMAND.findall(section) if not any(without_quoted_text(ran) in command for command in commands)] if commands else []
 
 
 def check(pr, payload, cwd):
@@ -154,7 +158,7 @@ def main():
     except (json.JSONDecodeError, ValueError):
         return 0
     command = str((payload.get("tool_input") or {}).get("command") or "")
-    trigger = TRIGGER.search(QUOTED.sub(" ", HEREDOC.sub(" ", command)))
+    trigger = TRIGGER.search(without_quoted_text(command))
     if not trigger:
         return 0
     cwd = payload.get("cwd") or "."

@@ -270,6 +270,15 @@ class PrProofTests(unittest.TestCase):
         self.assert_trusted(result)
         self.assertIn("pnpm check", json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"])
 
+    def test_a_ran_line_with_quotes_matches_its_command_but_an_echo_of_it_does_not(self):
+        self.change("a.txt", "next\n")
+        self.record("Bash", {"command": 'pnpm test -t "price"'})
+        self.open_pr('## Verification\n- Ran: `pnpm test -t "price"` ok\n')
+        self.assertEqual(self.run_hook().stdout, "")
+        self.open_pr(PROOF)
+        self.record("Bash", {"command": 'echo "pnpm check"'})
+        self.assertIn("pnpm check", self.run_hook().stdout)
+
     def test_a_pr_that_is_not_this_checkouts_head_gets_a_note(self):
         self.change("a.txt", "next\n")
         self.open_pr(PROOF, headRefOid="0" * 40)
