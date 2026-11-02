@@ -33,9 +33,9 @@ flowchart TB
 | Part | What it gives you |
 |---|---|
 | 📜 **Policy** | A short rule book on top of pstack: only what a model gets wrong untold — approvals, code preferences, security, done, PR format |
-| 🧰 **Skills** | pstack is the method. Own skills add knowledge it lacks (the repo standard, UI craft, local Supabase) and the full-send permissions |
-| 🤖 **Subagents** | A builder, a reviewer and a sweeper. The builder never reviews its own code |
-| 🛡️ **Guardrails** | Hooks that block a risky action before it runs |
+| 🧰 **Skills** | pstack is the method. Own skills add what Claude can't work out alone (the repo standard, local Supabase, release notes) and the full-send permissions |
+| 🤖 **Subagents** | A builder, a judge and a reviewer. The builder never reviews its own code |
+| 🛡️ **Guardrails** | Hooks that block a risky action, or a PR with no proof, before it goes out |
 | ✅ **Gate** | `kolin-skills check`, run on pre-commit (file length), pre-push, and Linux CI |
 
 ## Why use it
@@ -64,7 +64,7 @@ flowchart LR
   pr --> merge([👍 You merge])
 ```
 
-In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all three subagents on its default model.
+In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all three subagents on its default model. A worktree the harness makes for a subagent branches from the current commit (`worktree.baseRef: head`), so the subagent sees unpushed work.
 
 **Guardrails block. They do not ask.** The blocked agent gets the reason and the fix.
 
@@ -72,9 +72,10 @@ In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all 
 |---|---|
 | Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge | Protected branches change only through a PR you merge. An agent may create a missing one with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
 | Reading a `.env` file | Secrets stay out of the context |
-| Foreground sleep loops, long curl retries, Docker databases | Agents use background jobs, Monitor and the native Supabase CLI instead |
+| Docker databases | Agents use the native Supabase CLI instead |
+| Marking a PR ready with no `## Verification`, a reward hack such as a skipped test, or no fresh review on a large or risky diff | The PR goes back to draft, so a PR that claims nothing does not reach you. This catches missing proof, not false proof: a made-up `Ran:` line still looks real, so read the diff on anything that matters. `Not run: <check>, because <why>` and `Allowed <kind>: <why>` stay open as visible exits |
 
-Claude Code runs every guard. Codex runs the git guard, the `.env` guard (shell commands only), the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
+Claude Code runs every guard. Codex runs the git guard, the `.env` guard (shell commands only), the PR proof check, the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
 
 ## Install
 
@@ -174,16 +175,6 @@ Each skill starts in one of two ways:
 |---|---|---|---|
 | `full-send` | ⌨️ | "full send" or `/full-send` | Takes a task to a polished PR against the base: build, polish, `senior-reviewer` when the policy needs it, fixes, then drives CI and bots to `READY`. Never merges. You merge |
 | `council` | ⌨️ | "council" or `/council` | Gets a review from three models on three providers, in rounds, until they agree. Scores go in the PR body |
-| `modernize` | 💬 | "Modernize this PR", "take over #42" | Decides if an old PR should still land (modernize, rework or close), then updates it and keeps the authors' credit |
-| `loop-refactor-to-pstack` | ⌨️ | `/loop-refactor-to-pstack` | Refactors a whole repo to the standard over many sessions on one branch |
-
-**UI craft**
-
-| Skill | Starts | Say | What it does |
-|---|---|---|---|
-| `break-ui` | 💬 | "Stress-test this table" | Feeds worst-case data to a UI, fixes the clear breaks and reports the rest |
-| `emil-design-eng` | 💬 | "Make this drawer feel polished" | Motion and polish: easing, springs, transitions, gestures |
-| `mobile-native` | 💬 | "It feels wrong on my phone" | Fixes the tells that make a web app feel like a website on a phone |
 
 **Utilities**
 
@@ -198,8 +189,8 @@ Each skill starts in one of two ways:
 | Agent | Model | Spawned when |
 |---|---|---|
 | `poteto-agent` | Sonnet | A large, independent unit of code can run in parallel with other work |
+| `judge` | Opus | One design or judgment call, such as an architect runner or a synthesizer. It has no edit tools, and it loads the policy, unlike the built-in `Plan` |
 | `senior-reviewer` | Opus | Before a PR over 150 changed lines or one that touches schema, auth, access, money or a migration; also the seats of pstack's `interrogate` |
-| `haiku-worker` | Haiku | A mechanical sweep: a rename, a codemod, a read-only search |
 
 <details>
 <summary><b>Third-party skills that install also adds</b></summary>
@@ -269,10 +260,9 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 |---|---|---|
 | `hooks/gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks protected-branch pushes and merges, force push, `--no-verify`, auto-merge, edits to hook files |
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
-| `hooks/agent-default-model.py` | Claude Code | Blocks editing subagents spawned with `isolation: "worktree"`. Denies Opus on an editing subagent and names `Plan`. Runs `senior-reviewer` on Opus when a repo copy pins lower |
-| `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks polling loops, Docker databases and long curl retries, strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
-| `hooks/context-budget.py` | Claude Code | In a subagent, warns at 200,000 context tokens to wrap up and blocks at 260,000 until it reports |
-| `hooks/mcp-access.py` | Claude Code | When an MCP tool fails with an access error, tells the agent this account lacks the connector, to stop calling it and to use the CLI |
+| `hooks/agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus when a repo copy pins lower |
+| `hooks/pr-proof.py` | Claude Code, Codex | After `gh pr create` or `gh pr ready`, reads the real PR. A draft and a `staging` to `main` release are skipped. A ready PR with no `## Verification`, a `diff-audit` block, or a missing fresh review on a large or risky diff goes back to draft. Notes `Ran:` lines that match no command in the session. On Codex it cannot read session tool calls, so it only notes a due review and skips the `Ran:` match |
+| `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks Docker databases, strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
 | `hooks/lint-changed-lines.py` | All but Grok | Lints the JS and TS lines the agent just changed |
 | `hooks/compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through compaction |
 | `hooks/keep-awake.py` | Claude Code | Holds `caffeinate` from each prompt or subagent spawn, so a long turn does not let the Mac sleep |
@@ -282,4 +272,4 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 
 ## Credits
 
-The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. `emil-design-eng` follows Emil Kowalski's UI craft. `council`, `modernize` and the babysit and review-scope rules in `full-send` adapt Theo Browne's [tstack](https://github.com/t3dotgg/tstack).
+The method is [pstack](https://github.com/cursor/plugins) by Lauren Tan, with skills from Cursor's cursor-team-kit. Both are vendored at pinned commits in `upstream/vendor.json`, never copied. `council` and the babysit and review-scope rules in `full-send` adapt Theo Browne's [tstack](https://github.com/t3dotgg/tstack).

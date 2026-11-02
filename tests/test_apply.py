@@ -66,7 +66,7 @@ class ApplyTests(unittest.TestCase):
         merged = json.loads(settings.read_text())
         self.assertEqual(merged["permissions"], {"allow": ["Bash(ls)"]})
         self.assertEqual(merged["env"]["MINE"], "1")
-        self.assertEqual(merged["env"]["CLAUDE_CODE_SUBAGENT_MODEL"], "claude-sonnet-5-5")
+        self.assertEqual(merged["env"]["CLAUDE_CODE_SUBAGENT_MODEL"], "sonnet")
         self.assertIn("herdr.sh", json.dumps(merged["hooks"]["SessionStart"]))
         post = json.dumps(merged["hooks"]["PostToolUse"])
         self.assertNotIn(legacy, post)
@@ -84,12 +84,12 @@ class ApplyTests(unittest.TestCase):
 
     def test_removing_a_skill_or_agent_from_the_repo_removes_it_everywhere(self):
         self.assertEqual(self.run_cli("apply").returncode, 0)
-        self.assertTrue((self.home / ".codex/agents/haiku-worker.toml").is_file())
+        self.assertIn('sandbox_mode = "read-only"', (self.home / ".codex/agents/judge.toml").read_text())
         shutil.rmtree(self.repo / "skills/explainer")
-        (self.repo / "agents/haiku-worker.md").unlink()
+        (self.repo / "agents/judge.md").unlink()
         self.assertEqual(self.run_cli("apply").returncode, 0)
         for relative in [".agents/skills/explainer", ".claude/skills/explainer", ".cursor/skills/explainer",
-                         ".claude/agents/haiku-worker.md", ".codex/agents/haiku-worker.toml"]:
+                         ".claude/agents/judge.md", ".codex/agents/judge.toml"]:
             path = self.home / relative
             self.assertFalse(path.exists() or path.is_symlink(), relative)
 
@@ -133,7 +133,7 @@ class ApplyTests(unittest.TestCase):
         self.git(self.repo, "init", "-q", "-b", "main")
         self.git(self.repo, "add", "-A")
         self.git(self.repo, "commit", "-qm", "init")
-        self.git(self.home, "clone", "-q", "--bare", str(self.repo), str(remote))
+        self.git(self.home, "clone", "-q", "--bare", "--no-local", str(self.repo), str(remote))
         self.git(self.repo, "remote", "add", "origin", str(remote))
         self.git(self.home, "clone", "-q", str(remote), str(other))
         (other / "skills/pushed-skill").mkdir()

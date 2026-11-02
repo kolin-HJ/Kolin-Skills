@@ -186,57 +186,30 @@ class NativeHookPayloadTests(unittest.TestCase):
         self.assertEqual(blocked_size.returncode, 2, blocked_size.stderr)
         self.assertIn("file too long", blocked_size.stderr)
 
-    def test_agent_model_runs_builders_on_sonnet_and_leaves_fork_alone(self):
+    def test_agent_model_keeps_the_reviewer_seat_on_opus_and_leaves_other_agents_alone(self):
         with tempfile.TemporaryDirectory() as directory:
             agents = pathlib.Path(directory) / ".claude/agents"
             agents.mkdir(parents=True)
-            (agents / "repo-builder.md").write_text("---\nname: repo-builder\n---\nBody with model: words.\n")
-            (agents / "repo-reviewer.md").write_text("---\nname: repo-reviewer\nmodel: claude-opus-5-5\n---\n")
-            (agents / "read-only.md").write_text("---\nname: read-only\ntools: Read, Grep, Bash\n---\n")
-            (agents / "read-only-opus.md").write_text("---\nname: read-only-opus\ntools: Read, Grep\n---\n")
-            (agents / "inherits.md").write_text("---\nname: inherits\nmodel: inherit\n---\n")
-            (agents / "seat.md").write_text("---\nname: seat\nmodel: claude-sonnet-5-5\n---\n")
             (agents / "senior-reviewer.md").write_text(
                 "---\nname: senior-reviewer\ntools: Read, Grep, Glob, Bash\nmodel: claude-sonnet-5-5\n---\n")
-            sonnet = ("allow", "sonnet")
-            denied = ("deny", None)
-            cases = [
-                ({"subagent_type": "repo-builder"}, {}, sonnet),
-                ({"subagent_type": "general-purpose"}, {}, sonnet),
-                ({"subagent_type": "repo-reviewer"}, {}, None),
-                ({"subagent_type": "repo-builder", "model": "opus"}, {}, denied),
-                ({"subagent_type": "seat", "model": "opus"}, {}, denied),
-                ({"subagent_type": "general-purpose", "model": "opus"}, {}, denied),
-                ({"subagent_type": "general-purpose", "model": "opus"}, {"KOLIN_OPUS_BUILDERS": "1"}, None),
-                ({"model": "opus"}, {}, denied),
-                ({"subagent_type": "senior-reviewer"}, {}, ("allow", "opus")),
-                ({"subagent_type": "senior-reviewer", "model": "sonnet"}, {}, None),
-                ({"subagent_type": "Plan", "model": "opus"}, {}, None),
-                ({}, {}, sonnet),
-                ({"subagent_type": "fork"}, {}, None),
-                ({"subagent_type": "Explore", "model": "opus"}, {}, None),
-                ({"subagent_type": "Explore"}, {}, sonnet),
-                ({"subagent_type": "read-only-opus", "model": "opus"}, {}, None),
-                ({"subagent_type": "general-purpose", "model": "haiku"}, {}, None),
-                ({"subagent_type": "Plan"}, {}, None),
-                ({"subagent_type": "read-only"}, {}, None),
-                ({"subagent_type": "inherits"}, {}, None),
-                ({"subagent_type": "no-such-agent"}, {}, None),
-            ]
+            (agents / "repo-builder.md").write_text("---\nname: repo-builder\n---\n")
             nested = pathlib.Path(directory, "app/src")
             nested.mkdir(parents=True)
-            for tool_input, env, expected in cases:
-                with self.subTest(tool_input=tool_input, env=env):
-                    with mock.patch.dict(os.environ, env):
-                        if not env:
-                            os.environ.pop("KOLIN_OPUS_BUILDERS", None)
-                        result = invoke(MODEL_HOOK, {"cwd": str(nested), "tool_input": tool_input}, directory)
+            cases = [
+                ({"subagent_type": "senior-reviewer"}, "opus"),
+                ({"subagent_type": "senior-reviewer", "model": "sonnet"}, None),
+                ({"subagent_type": "repo-builder", "model": "opus"}, None),
+                ({"subagent_type": "general-purpose"}, None),
+                ({"subagent_type": "Explore"}, None),
+                ({"subagent_type": "fork"}, None),
+                ({}, None),
+            ]
+            for tool_input, expected in cases:
+                with self.subTest(tool_input=tool_input):
+                    result = invoke(MODEL_HOOK, {"cwd": str(nested), "tool_input": tool_input}, directory)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     output = json.loads(result.stdout)["hookSpecificOutput"] if result.stdout else None
-                    got = None if output is None else (output["permissionDecision"], output.get("updatedInput", {}).get("model"))
-                    self.assertEqual(got, expected)
-                    if expected == denied and tool_input.get("model"):
-                        self.assertIn("`Plan`", output["permissionDecisionReason"])
+                    self.assertEqual(output["updatedInput"]["model"] if output else None, expected)
 
     def test_agent_model_leaves_an_opus_pinned_reviewer_seat_alone(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -246,25 +219,6 @@ class NativeHookPayloadTests(unittest.TestCase):
                 "---\nname: senior-reviewer\ntools: Read, Grep\nmodel: claude-opus-5-5\n---\n")
             result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": {"subagent_type": "senior-reviewer"}}, directory)
             self.assertEqual((result.returncode, result.stdout), (0, ""))
-
-    def test_agent_model_denies_worktree_isolation_for_editing_agents_only(self):
-        with tempfile.TemporaryDirectory() as directory:
-            agents = pathlib.Path(directory) / ".claude/agents"
-            agents.mkdir(parents=True)
-            (agents / "poteto-agent.md").write_text("---\nname: poteto-agent\n---\n")
-            cases = [
-                ({"subagent_type": "poteto-agent", "isolation": "worktree"}, "deny"),
-                ({"subagent_type": "Explore", "isolation": "worktree"}, "allow"),
-                ({"subagent_type": "poteto-agent"}, "allow"),
-            ]
-            for tool_input, expected in cases:
-                with self.subTest(tool_input=tool_input):
-                    result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": tool_input}, directory)
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    output = json.loads(result.stdout)["hookSpecificOutput"]
-                    self.assertEqual(output["permissionDecision"], expected)
-                    if expected == "deny":
-                        self.assertIn("git worktree add", output["permissionDecisionReason"])
 
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -286,24 +240,6 @@ class NativeHookPayloadTests(unittest.TestCase):
             for tool_input in [{"file_path": f"{directory}/.env.example"}, {"pattern": "env", "path": "src"}]:
                 with self.subTest(tool_input=tool_input):
                     self.assertEqual(invoke(ENV_HOOK, {"tool_input": tool_input}, directory).returncode, 0)
-
-    def test_bash_guard_blocks_sleep_polling_in_the_foreground_only(self):
-        with tempfile.TemporaryDirectory() as directory:
-            cases = [
-                ({"command": "until [ -f out.json ]; do sleep 15; done"}, 2),
-                ({"command": "for i in $(seq 1 59); do [ -f s.json ] && break; sleep 10; done"}, 2),
-                ({"command": "until [ -f out.json ]; do sleep 15; done", "run_in_background": True}, 0),
-                ({"command": "until curl -sf localhost:3000; do sleep 1; done"}, 0),
-                ({"command": "cat > /tmp/poll.sh <<'EOF'\nwhile true; do sleep 30; done\nEOF\nchmod +x /tmp/poll.sh"}, 0),
-                ({"command": "for f in a b; do echo $f; done\nsleep 5"}, 0),
-                ({"command": "echo \"wait for it to do\"; sleep 5"}, 0),
-            ]
-            for tool_input, code in cases:
-                with self.subTest(tool_input=tool_input):
-                    result = invoke(BASH_GUARD, {"tool_input": tool_input}, directory)
-                    self.assertEqual(result.returncode, code, result.stderr)
-            blocked = invoke(BASH_GUARD, {"tool_input": cases[0][0]}, directory)
-            self.assertIn("run_in_background: true", blocked.stderr)
 
     def test_bash_guard_blocks_a_database_run_in_docker(self):
         with tempfile.TemporaryDirectory() as directory:

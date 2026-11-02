@@ -53,7 +53,7 @@ Desktop and phone both clean and professional, tables become cards on phones, to
 
 ## PR Verification
 
-Policy (Pull requests) owns the rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the `Ran:` / `Not run:` lines into an existing template. `pr-body` already prints this shape. CI body-lint (`loop-refactor-to-pstack` `assets/workflow/check-pr-proof.mjs`) is the ratchet when recent PRs skip that shape.
+Policy (Pull requests) owns the rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the `Ran:` / `Not run:` lines into an existing template. `pr-body` already prints this shape. CI body-lint is the ratchet when recent PRs skip that shape: copy `assets/check-pr-proof.mjs` to `scripts/` and `assets/pr-proof.yml` to `.github/workflows/`, then set `RUNNABLE_SOURCE`, `APP_PROOF_COMMAND` and `branches` for the repo.
 
 ## Audit a repo
 
@@ -71,7 +71,7 @@ Read only. Measure, do not guess, and record each row's command and count.
 | Tests | A test for each behavior a caller relies on (policy, Done), not one per entry point; tests of a constant, config, prose or file existence to delete; recorded contract fixtures for external APIs; slow or sleeping tests; surviving mutants in tested code (Stryker for TypeScript), reported, not ratcheted; without the tool, mark it missing and propose it |
 | Boundaries | Import rules, one home per concept, parked or out-of-scope code |
 | Guardrails | Agent hooks that block gate skips and protected pushes; secrets out of the tree; on GitHub, `delete_branch_on_merge` on (a stacked PR merged into its already-merged base is lost) and the CI jobs required on the integration branch |
-| Approval text | Repo instruction text (`AGENTS.md`, repo skills) that requires an ask before a reversible step on a work branch (commit, push, opening a PR) conflicts with the global policy's Approvals. Flag it with `file:line` and rewrite it to match. It cost waits of 9 to 67 minutes in two repos |
+| Approval text | Repo instruction text (`AGENTS.md`, repo skills) that requires an ask before a reversible step on a work branch (commit, push, opening a PR) conflicts with the global policy's Approvals. Flag it with `file:line` and rewrite it to match. |
 | Agent roles | A repo agent that shares a global agent's name (`senior-reviewer`, `poteto-agent`) and pins a lower model than `skills/pstack-local/models.md` gives that role. Flag it |
 | Verification | A verification skill with a CLI and feature maps; parity against staging or the base |
 | PR Verification | Template `.github/PULL_REQUEST_TEMPLATE.md` (or GitHub's other template paths) has `## Verification` with `Ran:` / `Not run: <check>, because <why>`. No template is met if `pr-body` emits that shape. Measure the template with `rg`; count recent `gh pr list --json body` that miss it. CI body-lint (`check-pr-proof.mjs` or equivalent) is the ratchet when they miss; a template without lint is enough when they match |
@@ -80,4 +80,4 @@ Read only. Measure, do not guess, and record each row's command and count.
 
 Write `.pstack/gap-report.md`, or the path Kolin names: a score per area (met, partial or missing, with the count), the gaps ranked by risk times reach (data loss, security and money first, then gates, then readability), one step per gap with **Done when**, and the decisions Kolin owns in one bundled ask, recommended option first. Stop at the report unless Kolin asked you to close the gaps.
 
-To close gaps, run each one as a pstack playbook (Refactoring, Feature), gates first, and rerun the rows it touched before the next one. Gap PRs merge into a `gaps/<date>` branch, never into the integration branch ahead of feature work, and ship as their own release after Kolin reads each PR's value case (a gap split merged into `staging` was reverted in #930). A split cuts at a seam that owns one concept; never split to lower a complexity or CRAP count. A whole-repo program on one branch is `loop-refactor-to-pstack`.
+To close gaps, run each one as a pstack playbook (Refactoring, Feature), gates first, and rerun the rows it touched before the next one. Gap PRs merge into a `gaps/<date>` branch, never into the integration branch ahead of feature work, and ship as their own release after Kolin reads each PR's value case. A split cuts at a seam that owns one concept; never split to lower a complexity or CRAP count. A whole-repo program runs pstack's Orchestrate playbook.

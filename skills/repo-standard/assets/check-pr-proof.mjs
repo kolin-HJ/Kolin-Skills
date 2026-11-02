@@ -6,7 +6,7 @@ const RUNNABLE_SOURCE = /^(apps\/web\/src|packages\/[^/]+\/src)\/(?!.*\.test\.ts
 const RAN_LINE = /^\s*[-*]\s*Ran:\s*`[^`]+`.*\S/;
 const NOT_RUN_LINE = /^\s*[-*]\s*Not run:\s*(.*)$/;
 const NOT_RUN_REASON = /\S.*\b(because|since)\b.*\S/i;
-const APP_PROOF_COMMAND = /^\s*[-*]\s*Ran:\s*`(pnpm -s verify |node \S*parity-pair\.mjs)[^`]*`/;
+const APP_PROOF_COMMAND = /^\s*[-*]\s*Ran:\s*`pnpm -s verify [^`]*`/;
 const APP_PROOF_SKIP = /^verify\b.*\b(because|since)\b.*\S/i;
 const HEADING = /^##\s+(.+?)\s*$/;
 
@@ -44,7 +44,7 @@ export function proofProblems({ body, changedFiles }) {
     notRun.some((reason) => APP_PROOF_SKIP.test(reason));
   if (touchesApp && !provedOnApp) {
     problems.push(
-      "the change touches app source but ## Verification has no `pnpm -s verify` or parity-pair run, and no `Not run: verify ..., because ...` line saying why"
+      "the change touches app source but ## Verification has no `pnpm -s verify` run, and no `Not run: verify ..., because ...` line saying why"
     );
   }
   return problems;

@@ -32,4 +32,4 @@ supabase stack destroy --yes                           # deletes this checkout's
 - Stop your stack (`supabase stop`) when your unit's proof is done. macOS allows 32 shared-memory segments (`kern.sysv.shmmni`), each running stack holds some, and a new start fails with `could not create shared memory segment` when they run out. `kolin-skills stacks --stop` stops every idle stack.
 - Before you remove a worktree, run `supabase stack destroy --yes` in it. Stack data lives in `~/.supabase/stacks/<id>/`, and the shared download cache in `~/.supabase/cache/stack`.
 - Native runs on macOS 14 or later on Apple silicon and Linux with glibc 2.35 or later, not as `root`. A cold first start downloads about 360 MB.
-- The docs recommend Docker when several stacks share one machine, because native stacks share the process table.
+- Native stacks share the process table, so stop idle ones with `kolin-skills stacks --stop`.

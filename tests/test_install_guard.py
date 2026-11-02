@@ -149,7 +149,7 @@ class StalePullTests(unittest.TestCase):
         git(repo, "commit", "-qm", "init")
         remote = home / "remote.git"
         other = home / "other-machine"
-        git(home, "clone", "-q", "--bare", str(repo), str(remote))
+        git(home, "clone", "-q", "--bare", "--no-local", str(repo), str(remote))
         git(repo, "remote", "add", "origin", str(remote))
         git(home, "clone", "-q", str(remote), str(other))
         (other / "NOTE").write_text("x\n")
