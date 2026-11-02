@@ -56,7 +56,7 @@ OTHER_INSTALLERS = {
     "claude.ai skill sync": ["synced"],
     "herdr": ["herdr-agent-state.sh"],
 }
-DROPPED_SKILLS = {"firecrawl", "firecrawl-crawl", "firecrawl-map", "firecrawl-scrape", "firecrawl-search", "improve", "ponytail", "ponytail-audit"}
+DROPPED_SKILLS = {"break-ui", "emil-design-eng", "loop-refactor-to-pstack", "mobile-native", "modernize", "firecrawl", "firecrawl-crawl", "firecrawl-map", "firecrawl-scrape", "firecrawl-search", "improve", "ponytail", "ponytail-audit"}
 NPX_SKILL_LOCK = HOME / ".agents/.skill-lock.json"
 LINKS = {
     "policy/AGENTS.md": [".codex/AGENTS.md", ".claude/CLAUDE.md", ".grok/AGENTS.md"],
@@ -87,11 +87,6 @@ LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in pa
 LEGACY_HOOK_PATHS.append("pstack-local/scripts/mode-reminder")
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
 SPEND_CAPS = {"subagent_model": "sonnet", "max_compact_window": 400_000}
-RETIRED_SETTINGS = {
-    "model": "opus[1m]",
-    "modelSettings": {"claude-opus-5-5": {"effortLevel": "medium"}},
-    "extraKnownMarketplaces": {"typesafe-ai": {"source": {"source": "github", "repo": "typesafe-ai/skills"}}},
-}
 TRUNK = "main"
 REQUIRED_TOOLS = {
     "jq": "hooks/gate/block-forbidden-git.sh reads the tool call with it, and without it blocks every shell command",
@@ -127,7 +122,7 @@ def merge_hooks(current, wanted, roots):
 
 
 def merge_settings(current, wanted, roots):
-    merged = {key: value for key, value in current.items() if RETIRED_SETTINGS.get(key) != value}
+    merged = dict(current)
     for key, value in wanted.items():
         if key == "hooks":
             merged[key] = merge_hooks(current.get(key, {}), value, roots)

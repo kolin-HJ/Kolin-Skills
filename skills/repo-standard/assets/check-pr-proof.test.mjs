@@ -29,7 +29,7 @@ test("an app change that says why verify did not run passes", () => {
 test("an app change with only gate runs fails", () => {
   const body = ["## Verification", "- Ran: `pnpm check` all gates pass"].join("\n");
   assert.deepEqual(proofProblems({ body, changedFiles: APP_FILE }), [
-    "the change touches app source but ## Verification has no `pnpm -s verify` or parity-pair run, and no `Not run: verify ..., because ...` line saying why",
+    "the change touches app source but ## Verification has no `pnpm -s verify` run, and no `Not run: verify ..., because ...` line saying why",
   ]);
 });
 
@@ -67,16 +67,8 @@ test("the word verify outside a verify command does not count as an app run", ()
     "- Not run: the browser, because verify needs database credentials",
   ].join("\n");
   assert.deepEqual(proofProblems({ body, changedFiles: APP_FILE }), [
-    "the change touches app source but ## Verification has no `pnpm -s verify` or parity-pair run, and no `Not run: verify ..., because ...` line saying why",
+    "the change touches app source but ## Verification has no `pnpm -s verify` run, and no `Not run: verify ..., because ...` line saying why",
   ]);
-});
-
-test("a parity-pair run counts as an app run", () => {
-  const body = [
-    "## Verification",
-    "- Ran: `node .agents/skills/verify-app/scripts/parity-pair.mjs --base ../base --head . --out ../p` 0 changes",
-  ].join("\n");
-  assert.deepEqual(proofProblems({ body, changedFiles: APP_FILE }), []);
 });
 
 const pr = (baseRef, headRef, headRepo, baseRepo = "owner/repo") => ({

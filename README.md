@@ -64,7 +64,7 @@ flowchart LR
   pr --> merge([👍 You merge])
 ```
 
-In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all four subagents on its default model.
+In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all four subagents on its default model. A worktree the harness makes for a subagent branches from the current commit (`worktree.baseRef: head`), so the subagent sees unpushed work.
 
 **Guardrails block. They do not ask.** The blocked agent gets the reason and the fix.
 
@@ -188,7 +188,7 @@ Each skill starts in one of two ways:
 | Agent | Model | Spawned when |
 |---|---|---|
 | `poteto-agent` | Sonnet | A large, independent unit of code can run in parallel with other work |
-| `judge` | Opus | One design or judgment call, such as an architect runner or a synthesizer. Read-only, and it loads the policy, unlike the built-in `Plan` |
+| `judge` | Opus | One design or judgment call, such as an architect runner or a synthesizer. It has no edit tools, and it loads the policy, unlike the built-in `Plan` |
 | `senior-reviewer` | Opus | Before a PR over 150 changed lines or one that touches schema, auth, access, money or a migration; also the seats of pstack's `interrogate` |
 | `haiku-worker` | Haiku | A mechanical sweep: a rename, a codemod, a read-only search |
 

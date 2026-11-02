@@ -50,7 +50,7 @@ Plan, build and review are separate roles:
 | Builder | `poteto-agent`, or the repo's implementer | Sonnet, medium | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
 | Sweeper | `haiku-worker` | Haiku, medium | Recipe work: renames, codemods, fixtures, searches the brief spells out |
 | Searcher | `Explore` | Sonnet (hook default) | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
-| Judge | `judge` | Opus, read-only | One design or judgment call, with the policy and the repo's `AGENTS.md` loaded |
+| Judge | `judge` | Opus, no edit tools | One design or judgment call, with the policy and the repo's `AGENTS.md` loaded |
 | Reviewer | `senior-reviewer` | Opus, high, read-only | The policy's fresh review and interrogate's seats; never the builder. A Lite re-review of follow-up fix hunks passes `model: "sonnet"` |
 | Comment sweep | `comment-sicko` (pstack) | Sonnet | Deletes comments before review |
 

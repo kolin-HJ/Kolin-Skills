@@ -73,15 +73,6 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual(post.count("lint-changed-lines.py"), 1)
         self.assertIn(str(self.repo), post)
 
-    def test_apply_drops_a_retired_setting_but_keeps_the_users_own_choice(self):
-        settings = self.home / ".claude/settings.json"
-        settings.parent.mkdir(parents=True)
-        settings.write_text(json.dumps({"model": "opus[1m]", "modelSettings": {"claude-opus-5-5": {"effortLevel": "high"}}}))
-        self.assertEqual(self.run_cli("apply").returncode, 0)
-        merged = json.loads(settings.read_text())
-        self.assertNotIn("model", merged)
-        self.assertEqual(merged["modelSettings"], {"claude-opus-5-5": {"effortLevel": "high"}})
-
     def test_a_real_file_in_the_way_is_backed_up_not_lost(self):
         target = self.home / ".codex/AGENTS.md"
         target.parent.mkdir(parents=True)

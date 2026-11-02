@@ -7,7 +7,7 @@ SUBAGENT_MODEL_IGNORED_BY = {"Explore": "sonnet"}
 EDITING_BUILTINS = {"general-purpose", "claude"}
 OPUS_REASON = (
     "Blocked: agents that can edit run on Sonnet. "
-    "For an Opus judgment role, spawn `judge` (read-only). For a builder, drop `model`."
+    "For an Opus judgment role, spawn `judge` (no edit tools). For a builder, drop `model`."
 )
 SEAT_MODELS = {"senior-reviewer": "opus"}
 PINNED = re.compile(r"^model:[ \t]*(\S+)", re.M)

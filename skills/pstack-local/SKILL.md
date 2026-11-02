@@ -18,7 +18,7 @@ pstack ([upstream](https://github.com/cursor/plugins/tree/main/pstack)) is writt
 | `Task` with `subagent_type: generalPurpose` | Claude Code: the Agent tool with `general-purpose`. Codex: a spawned agent. |
 | `subagent_type: "poteto-agent"` | Builder: `poteto-agent`. Read-only search: Claude `Explore`, Codex `explorer`. Use a repo's named implementer only in that repo. |
 | `subagent_type: "comment-sicko"` (was `Comment Sicko`) | `comment-sicko`, pstack's own agent, linked by `apply` |
-| `readonly: true`, or any role `models.md` runs on Opus | Claude: `judge` for judgment, `Explore` for search. Codex: `judge` for judgment, `senior-reviewer` for review, `explorer` for search. |
+| `readonly: true`, or any role `models.md` runs on Opus | Claude: `judge` for judgment, `Explore` for search. Codex: `judge` for judgment, `senior-reviewer` for review, `explorer` for search; tell `explorer` the scope is read-only. |
 | `environment: "cloud"`, `cloud_base_branch` | T3 Code: `delegate_task` with `isolation: "worktree"`; never create a child checkout in the shell. Else use the harness's worktree support, or `git worktree add <path> -b <branch> <base>`. |
 | `model: <slug>` | Claude: the role line in `models.md`. Codex: inherit the session model unless the user or harness directs otherwise. |
 | `~/.cursor/rules/pstack-models.mdc`, `/setup-pstack` | `models.md` next to this file. Never write `~/.claude/rules/pstack-models.md`. |

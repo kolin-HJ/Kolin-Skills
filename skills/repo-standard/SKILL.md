@@ -53,7 +53,7 @@ Desktop and phone both clean and professional, tables become cards on phones, to
 
 ## PR Verification
 
-Policy (Pull requests) owns the rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the `Ran:` / `Not run:` lines into an existing template. `pr-body` already prints this shape. CI body-lint (`assets/check-pr-proof.mjs` with `assets/pr-proof.yml`) is the ratchet when recent PRs skip that shape.
+Policy (Pull requests) owns the rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the `Ran:` / `Not run:` lines into an existing template. `pr-body` already prints this shape. CI body-lint is the ratchet when recent PRs skip that shape: copy `assets/check-pr-proof.mjs` to `scripts/` and `assets/pr-proof.yml` to `.github/workflows/`, then set `RUNNABLE_SOURCE`, `APP_PROOF_COMMAND` and `branches` for the repo.
 
 ## Audit a repo
 

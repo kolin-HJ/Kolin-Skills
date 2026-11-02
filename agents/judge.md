@@ -1,6 +1,6 @@
 ---
 name: judge
-description: Read-only Opus seat for one design or judgment call, such as an architect runner, a synthesizer or an arena cross-judge. Unlike the built-in Plan agent, it loads the global policy and the repo's AGENTS.md. Use senior-reviewer for a diff review and Explore for a plain search.
+description: Opus seat with no edit tools for one design or judgment call, such as an architect runner, a synthesizer or an arena cross-judge. Unlike the built-in Plan agent, it loads the global policy and the repo's AGENTS.md. Use senior-reviewer for a diff review and Explore for a plain search.
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 model: opus
 ---
