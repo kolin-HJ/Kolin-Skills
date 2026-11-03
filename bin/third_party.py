@@ -1,4 +1,5 @@
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -23,6 +24,10 @@ def node_problem():
     return None
 
 
+def env_installing_under_home():
+    return {key: value for key, value in os.environ.items() if key != "CLAUDE_CONFIG_DIR"}
+
+
 def install_skills(repo, installed):
     for package, skills in json.loads((repo / "upstream/skills.json").read_text()).items():
         missing = [skill for skill in skills if skill not in installed]
@@ -30,7 +35,8 @@ def install_skills(repo, installed):
             continue
         agents = [flag for agent in NPX_AGENTS for flag in ("--agent", agent)]
         result = subprocess.run(["npx", "--yes", "skills", "add", package, "--global", "--yes", *agents,
-                                 *[flag for skill in missing for flag in ("--skill", skill)]])
+                                 *[flag for skill in missing for flag in ("--skill", skill)]],
+                                env=env_installing_under_home())
         if result.returncode:
             print(f"kolin-skills: npx skills add {package} failed (exit {result.returncode}); continuing", file=sys.stderr)
 
