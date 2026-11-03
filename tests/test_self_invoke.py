@@ -100,12 +100,12 @@ class DerivedTreeTests(SelfInvokeCase):
     ALLOWLIST_LINE = re.compile(r"^SELF_INVOKING_SKILLS = \{.*\}$", re.M)
 
     def allowlist_without(self, name):
-        cli = self.repo / "bin/kolin-skills"
-        original = cli.read_text()
+        path = self.repo / "bin/kolin_skills/helpers.py"
+        original = path.read_text()
         self.assertRegex(original, self.ALLOWLIST_LINE)
         shrunk = self.ALLOWLIST_LINE.sub(lambda match: match.group(0).replace(f'"{name}", ', "").replace(f', "{name}"', ""), original)
         self.assertNotEqual(shrunk, original)
-        cli.write_text(shrunk)
+        path.write_text(shrunk)
         return original
 
     def derived(self, *parts):
@@ -115,7 +115,7 @@ class DerivedTreeTests(SelfInvokeCase):
         original = self.allowlist_without("how")
         self.apply()
         self.assertEqual(self.derived("how").resolve(), (self.vendor / "how").resolve())
-        (self.repo / "bin/kolin-skills").write_text(original)
+        (self.repo / "bin/kolin_skills/helpers.py").write_text(original)
         self.apply()
         self.assertEqual((self.vendor / "how/SKILL.md").read_text(), LOCKED_FRONTMATTER.format(name="how"))
         self.assertTrue((self.vendor / "how/references").is_dir() and not (self.vendor / "how/references").is_symlink())
@@ -167,7 +167,7 @@ class DerivedTreeTests(SelfInvokeCase):
 
 class UserOnlyOwnSkillsTests(SelfInvokeCase):
     def test_the_user_only_process_skills_are_never_on_the_allowlist(self):
-        self_invoking = runpy.run_path(str(REPO / "bin/kolin-skills"), run_name="not_main")["self_invoking"]
+        self_invoking = runpy.run_path(str(REPO / "bin/kolin_skills/helpers.py"), run_name="not_main")["self_invoking"]
         self.assertEqual([name for name in OWN_USER_ONLY_SKILLS if self_invoking(name)], [])
 
     def test_apply_links_the_user_only_process_skills_unchanged_even_when_the_vendor_ships_the_same_name(self):

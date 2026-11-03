@@ -26,6 +26,7 @@ class FileLengthGateTests(unittest.TestCase):
         (self.root / "bin").mkdir()
         shutil.copy(CLI, self.root / "bin/kolin-skills")
         shutil.copy(REPO / "bin/third_party.py", self.root / "bin/third_party.py")
+        shutil.copytree(REPO / "bin/kolin_skills", self.root / "bin/kolin_skills")
 
     def write_tracked(self, name, lines):
         path = self.root / name

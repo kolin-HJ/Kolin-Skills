@@ -1,6 +1,6 @@
 # Consumer drift
 
-Kolin-Skills is the pin. A consumer that copies pstack or `senior-reviewer` can fall behind. This check fails when those copies disagree with this repo.
+Kolin-Skills is the pin. A consumer that copies pstack or `senior-reviewer`, or that still requires a bolted-on reviewer on every PR, can fall behind. This check fails when those copies disagree with this repo. Same-session proof is the quality gate (#90); a separate reviewer is not.
 
 ```sh
 kolin-skills check-drift /path/to/repo
@@ -15,8 +15,9 @@ Both scan only that tree. Bare `kolin-skills check` is still this repo's gate an
 | `upstream/vendor.json` or `.agents/vendor.json` → `cursor-plugins.rev` | the same pin |
 | `.agents/vendor/cursor-plugins` `HEAD` | the same pin |
 | `.claude/agents/senior-reviewer.md` (real file or symlink) | `agents/senior-reviewer.md` (SHA-256; a link into this repo matches) |
+| `AGENTS.md`, `CLAUDE.md`, `.claude/CLAUDE.md`, `.claude/AGENTS.md`, `policy/AGENTS.md` | fail when the text requires a separate reviewer on every PR or every staging merge (including the old 150-line pre-PR spawn). High-risk / ask-only language passes. |
 
-No marker: pass. A recorded rev may be a unique abbreviation of the full pin.
+No marker: pass. A recorded rev may be a unique abbreviation of the full pin. Policy files that say reviewers are on demand, or only for high-risk work or an ask, pass.
 
 ## hj-supply-chain (later PR)
 

@@ -1,6 +1,6 @@
 # Stay on main
 
-Every coding environment uses this repo's `main`. Claude Code and Codex run `kolin-skills pull` at SessionStart. Cursor and Grok do not: they read links that `apply` already wrote. Do not add a Cursor or Grok SessionStart pull; `cursor/hooks.json` is `postToolUse` lint only, and Grok has no hooks.
+Every coding environment uses this repo's `main`. Claude Code and Codex run `kolin-skills pull` at SessionStart. Cursor and Grok Bot do not: they read links that `apply` already wrote. Do not add a Cursor or Grok Bot SessionStart pull; `cursor/hooks.json` is `postToolUse` lint only, and Grok Bot has no hooks.
 
 T3Bot owns apply verification on T3 DEVS and the home Mac. Box re-apply and hj-supply-chain unvendor are follow-ons: [`consumer-drift.md`](consumer-drift.md).
 

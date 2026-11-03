@@ -86,6 +86,58 @@ class CheckDriftTests(unittest.TestCase):
         self.assertNotIn("tests failed", result.stderr)
         self.assertNotIn("Ran:", result.stderr)
 
+    def test_reviewer_required_on_every_pr_fails_and_ask_only_language_passes(self):
+        self.write("AGENTS.md",
+                   "A separate reviewer is required on every PR.\n")
+        stale = self.run_cli("check-drift", str(self.root))
+        self.assertEqual(stale.returncode, 1, stale.stderr)
+        self.assertIn("AGENTS.md", stale.stderr)
+        self.assertIn("every PR", stale.stderr)
+        self.write("AGENTS.md",
+                   "Spawn senior-reviewer or interrogate only on high-risk work "
+                   "(auth, money, data deletion) or when Kolin or the CEO asks.\n")
+        matched = self.run_cli("check-drift", str(self.root))
+        self.assertEqual(matched.returncode, 0, matched.stderr)
+        self.assertIn("Passed:", matched.stdout)
+
+    def test_old_150_line_pre_pr_review_fails_and_same_session_proof_passes(self):
+        self.write("CLAUDE.md",
+                   "A fresh review reads the diff before the PR opens when it "
+                   "changes over 150 lines or touches schema, auth, access, money "
+                   "or a migration: interrogate in a pstack run, else senior-reviewer.\n")
+        stale = self.run_cli("check-drift", str(self.root))
+        self.assertEqual(stale.returncode, 1, stale.stderr)
+        self.assertIn("CLAUDE.md", stale.stderr)
+        self.write("CLAUDE.md",
+                   "Before the PR opens, prove the change in this same session. "
+                   "Do not spawn a separate AI code reviewer.\n")
+        matched = self.run_cli("check-drift", str(self.root))
+        self.assertEqual(matched.returncode, 0, matched.stderr)
+
+    def test_reviewer_required_before_every_staging_merge_fails_on_claude_policy_copy(self):
+        self.write(".claude/CLAUDE.md",
+                   "senior-reviewer is required before every staging merge.\n")
+        stale = self.run_cli("check-drift", str(self.root))
+        self.assertEqual(stale.returncode, 1, stale.stderr)
+        self.assertIn(".claude/CLAUDE.md", stale.stderr)
+        self.assertIn("staging merge", stale.stderr)
+        self.write(".claude/CLAUDE.md",
+                   "External AI code review is not a quality gate; proof of behavior is. "
+                   "Reviewers are high-risk or ask-only.\n")
+        matched = self.run_cli("check-drift", str(self.root))
+        self.assertEqual(matched.returncode, 0, matched.stderr)
+
+    def test_policy_agents_copy_with_every_pr_reviewer_gate_fails_then_passes(self):
+        self.write("policy/AGENTS.md",
+                   "Run interrogate on every pull request before it opens.\n")
+        stale = self.run_cli("check-drift", str(self.root))
+        self.assertEqual(stale.returncode, 1, stale.stderr)
+        self.assertIn("policy/AGENTS.md", stale.stderr)
+        self.write("policy/AGENTS.md",
+                   "interrogate is on demand, not the pre-PR gate.\n")
+        matched = self.run_cli("check-drift", str(self.root))
+        self.assertEqual(matched.returncode, 0, matched.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
