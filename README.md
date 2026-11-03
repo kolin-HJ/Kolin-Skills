@@ -4,12 +4,12 @@
 
 **One rule book for every coding agent you use.**
 
-Claude Code, Codex, Cursor and Grok follow the same rules, skills and guardrails, from one repo.
+Claude Code, Codex, Cursor and Grok Bot follow the same rules, skills and guardrails, from one repo.
 
 ![Claude Code](https://img.shields.io/badge/Claude_Code-d97757)
 ![Codex](https://img.shields.io/badge/Codex-10a37f)
 ![Cursor](https://img.shields.io/badge/Cursor-000000)
-![Grok](https://img.shields.io/badge/Grok-555555)
+![Grok Bot](https://img.shields.io/badge/Grok_Bot-555555)
 ![Gate](https://img.shields.io/badge/gate-pre--push_%2B_CI-blue)
 ![check](https://github.com/kolin-HJ/Kolin-Skills/actions/workflows/check.yml/badge.svg)
 
@@ -27,7 +27,7 @@ flowchart TB
   repo --> cc["Claude Code<br/>everything"]
   repo --> cx["Codex<br/>policy, skills, subagents, most hooks"]
   repo --> cu["Cursor<br/>policy rule, skills, lint hook"]
-  repo --> gk["Grok<br/>policy, skills"]
+  repo --> gk["Grok Bot<br/>policy, skills"]
 ```
 
 | Part | What it gives you |
@@ -76,7 +76,7 @@ In Claude Code, builders run on Sonnet and a reviewer, when one runs, on Opus. C
 
 Nothing blocks a merge, a push to a protected branch, a force push, `--no-verify`, or an edit to a hook file or the live install. The policy asks for your yes on merges and protected branches, but that is text, not enforcement. GitHub branch protection enforces it only for an account that cannot bypass it.
 
-Claude Code runs every guard. Codex runs the `.env` guard (shell commands only), the PR proof check, the lint hook and compaction context. Cursor runs only the lint hook. Grok runs no hooks.
+Claude Code runs every guard. Codex runs the `.env` guard (shell commands only), the PR proof check, the lint hook and compaction context. Cursor runs only the lint hook. Grok Bot runs no hooks.
 
 ## Install
 
@@ -101,11 +101,11 @@ With Node older than 22.20, `install` skips the third-party skills and CLIs and 
 | Claude Code | Yes (`claude/settings.json` SessionStart) | Policy, skills, subagents, hooks |
 | Codex | Yes (`codex/hooks.json` SessionStart) | Policy, skills, subagents, most hooks |
 | Cursor | No. `cursor/hooks.json` is `postToolUse` lint only | Policy rule, skills, lint hook via `~/.agents` and `~/.cursor` |
-| Grok | No. Grok has no hooks | Policy and skills |
+| Grok Bot | No. Grok Bot has no hooks | Policy and skills |
 
-A clone with local edits also skips `pull`. Cursor and Grok then keep whatever `apply` last wrote, even if `origin/main` moved.
+A clone with local edits also skips `pull`. Cursor and Grok Bot then keep whatever `apply` last wrote, even if `origin/main` moved.
 
-T3Bot owns apply verification on T3 DEVS and the home Mac. Box re-apply and hj-supply-chain unvendor are follow-ons ([`docs/consumer-drift.md`](docs/consumer-drift.md)).
+T3Bot owns apply verification on T3 DEVS and the home Mac. Box re-apply and hj-supply-chain unvendor are follow-ons ([`docs/consumer-drift.md`](docs/consumer-drift.md)). Weekly consumer drift and how a change lands: [`docs/maintain.md`](docs/maintain.md).
 
 ## Install (for agents)
 
@@ -221,12 +221,13 @@ hooks/                       guards and lint, run in place from the repo
 claude/                      managed settings keys, status line, output style (ste-visual)
 codex/, cursor/              hook config, the Codex rules (agent-browser-guard runs outside the sandbox, agent-desktop asks each call), and the Cursor policy rule
 .githooks/                   pre-commit runs check --files; pre-push runs check; post-merge, post-checkout, post-rewrite run apply
+bin/                         kolin-skills CLI entry; modules in kolin_skills/; audits and guards
 upstream/                    pstack and cursor-team-kit (vendor.json), npx skills (skills.json), npm CLIs (tools.json)
-docs/                        stay-on-main, consumer-drift
+docs/                        stay-on-main, consumer-drift, maintain
 tests/                       installer, hook and repo-rule tests, run by check
 ```
 
-Edits to existing files are live at once. A new, renamed or deleted skill or agent needs `apply`. Claude Code and Codex run `apply` through `pull` at session start. After `git pull`, `checkout` and `rebase` in this clone, the git hooks run `apply`. Cursor and Grok have no session `pull`; they follow links from the last `apply`. `apply` is idempotent, and a real file it replaces goes to `~/.kolin-skills/backup/`.
+Edits to existing files are live at once. A new, renamed or deleted skill or agent needs `apply`. Claude Code and Codex run `apply` through `pull` at session start. After `git pull`, `checkout` and `rebase` in this clone, the git hooks run `apply`. Cursor and Grok Bot have no session `pull`; they follow links from the last `apply`. `apply` is idempotent, and a real file it replaces goes to `~/.kolin-skills/backup/`.
 
 Project rules live in each project's own `AGENTS.md`, never here. Not managed: credentials, Codex `config.toml`, Cursor `mcp.json`, and `permissions` and `autoMode` in `~/.claude/settings.json`.
 
@@ -239,12 +240,12 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 |---|---|
 | `kolin-skills install` | First run on a machine: `upstream`, `apply`, then `check` |
 | `kolin-skills apply` | Links the repo into home. `--check` reports drift only. `--adopt` moves home to this checkout. `--if-wired` runs only when home is wired here |
-| `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, then applies. Runs at each Claude Code and Codex session start. Not Cursor or Grok. Prints `kolin-skills: stale setup` when it cannot update. Machines without those hooks: [`docs/stay-on-main.md`](docs/stay-on-main.md) |
+| `kolin-skills pull` | Fetches `origin/main`, fast-forwards when it safely can, then applies. Runs at each Claude Code and Codex session start. Not Cursor or Grok Bot. Prints `kolin-skills: stale setup` when it cannot update. Machines without those hooks: [`docs/stay-on-main.md`](docs/stay-on-main.md) |
 | `kolin-skills upstream` | Installs third-party skills at pinned commits and CLIs at pinned versions. `--bump` moves the git pins; edit `upstream/tools.json` to move a CLI |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into the repo |
 | `kolin-skills stacks` | Lists running native Supabase stacks. `--stop` stops the idle ones. `--notice` runs at session start and prints only when idle stacks exist and 24 or more stacks run |
 | `kolin-skills check` | The gate: drift, strays, pins, spend caps, 1,000-line files, tools, tests, comments. `--files` is only the line limit. `--quick` checks only home, in seconds: links resolve, hooks and policy are wired, the self-invoking pstack skills carry no model lock. Prints `feature-budget` and does not fail on it. In a worktree it skips home drift. In CI it skips home and vendor. With a path, it only runs `check-drift` |
-| `kolin-skills check-drift <path>` | Fails when that tree's vendored pstack SOURCE/rev or synced `senior-reviewer` differs from this repo. What it compares, and the hj-supply-chain / box follow-ups: [`docs/consumer-drift.md`](docs/consumer-drift.md) |
+| `kolin-skills check-drift <path>` | Fails when that tree's vendored pstack SOURCE/rev, synced `senior-reviewer`, or every-PR / every-staging-merge reviewer gate differs from this repo. What it compares, and the hj-supply-chain / box follow-ups: [`docs/consumer-drift.md`](docs/consumer-drift.md) |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions [DAYS]` reports token use, hook blocks and failing tools across recent transcripts. `--window START END [--top N]` reports parent-inclusive Claude sessions by inclusive UTC start date without writing state |
 | `agent-browser-guard <args>` | Runs `agent-browser` for Codex outside its sandbox, in its own `codex-guard` namespace. Allows only `[--session X] [--json] <command>` with a fixed command list, refuses flags that run a program or reuse your logins, and refuses writes outside `~/.agent-browser-evidence`. `apply` installs it as a read-only copy in `~/.local/bin` |
 | `pr-body <base> --feature NAME=PATH,...` | Needs one `--feature` per feature. Prints a PR body skeleton: What, Why and Risk lines, one line per feature with its file and line counts, a Diff section with the total and the files touched grouped by code, tests and docs, then Check these and Verification. Files no feature names go under Other |
@@ -262,7 +263,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 | `hooks/agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus when a repo copy pins lower |
 | `hooks/pr-proof.py` | Claude Code, Codex | After `gh pr create` or `gh pr ready`, reads the real PR. A draft and a `staging` to `main` release are skipped. A ready PR with no `## Verification` or a `diff-audit` block goes back to draft. Notes `Ran:` lines that match no command in the session. On Codex it cannot read session tool calls, so it skips the `Ran:` match |
 | `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks Docker databases, strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
-| `hooks/lint-changed-lines.py` | All but Grok | Lints the JS and TS lines the agent just changed |
+| `hooks/lint-changed-lines.py` | All but Grok Bot | Lints the JS and TS lines the agent just changed |
 | `hooks/compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through compaction |
 | `hooks/keep-awake.py` | Claude Code | Holds `caffeinate` from each prompt or subagent spawn, so a long turn does not let the Mac sleep |
 | `hooks/heavy-slot.py` | Claude Code (through `bash-guard`) | Gives heavy jobs one of 3 shared slots and keeps the Mac awake while each runs |
