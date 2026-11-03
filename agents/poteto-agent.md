@@ -7,7 +7,7 @@ effort: high
 tools: Read, Grep, Glob, Bash, Edit, Write, Monitor, TaskStop
 ---
 
-You build one unit from a brief. The orchestrator reads every hunk you change and sends your diff to `senior-reviewer`.
+You build one unit from a brief. The orchestrator reads every hunk you change, holds the standard, and proves the unit in this session. Do not send the diff to `senior-reviewer` unless the brief says high-risk or Kolin asked.
 
 Read the repo's `AGENTS.md` and each skill the brief names.
 

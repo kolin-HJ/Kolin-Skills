@@ -34,7 +34,7 @@ flowchart TB
 |---|---|
 | 📜 **Policy** | A short rule book on top of pstack: only what a model gets wrong untold — approvals, code preferences, security, done, PR format |
 | 🧰 **Skills** | pstack is the method. Own skills add what Claude can't work out alone (the repo standard, local Supabase, release notes) and the full-send permissions |
-| 🤖 **Subagents** | A builder, a judge and a reviewer. The builder never reviews its own code |
+| 🤖 **Subagents** | A builder, a judge and a reviewer. The reviewer is on demand, not a quality gate |
 | 🛡️ **Guardrails** | Hooks that block a risky action, or a PR with no proof, before it goes out |
 | ✅ **Gate** | `kolin-skills check`, run on pre-commit (file length), pre-push, and Linux CI |
 
@@ -44,7 +44,7 @@ flowchart TB
 |---|---|
 | Each tool has its own rules file | One rule book in every tool |
 | A rule in a prompt is only a request | A hook blocks the action, and the gate fails the push |
-| The agent reviews its own code | A fresh reviewer reads every large or risky diff |
+| A bolted-on AI reviewer reads the PR | The implementor proves behavior in the same session |
 | "Done" means it compiles | "Done" means proven on the real artifact |
 | The same mistake comes back | A mistake that costs time twice, or once for security, data loss or an irreversible action, becomes a lint rule, a test or a type |
 
@@ -54,17 +54,17 @@ Most tasks run in the main session. A large task with independent units adds bui
 
 ```mermaid
 flowchart LR
-  ask([🙋 You ask]) --> work[🔨 Work<br/>main session]
+  ask([🙋 You ask]) --> work[🔨 Work<br/>same session]
   work -. large, independent units .-> build[🔨 Builders<br/>Sonnet]
   build -.-> work
-  work --> review[🔍 Review<br/>fresh Opus]
-  review -- findings --> work
-  review --> gate[✅ Gate<br/>pre-push]
+  work -. high-risk or asked .-> review[🔍 Reviewer<br/>on demand]
+  review -.-> work
+  work --> gate[✅ Gate<br/>pre-push]
   gate --> pr[📬 PR]
   pr --> merge([👍 You merge])
 ```
 
-In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all three subagents on its default model. A worktree the harness makes for a subagent branches from the current commit (`worktree.baseRef: head`), so the subagent sees unpushed work.
+In Claude Code, builders run on Sonnet and a reviewer, when one runs, on Opus. Codex runs subagents on its default model. A worktree the harness makes for a subagent branches from the current commit (`worktree.baseRef: head`), so the subagent sees unpushed work.
 
 **Guardrails block. They do not ask.** The blocked agent gets the reason and the fix.
 
@@ -72,7 +72,7 @@ In Claude Code, builders run on Sonnet and the reviewer on Opus. Codex runs all 
 |---|---|
 | Reading a `.env` file | Secrets stay out of the context |
 | Docker databases | Agents use the native Supabase CLI instead |
-| Marking a PR ready with no `## Verification`, a reward hack such as a skipped test, or no fresh review on a large or risky diff | The PR goes back to draft, so a PR that claims nothing does not reach you. This catches missing proof, not false proof: a made-up `Ran:` line still looks real, so read the diff on anything that matters. `Not run: <check>, because <why>` and `Allowed <kind>: <why>` stay open as visible exits |
+| Marking a PR ready with no `## Verification` or a reward hack such as a skipped test | The PR goes back to draft, so a PR that claims nothing does not reach you. This catches missing proof, not false proof: a made-up `Ran:` line still looks real, so read the diff on anything that matters. `Not run: <check>, because <why>` and `Allowed <kind>: <why>` stay open as visible exits |
 
 Nothing blocks a merge, a push to a protected branch, a force push, `--no-verify`, or an edit to a hook file or the live install. The policy asks for your yes on merges and protected branches, but that is text, not enforcement. GitHub branch protection enforces it only for an account that cannot bypass it.
 
@@ -174,7 +174,7 @@ Each skill starts in one of two ways:
 
 | Skill | Starts | Say | What it does |
 |---|---|---|---|
-| `full-send` | ⌨️ | "full send" or `/full-send` | Takes a task to a polished PR against the base: build, polish, `senior-reviewer` when the policy needs it, fixes, then drives CI and bots to `READY`. Never merges. You merge |
+| `full-send` | ⌨️ | "full send" or `/full-send` | Takes a task to a polished PR against the base: build, polish, same-session proof, `senior-reviewer` only when the policy names high-risk or Kolin asks, then drives CI and bots to `READY`. Never merges. You merge |
 
 **Utilities**
 
@@ -190,7 +190,7 @@ Each skill starts in one of two ways:
 |---|---|---|
 | `poteto-agent` | Sonnet | A large, independent unit of code can run in parallel with other work |
 | `judge` | Opus | One design or judgment call, such as an architect runner or a synthesizer. It has no edit tools, and it loads the policy, unlike the built-in `Plan` |
-| `senior-reviewer` | Opus | Before a PR over 150 changed lines or one that touches schema, auth, access, money or a migration; also the seats of pstack's `interrogate` |
+| `senior-reviewer` | Opus | On demand: high-risk work (auth, money, data deletion) or when Kolin or the CEO asks; also the seats of pstack's `interrogate` |
 
 <details>
 <summary><b>Third-party skills that install also adds</b></summary>
@@ -199,7 +199,7 @@ Each skill starts in one of two ways:
 |---|---|---|
 | [pstack](https://github.com/cursor/plugins) | `how`, `architect`, `interrogate`, `swarm`, `arena`, `tdd`, `unslop`, `technical-writing`, `no-comments`, `correct` and the `principle-*` skills | The agent reads one when a task or playbook needs it. You can type `/poteto-mode`, `/how` and the rest |
 | cursor-team-kit | `deslop`, `control-ui`, `control-cli` | 💬 To clean AI slop out of code, or to drive a UI or CLI |
-| cursor-team-kit | `thermo-nuclear-code-quality-review` | The agent reads it for the diff pass before review, or when you ask for a harsh structure review |
+| cursor-team-kit | `thermo-nuclear-code-quality-review` | High-risk work, or when you ask for a harsh structure review |
 | `npx skills` | `find-skills` | ⌨️ |
 | `npx skills` | `agent-browser` | The agent reads it to drive or check a web app or Electron web content. `upstream` also installs the CLI at its pin in `upstream/tools.json` |
 | `npx skills` | `agent-desktop` | The agent reads it to drive or check a native Mac, Windows or Linux app. `upstream` also installs the CLI at its pin. On macOS, grant Accessibility once with `agent-desktop permissions --guide` |
@@ -260,7 +260,7 @@ Project rules live in each project's own `AGENTS.md`, never here. Not managed: c
 |---|---|---|
 | `hooks/block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
 | `hooks/agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus when a repo copy pins lower |
-| `hooks/pr-proof.py` | Claude Code, Codex | After `gh pr create` or `gh pr ready`, reads the real PR. A draft and a `staging` to `main` release are skipped. A ready PR with no `## Verification`, a `diff-audit` block, or a missing fresh review on a large or risky diff goes back to draft. Notes `Ran:` lines that match no command in the session. On Codex it cannot read session tool calls, so it only notes a due review and skips the `Ran:` match |
+| `hooks/pr-proof.py` | Claude Code, Codex | After `gh pr create` or `gh pr ready`, reads the real PR. A draft and a `staging` to `main` release are skipped. A ready PR with no `## Verification` or a `diff-audit` block goes back to draft. Notes `Ran:` lines that match no command in the session. On Codex it cannot read session tool calls, so it skips the `Ran:` match |
 | `hooks/bash-guard.py` | Claude Code | Guards each Bash command: blocks Docker databases, strips or rewrites filters on gate output and never blocks them, and queues heavy jobs into 3 shared slots |
 | `hooks/lint-changed-lines.py` | All but Grok | Lints the JS and TS lines the agent just changed |
 | `hooks/compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through compaction |

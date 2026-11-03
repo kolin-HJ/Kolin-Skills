@@ -18,14 +18,8 @@ LINE_START = r"^[ \t]*(?:[-*][ \t]*)?"
 RAN_LINE = re.compile(LINE_START + r"Ran:[ \t]*\S", re.MULTILINE)
 RAN_COMMAND = re.compile(LINE_START + r"Ran:[ \t]*`([^`]+)`", re.MULTILINE)
 NOT_RUN_LINE = re.compile(LINE_START + r"Not run:[ \t]*\S.*\bbecause\b.*\S", re.MULTILINE | re.IGNORECASE)
-REVIEW_STATED = re.compile(LINE_START + r"(?:Ran:[ \t]*`?(?:fresh[ \t]+)?(?:review[ \t]+by|senior-reviewer|interrogate)\b.*\S|Not run:[ \t]*`?(?:fresh[ \t]+)?review`?,?[ \t]+because\b.*\S)", re.MULTILINE | re.IGNORECASE)
 AUDIT_WAIVED = re.compile(LINE_START + r"Not run:[ \t]*`?diff-audit`?,?[ \t]+because\b.*\S", re.MULTILINE | re.IGNORECASE)
 ALLOWED = re.compile(LINE_START + r"Allowed ([\w-]+):[ \t]*\S", re.MULTILINE)
-REVIEW_LINES = 150
-WORD_BREAK = re.compile(r"(?<=[a-z])(?=[A-Z])")
-RISKY_PATH = re.compile(r"(?:^|[/_.-])(?:auth|authz|permissions?|access|roles?|rls|polic(?:y|ies)|schema|migrations?|billing|payments?|stripe)(?:[/_.-]|$)|\.sql$", re.IGNORECASE)
-GENERATED_PATH = re.compile(r"(?:^|/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|Cargo\.lock|poetry\.lock)$|\.generated\.|(?:^|/)dist/")
-REVIEW_SKILLS = {"interrogate"}
 PR_FIELDS = "url,body,baseRefName,headRefName,headRefOid,isCrossRepository,isDraft,state"
 NO_PR = "no pull requests found"
 FORMAT = "`- Ran: `the command` the result` or `- Not run: the check, because the reason`"
@@ -50,24 +44,6 @@ def is_release(pr):
     return pr["baseRefName"] == "main" and pr["headRefName"] == "staging" and not pr["isCrossRepository"]
 
 
-def needs_review(base, cwd):
-    result = run(cwd, "git", "diff", "--numstat", f"{base}...HEAD")
-    if result.returncode:
-        return f"pr-proof could not read its diff ({result.stderr.strip()[-200:]})"
-    changed = 0
-    risky = []
-    for line in result.stdout.splitlines():
-        added, removed, path = line.split("\t", 2)
-        if GENERATED_PATH.search(path):
-            continue
-        changed += sum(int(count) for count in (added, removed) if count.isdigit())
-        if RISKY_PATH.search(WORD_BREAK.sub("-", path)):
-            risky.append(path)
-    if risky:
-        return f"it touches {', '.join(risky[:3])}"
-    return f"it changes {changed} lines" if changed > REVIEW_LINES else None
-
-
 def tool_uses(path):
     with path.open(errors="ignore") as handle:
         for line in handle:
@@ -89,14 +65,6 @@ def session_tool_uses(transcript):
     main = pathlib.Path(transcript)
     files = [main, *sorted(main.with_suffix("").glob("subagents/*.jsonl"))] if transcript and main.is_file() else []
     return [use for path in files for use in tool_uses(path)]
-
-
-def is_review(name, tool_input):
-    if name in ("Agent", "Task"):
-        return "reviewer" in str(tool_input.get("subagent_type") or "").lower()
-    if name == "Skill":
-        return tool_input.get("skill") in REVIEW_SKILLS
-    return name.endswith("delegate_task") and tool_input.get("role") == "review"
 
 
 def audit_problems(base, body, cwd):
@@ -136,12 +104,6 @@ def check(pr, payload, cwd):
     if not AUDIT_WAIVED.search(section):
         problems += audit_problems(base, body, cwd)
     uses = session_tool_uses(payload.get("transcript_path") or "")
-    reason = needs_review(base, cwd)
-    if reason and not REVIEW_STATED.search(section):
-        if not uses:
-            notes.append(f"A fresh review is due because {reason}. pr-proof could not read this session's tool calls, so it did not confirm one ran.")
-        elif not any(is_review(name, tool_input) for name, tool_input in uses):
-            problems.append(f"No fresh review ran in this session, and one is due because {reason}. Run `interrogate` or `senior-reviewer`. If it ran elsewhere, add a filled-in line `- Ran: review by ...`. If it should not run, add `- Not run: review, because ...`.")
     unseen = unseen_ran_lines(section, uses)
     if unseen:
         notes.append("These `Ran:` lines match no command in this session, so check that each really ran, or say what ran it: " + "; ".join(unseen[:5]))

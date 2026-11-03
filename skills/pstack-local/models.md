@@ -35,7 +35,7 @@ fork: inherits Opus and the parent's whole context; use it when that context is 
 
 Builders start on Sonnet. Pass `model: "opus"` when the job is hard enough to need it. An Opus judgment role runs as `judge`, or `senior-reviewer` for a diff; a Sonnet seat passes `model: "sonnet"`. Never use `Plan` for judgment, because `Plan` and `Explore` start without `CLAUDE.md` or `AGENTS.md`. The judgment roles are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
 
-Interrogate is the fresh review before a pstack PR opens (policy, Pull requests). Run each Opus seat as `senior-reviewer` and the Sonnet seat as `senior-reviewer` with `model: "sonnet"`, with the lens in the brief. Interrogate gives each reviewer one lens:
+Interrogate is on demand, not the pre-PR gate (policy, Pull requests). Spawn it only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. When it runs, run each Opus seat as `senior-reviewer` and the Sonnet seat as `senior-reviewer` with `model: "sonnet"`, with the lens in the brief. Interrogate gives each reviewer one lens:
 
 1. Correctness and data integrity: wrong numbers, races and lost writes.
 2. Security and access: authorization, secrets and external writes.
@@ -49,9 +49,9 @@ Plan, build and review are separate roles:
 | Builder | `poteto-agent`, or the repo's implementer | Sonnet, high | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
 | Searcher | `Explore` | The session's model | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
 | Judge | `judge` | Opus, no edit tools | One design or judgment call, with the policy and the repo's `AGENTS.md` loaded |
-| Reviewer | `senior-reviewer` | Opus, high, read-only | The policy's fresh review and interrogate's seats; never the builder. A re-check limited to a small fix delta is that Lite re-review on sonnet, unless the delta touches auth, money or data deletion (then Opus). If a reviewer returns without a verdict, resume or message that same subagent once before spawning another. |
+| Reviewer | `senior-reviewer` | Opus, high, read-only | Do not spawn by default. Prefer tests, the verify skill, UI proof and harnesses. Spawn only for high-risk work or when Kolin or the CEO asks; never the builder. If spawned: a re-check limited to a small fix delta is that Lite re-review on sonnet, unless the delta touches auth, money or data deletion (then Opus). If a reviewer returns without a verdict, resume or message that same subagent once before spawning another. |
 | Comment sweep | `comment-sicko` (pstack) | Sonnet | Deletes comments before review |
 
 ## Size
 
-For one owner and about 10 files or fewer, skip `how`, `architect` and the throughput checkpoint, and build it yourself. The fresh review and the proof stay.
+For one owner and about 10 files or fewer, skip `how`, `architect` and the throughput checkpoint, and build it yourself. The proof stays.

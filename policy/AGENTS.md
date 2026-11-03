@@ -33,13 +33,13 @@ Check authorization before every write; an auth check that errors denies. Keep s
 
 ## Done
 
-Done means proven on the real artifact. Run the repo's gate (`pnpm check` or its equivalent). If a check did not run, say so in the same sentence as "done". When a gate or hook blocks you, fix the cause or report it. Never work around it.
+Done means proven on the real artifact. External AI code review is not a quality gate; proof of behavior is. Run the repo's gate (`pnpm check` or its equivalent). If a check did not run, say so in the same sentence as "done". When a gate or hook blocks you, fix the cause or report it. Never work around it.
 
 Test what a caller relies on, and a bug before its fix. No snapshots, no mocks of your own modules, no tests of copy, styling or config.
 
 ## Pull requests
 
-Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. A fresh review reads the diff before the PR opens when it changes over 150 lines or touches schema, auth, access, money or a migration: `interrogate` in a pstack run, else `senior-reviewer`. Start the body from the repo's template, else `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`.
+Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. Before the PR opens, prove the change in this same session: the repo's gate, tests, and the verify skill or UI proof the repo requires. Do not spawn a separate AI code reviewer. Spawn `senior-reviewer` or `interrogate`, or read `thermo-nuclear-code-quality-review`, only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. Start the body from the repo's template, else `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`.
 
 ## Writing
 
