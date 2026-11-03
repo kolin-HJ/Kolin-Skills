@@ -1,6 +1,6 @@
 ---
 name: senior-reviewer
-description: Reviews a diff in a fresh context the way a senior engineer would. It first checks correctness, security, bypassed product guards, behavior changes and setup breakage, then whether the change is the simplest version that fits the codebase. Use before a PR or release ships; hand it the task as the user stated it, and the PR body or its draft.
+description: On-demand diff review in a fresh context the way a senior engineer would. Spawn only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. It first checks correctness, security, bypassed product guards, behavior changes and setup breakage, then whether the change is the simplest version that fits the codebase. Hand it the task as the user stated it, and the PR body or its draft.
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: high

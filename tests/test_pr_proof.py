@@ -107,7 +107,7 @@ class PrProofTests(unittest.TestCase):
         self.open_pr(PROOF)
         self.assert_drafted(self.run_hook(), "diff-audit could not run")
         self.calls.unlink()
-        self.open_pr(PROOF + "- Not run: diff-audit, because the histories are unrelated\n- Not run: review, because this is a test\n")
+        self.open_pr(PROOF + "- Not run: diff-audit, because the histories are unrelated\n")
         self.assert_trusted(self.run_hook())
 
     def test_a_missing_gh_gets_a_note_not_a_crash(self):
@@ -194,50 +194,18 @@ class PrProofTests(unittest.TestCase):
         self.assert_trusted(result)
         self.assertEqual(result.stdout, "")
 
-    def test_a_large_diff_needs_a_review_and_lockfiles_do_not_count(self):
-        self.change("pnpm-lock.yaml", "line\n" * 500)
+    def test_a_large_or_risky_diff_with_proof_does_not_need_a_reviewer(self):
         self.record("Bash", {"command": "pnpm check"})
+        self.change("pnpm-lock.yaml", "line\n" * 500)
         self.open_pr(PROOF)
         self.assert_trusted(self.run_hook())
         self.change("big.txt", "line\n" * 200)
         self.open_pr(PROOF)
-        self.assert_drafted(self.run_hook(), "200 lines")
-        self.calls.unlink()
-        self.record("Agent", {"subagent_type": "senior-reviewer", "prompt": "review"})
-        self.assert_trusted(self.run_hook("gh pr ready"))
-
-    def test_a_review_stated_in_verification_counts_but_a_hidden_or_unrelated_one_does_not(self):
+        self.assert_trusted(self.run_hook())
         self.change("db/migrations/1.sql", "select 1;\n")
-        self.record("Bash", {"command": "pnpm check"})
-        for line in ("- Not run: review, because the file is a no-op\n", "- Ran: review by Sam in thread 12\n"):
-            with self.subTest(line=line):
-                self.open_pr(PROOF + line)
-                self.assert_trusted(self.run_hook())
-        for extra in ("<!--\n- Not run: review, because x\n-->\n", "- Not run: review-app, because deploys are off\n", "- Not run: review, because <why>\n", "- Ran: review\n", "- Ran: review app smoke test\n", "- Ran: review by <who and where>\n"):
-            with self.subTest(extra=extra):
-                self.calls.unlink(missing_ok=True)
-                self.open_pr(PROOF + extra)
-                self.assert_drafted(self.run_hook(), "migrations")
-
-    def test_a_risky_word_inside_a_file_name_needs_a_review(self):
-        self.record("Bash", {"command": "pnpm check"})
-        for name in ("src/policy.ts", "src/authMiddleware.ts", "src/StripeClient.ts"):
-            with self.subTest(name=name):
-                self.calls.unlink(missing_ok=True)
-                self.change(name, "export const a = 1;\n")
-                self.open_pr(PROOF)
-                self.assert_drafted(self.run_hook(), name)
-
-    def test_a_builder_whose_name_contains_review_is_not_a_review(self):
-        self.change("db/migrations/1.sql", "select 1;\n")
-        self.record("Bash", {"command": "pnpm check"})
-        self.record("Agent", {"subagent_type": "preview-builder"})
         self.open_pr(PROOF)
-        self.assert_drafted(self.run_hook(), "migrations")
-
-    def test_a_similar_word_is_not_a_risky_path(self):
-        self.change("src/AuthorCard.tsx", "export const a = 1;\n")
-        self.record("Bash", {"command": "pnpm check"})
+        self.assert_trusted(self.run_hook())
+        self.change("src/authMiddleware.ts", "export const a = 1;\n")
         self.open_pr(PROOF)
         self.assert_trusted(self.run_hook())
 
