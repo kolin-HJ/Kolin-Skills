@@ -471,7 +471,7 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual(self.run_cli("apply").returncode, 0)
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
         self.assertEqual(os.readlink(link), "../../.agents/skills/from-npx")
-        self.assertTrue((link / "SKILL.md").is_file())
+        self.assertEqual(link.resolve(), (self.home / ".agents/skills/from-npx").resolve())
 
     def test_check_reports_drift_without_touching_home(self):
         result = self.run_cli("apply", "--check")
