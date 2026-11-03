@@ -24,7 +24,3 @@ No marker: pass. A recorded rev may be a unique abbreviation of the full pin. Po
 It vendors pstack into `.agents/skills` at `df58112` through `scripts/sync-agent-skills.sh`, weeks behind the pin (`c742dd61`, pstack 0.15.36). `.claude/agents/senior-reviewer.md` is a 148-line "synced" copy; this repo's file is 59 lines after #64/#65/#69.
 
 Stop vendoring pstack in that repo. Point the machine at a Kolin-Skills checkout and run `kolin-skills apply` so home links the pin. Replace or delete the synced reviewer so apply can link `agents/senior-reviewer.md`. Do not do that in this PR.
-
-## Box re-apply (later PR)
-
-Own-skill links still target `/tmp/kolin-skills-main` (stale, still names `foundation` and `gap-audit`, missing `repo-standard`). Follow [`stay-on-main.md`](stay-on-main.md). Do not rewire the box in this PR.

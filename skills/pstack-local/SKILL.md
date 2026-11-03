@@ -1,6 +1,6 @@
 ---
 name: pstack-local
-description: Use whenever poteto-mode or any other pstack skill (how, why, teach, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, statechart, the principle-* skills) runs, or when the user asks to explain, how something works, or to walk through a change, in Claude Code, Codex, Grok or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
+description: Use whenever poteto-mode or any other pstack skill (how, why, teach, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, statechart, the principle-* skills) runs, or when the user asks to explain, how something works, or to walk through a change, in Claude Code, Codex, Grok Bot or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
 ---
 
 # pstack on this machine
