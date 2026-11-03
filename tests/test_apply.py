@@ -455,6 +455,24 @@ class ApplyTests(unittest.TestCase):
         self.assertTrue(herdr.is_file())
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
+    def test_a_dangling_link_to_a_folder_the_repo_does_not_manage_goes(self):
+        dangling = self.home / ".claude/skills/from-elsewhere"
+        dangling.parent.mkdir(parents=True)
+        dangling.symlink_to(self.home / "deleted-temp-home/.agents/skills/from-elsewhere")
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        self.assertFalse(dangling.is_symlink())
+
+    def test_a_declared_skill_with_a_dangling_link_is_repointed_at_its_install(self):
+        (self.repo / "upstream/skills.json").write_text(json.dumps({"someone/skills": ["from-npx"]}))
+        self.write_skill(self.home / ".agents/skills/from-npx")
+        link = self.home / ".claude/skills/from-npx"
+        link.parent.mkdir(parents=True)
+        link.symlink_to(self.home / "deleted-temp-home/.agents/skills/from-npx")
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+        self.assertEqual(os.readlink(link), "../../.agents/skills/from-npx")
+        self.assertEqual(link.resolve(), (self.home / ".agents/skills/from-npx").resolve())
+
     def test_check_reports_drift_without_touching_home(self):
         result = self.run_cli("apply", "--check")
         self.assertEqual(result.returncode, 1)

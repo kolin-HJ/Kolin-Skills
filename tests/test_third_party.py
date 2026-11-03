@@ -13,6 +13,22 @@ sys.path.insert(0, str(REPO / "bin"))
 import third_party
 
 
+class SkillInstallTests(unittest.TestCase):
+    def test_skills_install_under_home_when_the_session_has_another_claude_config_dir(self):
+        root = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        (root / "upstream").mkdir()
+        (root / "upstream/skills.json").write_text(json.dumps({"someone/skills": ["from-npx"]}))
+        seen = root / "seen-config-dir"
+        npx = root / "npx"
+        npx.write_text(f"#!/bin/sh\necho \"${{CLAUDE_CONFIG_DIR-unset}}\" > {seen}\n")
+        npx.chmod(0o755)
+        env = {"PATH": f"{root}{os.pathsep}{os.environ['PATH']}", "CLAUDE_CONFIG_DIR": "/real/config"}
+        with mock.patch.dict(os.environ, env):
+            third_party.install_skills(root, set())
+        self.assertEqual(seen.read_text().strip(), "unset")
+
+
 class PinnedCliTests(unittest.TestCase):
     def setUp(self):
         self.root = pathlib.Path(tempfile.mkdtemp())

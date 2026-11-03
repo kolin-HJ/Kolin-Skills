@@ -228,6 +228,13 @@ class QuickCheckTests(SelfInvokeCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"FAIL: ~/.claude/skills/gone links to {self.home}/nowhere, which does not exist; run kolin-skills apply", self.failures(result))
 
+    def test_apply_is_the_fix_the_quick_check_names_for_a_dangling_link(self):
+        self.apply()
+        (self.home / ".claude/skills/gone").symlink_to(self.home / "nowhere")
+        self.assertEqual(self.run_cli("check", "--quick").returncode, 1)
+        self.apply()
+        self.assertEqual(self.run_cli("check", "--quick").returncode, 0)
+
     def test_a_home_that_was_never_installed_fails_the_quick_check(self):
         result = self.run_cli("check", "--quick")
         self.assertEqual(result.returncode, 1)

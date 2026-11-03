@@ -49,11 +49,21 @@ def points_into_managed_tree(path, roots):
     return text.startswith((*(f"{root}/" for root in roots), str(VENDOR), str(DERIVED), "../../.agents/skills/"))
 
 
-def prune_stale_links(plan, directory, roots):
+def repoint_dangling_upstream_links(plan):
+    for name in sorted(declared_upstream_skills()):
+        if not (HOME / ".agents/skills" / name).exists():
+            continue
+        for home in VENDOR_SKILL_HOMES[1:]:
+            path = HOME / home / name
+            if path.is_symlink() and not path.exists():
+                plan.link(pathlib.Path(f"../../.agents/skills/{name}"), path)
+
+
+def prune_stale_links(plan, directory):
     if not directory.is_dir():
         return
     for path in sorted(directory.iterdir()):
-        if not path.is_symlink() or path in plan.owned or not points_into_managed_tree(path, roots):
+        if not path.is_symlink() or path in plan.owned:
             continue
         if not path.exists() or os.readlink(path).startswith((str(VENDOR), str(DERIVED))):
             plan.remove(path)
@@ -104,8 +114,9 @@ def apply(plan, roots):
     for agent in agents:
         plan.link(agent, HOME / ".claude/agents" / agent.name)
         plan.write(HOME / ".codex/agents" / f"{agent.stem}.toml", codex_agent_toml(agent.read_text()))
+    repoint_dangling_upstream_links(plan)
     for home in WATCHED_HOMES:
-        prune_stale_links(plan, HOME / home, roots)
+        prune_stale_links(plan, HOME / home)
     state_file = STATE_DIR / "state.json"
     generated = {str(HOME / ".codex/agents" / f"{agent.stem}.toml") for agent in agents}
     previous = set(json.loads(state_file.read_text())["generated"]) if state_file.is_file() else set()
