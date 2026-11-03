@@ -28,7 +28,12 @@ CONSUMER_POLICY_PATHS = (
 REVIEWER_ACTOR = re.compile(
     r"(?i)\b(senior-reviewer|interrogate|thermo(?:-nuclear[\w-]*)?|(?:ai\s+)?(?:code\s+)?reviewer|formal\s+verification|statechart)s?\b"
 )
-EVERY_REVIEWER_GATE = re.compile(r"(?i)\b(every|each)\s+(pr\b|pull\s+request|staging\s+merge)")
+EVERY_REVIEWER_GATE = re.compile(r"(?i)\b(every|each)\s+(?:\w+\s+){0,2}?(pr\b|pull\s+request|staging\s+merge)")
+REVIEW_RECEIPT_GATE = re.compile(
+    r"(?i)\bran:\s*(?:senior-reviewer|interrogate|thermo[\w-]*|(?:ai\s+)?(?:code\s+)?reviewer)\b"
+    r"|\bno\s+not\s+run\s+line\s+excuses?\b"
+)
+REVIEWER_WINDOW = 3
 PRE_PR_LINE_GATE = re.compile(
     r"(?i)before\s+the\s+pr\s+opens.{0,160}150\s+lines|150\s+lines.{0,160}(?:interrogate|senior-reviewer)"
 )
@@ -119,16 +124,30 @@ def recorded_pstack_revs(target):
     return found
 
 
-def policy_chunks(text):
+def policy_paragraphs(text):
     stripped = re.sub(r"`+", "", text)
     stripped = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", stripped)
-    chunks = []
+    paragraphs = []
     for para in re.split(r"\n\s*\n", stripped):
+        chunks = []
         for item in re.split(r"(?:\n\s*[-*]\s+|(?<=[.!?])\s+)", para):
             chunk = re.sub(r"\s+", " ", item).strip(" -*")
             if chunk:
                 chunks.append(chunk)
-    return chunks
+        if chunks:
+            paragraphs.append(chunks)
+    return paragraphs
+
+
+def requires_reviewer_everywhere(chunks):
+    for index, chunk in enumerate(chunks):
+        window = " ".join(chunks[max(0, index - REVIEWER_WINDOW + 1):index + 1])
+        if ASK_ONLY_REVIEW.search(window) or not REVIEWER_ACTOR.search(window):
+            continue
+        if (EVERY_REVIEWER_GATE.search(chunk) or REVIEW_RECEIPT_GATE.search(chunk)
+                or PRE_PR_LINE_GATE.search(chunk)):
+            return True
+    return False
 
 
 def reviewer_gate_problems(target):
@@ -137,16 +156,12 @@ def reviewer_gate_problems(target):
         path = target / relative
         if not path.is_file():
             continue
-        for chunk in policy_chunks(path.read_text()):
-            if ASK_ONLY_REVIEW.search(chunk) or not REVIEWER_ACTOR.search(chunk):
-                continue
-            if EVERY_REVIEWER_GATE.search(chunk) or PRE_PR_LINE_GATE.search(chunk):
-                problems.append(
-                    f"{relative} still requires a separate reviewer on every PR or every staging merge; "
-                    "same-session proof is the quality gate (Kolin-Skills #90). "
-                    "Replace it with high-risk or ask-only language, as in Kolin-Skills policy/AGENTS.md"
-                )
-                break
+        if any(requires_reviewer_everywhere(chunks) for chunks in policy_paragraphs(path.read_text())):
+            problems.append(
+                f"{relative} still requires a separate reviewer on every PR or every staging merge; "
+                "same-session proof is the quality gate (Kolin-Skills #90). "
+                "Replace it with high-risk or ask-only language, as in Kolin-Skills policy/AGENTS.md"
+            )
     return problems
 
 

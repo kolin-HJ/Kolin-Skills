@@ -40,6 +40,7 @@ src/
 ## Guardrails
 
 - A new rule (policy, Adding rules) becomes a lint rule, test or check where it can. A ratchet starts at today's count and goes to zero. The rule message names the fix.
+- **Ratchet counts.** One baseline file counts `any`, `@ts-ignore` / `@ts-expect-error`, `eslint-disable` without a `-- <reason>`, and files over 1,000 lines. CI compares the PR's counts to the base branch's and fails on a rise, so a count only falls. `check-baseline-ratchet.mjs` in hj-supply-chain is the exemplar to copy.
 - Every gate names the bug it prevents. Gate tooling stays under about a quarter of the app's lines.
 - Metric gates report and never block an edit, commit or push, because agents pass a blocking metric by cutting code into fragments. Metric gates are cyclomatic and cognitive complexity, CRAP, mutation score, `max-depth`, `max-lines-per-function`, `max-statements`, `max-params` and `max-nested-callbacks`. The one blocking size rule is the policy's 1,000-line limit, at pre-commit or pre-push. Turning off a blocking metric gate is its own PR with Kolin's yes.
 - Strict TypeScript and a type-aware linter (oxlint, oxfmt) where the repo uses TS.
@@ -63,12 +64,12 @@ Read only. Measure, do not guess, and record each row's command and count.
 |---|---|
 | Instruction file | One root `AGENTS.md`, under about 200 lines; no `CLAUDE.md` copy |
 | Gates | Formatter, type-aware linter, strict type check, dead-code check, tests, and one gate command. Local hooks (pre-commit, pre-push, `verify` evidence) if there is no CI. With CI, each job's command also runs in the local gate; a check only CI runs is a gap (a CI-only `bundle-budget` let a red build reach `staging` twice in one release) |
-| Ratchets | A baseline file with target 0 per rule; counts per rule today |
+| Ratchets | A baseline file with target 0 per rule; counts per rule today: `any`, `@ts-ignore` / `@ts-expect-error`, `eslint-disable` without `-- <reason>`, files over 1,000 lines. Missing: CI does not compare those counts to the base branch (exemplar: hj-supply-chain `check-baseline-ratchet.mjs`) |
 | Typing | `any`, casts, non-null assertions, untyped JS files |
 | Layout | Feature-first or layer-first (Layout above); per feature, the folders it spans, its file and line count against the budget; files under 40 lines with one importer, except a single library wrapper (Componentized); gate tooling lines as a share of app lines. Run one feature read and report its trace |
 | Shape | Files over the line limit, long functions, deep nesting, duplicates (jscpd), single-caller helpers, functions with a CRAP score of 10 or more (complexity joined with coverage, `unclebob/crapper`; a flat `switch` or lookup table is exempt; without the tool, mark it missing and propose it). Complexity and CRAP are report-only; a blocking metric gate is itself a gap |
 | Errors | Swallowed errors, try/catch around own code, retries outside one owner |
-| Tests | A test for each behavior a caller relies on (policy, Done), not one per entry point; tests of a constant, config, prose or file existence to delete; recorded contract fixtures for external APIs; slow or sleeping tests; surviving mutants in tested code (Stryker for TypeScript), reported, not ratcheted; without the tool, mark it missing and propose it |
+| Tests | A test for each behavior a caller relies on (policy, Done), not one per entry point; tests of a constant, config, prose or file existence to delete; recorded contract fixtures for external APIs; slow or sleeping tests; surviving mutants in tested code (Stryker for TypeScript), reported, not ratcheted; without the tool, mark it missing and propose it. For hj-plm and hj-supply-chain, propose changed-file Stryker (or the repo's equivalent) as a report-only `Ran:` line in the PR body; never a blocking score |
 | Boundaries | Import rules, one home per concept, parked or out-of-scope code |
 | Guardrails | Agent hooks that block gate skips and protected pushes; secrets out of the tree; on GitHub, `delete_branch_on_merge` on (a stacked PR merged into its already-merged base is lost) and the CI jobs required on the integration branch |
 | Approval text | Repo instruction text (`AGENTS.md`, repo skills) that requires an ask before a reversible step on a work branch (commit, push, opening a PR) conflicts with the global policy's Approvals. Flag it with `file:line` and rewrite it to match. |

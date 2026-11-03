@@ -138,6 +138,56 @@ class CheckDriftTests(unittest.TestCase):
         matched = self.run_cli("check-drift", str(self.root))
         self.assertEqual(matched.returncode, 0, matched.stderr)
 
+    def assert_policy_fails_then_passes(self, relative, mandate, fixed):
+        self.write(relative, mandate)
+        stale = self.run_cli("check-drift", str(self.root))
+        self.assertEqual(stale.returncode, 1, f"{mandate!r} passed: {stale.stdout}")
+        self.assertIn(relative, stale.stderr)
+        self.write(relative, fixed)
+        matched = self.run_cli("check-drift", str(self.root))
+        self.assertEqual(matched.returncode, 0, matched.stderr)
+
+    def test_every_agent_pr_reviewer_pass_fails_then_passes(self):
+        self.assert_policy_fails_then_passes(
+            "AGENTS.md",
+            "- Final diff reviewed for unrelated edits. Every agent PR gets a cheap `plm-reviewer` "
+            "pass in a fresh context before human review; add pstack's `interrogate` for mutation, "
+            "access, schema, or promotion diffs. The implementer does not grade itself.\n",
+            "- Final diff reviewed for unrelated edits. `plm-reviewer` reads a diff only on high-risk "
+            "work (mutation, access, schema, promotion) or when Kolin or the CEO asks.\n",
+        )
+
+    def test_reviewer_mandate_split_across_sentences_fails_then_passes(self):
+        sentences = {
+            "each PR in a sentence after the reviewer is named":
+                "`senior-reviewer` is the diff reviewer. It reads each PR before the PR merges into `staging`.",
+            "required Ran line for a reviewer":
+                "The PR body must carry `Ran: senior-reviewer` and `Ran: interrogate`.",
+            "no Not run line excuses the review":
+                "`senior-reviewer` and `interrogate` review the diff. No `Not run` line excuses either review.",
+        }
+        for name, mandate in sentences.items():
+            with self.subTest(name):
+                self.assert_policy_fails_then_passes(
+                    "AGENTS.md", mandate,
+                    "`senior-reviewer` and `interrogate` run only on high-risk work (auth, money, data "
+                    "deletion) or when Kolin asks. Same-session proof is the gate.\n",
+                )
+
+    def test_ask_only_reviewer_wording_across_sentences_passes(self):
+        passing = (
+            "`senior-reviewer` runs only on high-risk work. Each PR proves its behavior in the same session.\n",
+            "`plm-reviewer` owns the cheap-review procedure. pstack's `interrogate` is the adversarial "
+            "pass for high-risk diffs. Thermo review is ask-only.\n",
+            "Each PR body lists `Ran: pnpm check` or `Not run: <check>, because <why>`.\n",
+            "A reviewer reads the diff on demand. Every PR still carries same-session proof.\n",
+        )
+        for text in passing:
+            with self.subTest(text=text):
+                self.write("AGENTS.md", text)
+                result = self.run_cli("check-drift", str(self.root))
+                self.assertEqual(result.returncode, 0, result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

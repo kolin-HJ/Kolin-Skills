@@ -100,6 +100,12 @@ def audit(files, base, head):
             lost_asserts = sum(bool(ASSERTION.search(l)) for l in change["removed"]) - sum(bool(ASSERTION.search(l)) for _, l in change["added"])
             if change["deleted"] or lost_tests > 0 or lost_asserts > 0:
                 blocks.append(("test-removed", f"{path} lost {max(lost_tests, 0)} tests and {max(lost_asserts, 0)} assertions"))
+            elif not change["new"]:
+                kept = {l.strip() for _, l in change["added"]}
+                edited = [l.strip() for l in change["removed"] if ASSERTION.search(l) and l.strip() not in kept]
+                if edited:
+                    blocks.append(("test-edited", f"{path} changes {len(edited)} existing assertions in place, first: {edited[0][:80]}: "
+                                                  "a test that bends to the code stops guarding it; fix the code, or say why the expectation changed"))
         grown = sum(len(l) for _, l in change["added"]) - sum(len(l) for l in change["removed"])
         if ALWAYS_LOADED.search(path) and grown > INSTRUCTION_ALLOWANCE:
             blocks.append(("instructions-grew", f"{path} grows by {grown} characters and loads into every session: "

@@ -47,8 +47,9 @@ class DiffAuditTests(unittest.TestCase):
             "skip": ("src/price.test.ts", "it.skip('doubles', () => {\n  expect(price(2)).toBe(4);\n});\n"
                      "it('zero', () => {\n  expect(price(0)).toBe(0);\n});\n"),
             "test-removed": ("src/price.test.ts", "it('doubles', () => {\n  expect(price(2)).toBe(4);\n});\n"),
-            "weak-assert": ("src/price.test.ts", "it('doubles', () => {\n  expect(price(2)).toBeTruthy();\n});\n"
-                            "it('zero', () => {\n  expect(price(0)).toBe(0);\n});\n"),
+            "weak-assert": ("src/price.test.ts", "it('doubles', () => {\n  expect(price(2)).toBe(4);\n});\n"
+                            "it('zero', () => {\n  expect(price(0)).toBe(0);\n});\n"
+                            "it('one', () => {\n  expect(price(1)).toBeTruthy();\n});\n"),
             "doc-read": ("src/price.test.ts", "it('doubles', () => {\n  expect(price(2)).toBe(4);\n});\n"
                          "it('zero', () => {\n  expect(price(0)).toBe(0);\n});\n"
                          "it('docs', () => {\n  expect(readFileSync('AGENTS.md', 'utf8')).toContain('x');\n});\n"),
@@ -69,6 +70,26 @@ class DiffAuditTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 1, result.stdout)
                 self.assertIn(f"block {kind}: {relative}", result.stdout)
                 self.assertEqual(self.audit("--allow", kind).returncode, 0)
+
+    def test_changing_an_existing_assertion_in_place_blocks_until_the_pr_body_allows_it(self):
+        self.write("src/price.test.ts", "it('doubles', () => {\n  expect(price(2)).toBe(5);\n});\n"
+                   "it('zero', () => {\n  expect(price(0)).toBe(0);\n});\n")
+        result = self.audit()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("block test-edited: src/price.test.ts", result.stdout)
+        self.assertNotIn("test-removed", result.stdout)
+        allowed = self.audit("--allow", "test-edited")
+        self.assertEqual(allowed.returncode, 0, allowed.stdout)
+        self.assertIn("allowed test-edited", allowed.stdout)
+
+    def test_assertions_added_moved_or_in_a_new_test_file_do_not_count_as_edited(self):
+        self.write("src/price.test.ts", "it('zero', () => {\n  expect(price(0)).toBe(0);\n});\n"
+                   "it('doubles', () => {\n  expect(price(2)).toBe(4);\n});\n"
+                   "it('triples', () => {\n  expect(price(3)).toBe(6);\n});\n")
+        self.write("src/tax.test.ts", "it('taxes', () => {\n  expect(tax(10)).toBe(1);\n});\n")
+        result = self.audit()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertNotIn("test-edited", result.stdout)
 
     def test_a_small_instruction_edit_passes(self):
         self.write("policy/AGENTS.md", "Ask before you deploy.\n")
