@@ -10,12 +10,12 @@
   body { background: var(--muted); font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: var(--foreground); width: 1200px; -webkit-font-smoothing: antialiased; }
   .wrap { padding: 40px; display: grid; gap: 24px; }
 
-  header { background: var(--sidebar); color: var(--sidebar-foreground); border-radius: var(--radius-md); padding: 48px 48px 44px; border-bottom: 4px solid var(--marker); }
-  .wordmark { font-family: Georgia, serif; font-size: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--sidebar-foreground); opacity: .75; }
-  h1 { font-family: Georgia, serif; font-size: 44px; line-height: 1.1; font-weight: 400; margin-top: 18px; color: var(--sidebar-foreground); }
-  h1 .when { display: block; font-size: 96px; line-height: 1; font-weight: 700; letter-spacing: -.01em; margin-top: 10px; color: var(--sidebar-accent-foreground); }
-  .sub { display: flex; align-items: center; gap: 12px; margin-top: 24px; font-size: 22px; font-weight: 500; color: var(--sidebar-foreground); }
-  .sub::before { content: ""; width: 24px; height: 3px; border-radius: 2px; background: var(--marker); }
+  header { background: var(--sidebar); color: var(--sidebar-foreground); border-radius: var(--radius-md); padding: 22px 32px; border-bottom: 3px solid var(--marker); display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+  .wordmark { font-family: Georgia, serif; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--sidebar-foreground); opacity: .75; }
+  h1 { font-family: Georgia, serif; font-size: 26px; line-height: 1.2; font-weight: 400; margin-top: 6px; color: var(--sidebar-foreground); white-space: nowrap; }
+  h1 .when { font-size: 34px; font-weight: 700; color: var(--sidebar-accent-foreground); }
+  .sub { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 500; color: var(--sidebar-foreground); white-space: nowrap; }
+  .sub::before { content: ""; width: 20px; height: 3px; border-radius: 2px; background: var(--marker); }
 
   .card { background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-surface); padding: 32px; }
   .eyebrow { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); }
@@ -85,8 +85,10 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="wordmark">HydroJug</div>
-    <h1>What's new in App name,<span class="when">Month D</span></h1>
+    <div>
+      <div class="wordmark">HydroJug</div>
+      <h1>What's new in App name, <span class="when">Month D</span></h1>
+    </div>
     <div class="sub">4 new updates for users</div>
   </header>
 
