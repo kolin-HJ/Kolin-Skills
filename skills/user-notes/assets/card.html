@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>What's new</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --card: #ffffff;
+    --ink: #0d1726;
+    --body: #3a4658;
+    --muted: #7a8596;
+    --line: #e2e7ef;
+    --blue: #1663ff;
+    --blue-soft: #e8f0ff;
+    --navy: #0a1f44;
+    --green: #12a150;
+    --green-soft: #e3f6eb;
+    --red: #d64545;
+    --red-soft: #fdecec;
+    --amber: #c27a0e;
+    --amber-soft: #fdf3e2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: Inter, -apple-system, sans-serif; color: var(--ink); width: 1200px; }
+  .wrap { padding: 44px; display: grid; gap: 20px; }
+
+  header {
+    background: var(--navy); color: #fff; border-radius: 24px; padding: 38px 44px;
+    display: flex; justify-content: space-between; align-items: center;
+    background-image: radial-gradient(circle at 92% 20%, rgba(22,99,255,.55), transparent 45%);
+  }
+  .eyebrow { font-size: 14px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #8fb3ff; }
+  h1 { font-size: 48px; font-weight: 800; letter-spacing: -.025em; margin-top: 6px; }
+  .count { text-align: right; }
+  .count .n { font-size: 56px; font-weight: 800; line-height: 1; }
+  .count .l { font-size: 15px; color: #b8c6e0; margin-top: 4px; }
+
+  .card { background: var(--card); border-radius: 22px; padding: 32px; border: 1px solid var(--line); }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--blue); background: var(--blue-soft); padding: 6px 10px; border-radius: 8px; }
+  h2 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin: 14px 0 8px; line-height: 1.15; }
+  h3 { font-size: 23px; font-weight: 800; letter-spacing: -.015em; margin: 12px 0 6px; line-height: 1.2; }
+  p { font-size: 17px; line-height: 1.5; color: var(--body); }
+  b { color: var(--ink); font-weight: 650; }
+
+  .hero { display: grid; grid-template-columns: 380px 1fr; gap: 36px; align-items: center; }
+  .facts { display: grid; gap: 10px; margin-top: 18px; }
+  .fact { display: flex; gap: 10px; font-size: 16px; color: var(--body); line-height: 1.45; }
+  .fact::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--blue); margin-top: 9px; }
+
+  .tl { background: #f7f9fc; border: 1px solid var(--line); border-radius: 16px; padding: 26px 26px 20px; }
+  .tl-label { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 14px; }
+  .lane { position: relative; height: 210px; }
+  .months { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(6, 1fr); border-top: 2px solid #cfd6e2; }
+  .months span { font-size: 13px; font-weight: 600; color: var(--muted); padding-top: 8px; text-align: center; }
+  .past { position: absolute; top: 0; bottom: 28px; left: 66.66%; right: 0; border-radius: 0 10px 10px 0;
+    background: repeating-linear-gradient(-45deg, #eef1f6, #eef1f6 8px, #e4e8ef 8px, #e4e8ef 16px); }
+  .end { position: absolute; top: 0; bottom: 28px; left: 66.66%; width: 3px; background: var(--ink); }
+  .end-pill { position: absolute; top: -4px; left: calc(66.66% + 10px); font-size: 12px; font-weight: 700; color: #fff; background: var(--ink); padding: 5px 9px; border-radius: 6px; }
+  .bar { position: absolute; height: 42px; border-radius: 10px; display: flex; align-items: center; padding: 0 14px; font-size: 14px; font-weight: 700; gap: 8px; white-space: nowrap; }
+  .ok { left: 4%; width: 54%; top: 52px; background: var(--green-soft); color: var(--green); border: 2px solid #9fdcb7; }
+  .no { left: 30%; width: 64%; top: 118px; background: var(--red-soft); color: var(--red); border: 2px dashed #f0a3a3; }
+  .bar .dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex: none; }
+  .bar .x { margin-left: auto; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+  .mock { margin-top: 20px; background: #f7f9fc; border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .row { display: grid; grid-template-columns: 1.1fr 1fr 1.5fr; gap: 10px; align-items: center; padding: 9px 4px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .row:last-child { border-bottom: 0; }
+  .row.h { white-space: nowrap; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .row.h .new { color: var(--blue); }
+  .sk { height: 9px; border-radius: 5px; background: #d9dfe8; }
+  .chips { display: flex; gap: 6px; }
+  .chip { height: 20px; border-radius: 999px; background: var(--blue-soft); border: 1px solid #c3d6ff; }
+
+  .field { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 7px; }
+  .status { display: inline-block; font-size: 12px; font-weight: 700; color: var(--amber); background: var(--amber-soft); padding: 5px 9px; border-radius: 6px; margin-bottom: 14px; }
+  .select { background: #fff; border: 2px solid var(--blue); border-radius: 10px; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; box-shadow: 0 0 0 4px rgba(22,99,255,.12); }
+  .menu { margin-top: 6px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px; box-shadow: 0 8px 20px rgba(13,23,38,.08); }
+  .opt { padding: 9px 10px; border-radius: 7px; }
+  .opt.on { background: var(--blue-soft); }
+
+  .todo { display: flex; align-items: center; gap: 10px; padding: 9px 6px; border-bottom: 1px solid var(--line); }
+  .todo:last-of-type { border-bottom: 0; }
+  .cb { width: 18px; height: 18px; border-radius: 5px; border: 2px solid #c4ccd8; flex: none; display: grid; place-items: center; }
+  .cb.on { background: var(--blue); border-color: var(--blue); }
+  .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn { font-size: 13px; font-weight: 700; padding: 9px 13px; border-radius: 9px; }
+  .btn.p { background: var(--blue); color: #fff; }
+  .btn.s { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+
+  .tip { margin-top: 14px; font-size: 14px; color: var(--muted); line-height: 1.45; }
+  .tip b { color: var(--body); }
+
+  footer { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 16px; border-radius: 16px; background: var(--blue-soft); color: var(--navy); font-size: 17px; font-weight: 600; }
+  footer svg { flex: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">What's new · Mon D</div>
+      <h1>App name</h1>
+    </div>
+    <div class="count"><div class="n">4</div><div class="l">updates for users</div></div>
+  </header>
+
+  <section class="card hero">
+    <div>
+      <span class="tag">Page · Page</span>
+      <h2>The biggest change, as a short headline</h2>
+      <p>One sentence on what the user sees now, with the <b>key term</b> in bold.</p>
+      <div class="facts">
+        <div class="fact"><span>A second detail of the same change.</span></div>
+        <div class="fact"><span>A third detail, with the <b>button name</b> in bold.</span></div>
+      </div>
+    </div>
+    <div class="tl">
+      <div class="tl-label">How the rule works</div>
+      <div class="lane">
+        <div class="past"></div>
+        <div class="end"></div>
+        <div class="end-pill">Cutoff</div>
+        <div class="bar ok"><span class="dot"></span>Before the cutoff<span class="x">Allowed</span></div>
+        <div class="bar no"><span class="dot"></span>After the cutoff<span class="x">Blocked</span></div>
+        <div class="months"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid3">
+    <section class="card">
+      <span class="tag">Page</span>
+      <h3>A new column</h3>
+      <p>One sentence on what the user can do now.</p>
+      <div class="mock">
+        <div class="row h"><span>Item</span><span>Existing</span><span class="new">New column</span></div>
+        <div class="row"><div class="sk" style="width:80%"></div><div class="sk" style="width:60%"></div><div class="chips"><div class="chip" style="width:46px"></div><div class="chip" style="width:34px"></div></div></div>
+        <div class="row"><div class="sk" style="width:65%"></div><div class="sk" style="width:40%"></div><div class="chips"><div class="chip" style="width:52px"></div></div></div>
+        <div class="row"><div class="sk" style="width:75%"></div><div class="sk" style="width:55%"></div><div class="chips"><div class="chip" style="width:30px"></div><div class="chip" style="width:42px"></div><div class="chip" style="width:24px"></div></div></div>
+      </div>
+      <p class="tip">Where else it shows. Not there? Add it from <b>Columns</b>.</p>
+    </section>
+
+    <section class="card">
+      <span class="tag">Page</span>
+      <h3>A new dropdown</h3>
+      <p>One sentence on when the user can use it.</p>
+      <div class="mock">
+        <div class="status">Status</div>
+        <div class="field">Field name</div>
+        <div class="select"><div class="sk" style="width:120px;background:#9aa6b8"></div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1663ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
+        <div class="menu">
+          <div class="opt"><div class="sk" style="width:70%"></div></div>
+          <div class="opt on"><div class="sk" style="width:55%;background:#a9c3ff"></div></div>
+          <div class="opt"><div class="sk" style="width:80%"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <span class="tag">Page</span>
+      <h3>A bulk action</h3>
+      <p>One sentence on what the user can do with several rows at once.</p>
+      <div class="mock">
+        <div class="todo"><div class="cb on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div class="sk" style="width:75%"></div></div>
+        <div class="todo"><div class="cb on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div class="sk" style="width:60%"></div></div>
+        <div class="todo"><div class="cb"></div><div class="sk" style="width:50%"></div></div>
+        <div class="actions"><span class="btn p">Primary</span><span class="btn s">Secondary</span></div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1663ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+    Reload your tab to get the update.
+  </footer>
+</div>
+</body>
+</html>

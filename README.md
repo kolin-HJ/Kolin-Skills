@@ -181,7 +181,7 @@ Each skill starts in one of two ways:
 | Skill | Starts | Say | What it does |
 |---|---|---|---|
 | `local-supabase` | 💬 | "Start a local database" | Runs a local Supabase or Postgres per checkout, never in Docker |
-| `user-notes` | 💬 | "Write release notes for PR 42" | Writes short release notes for the people who use the app |
+| `user-notes` | 💬 | "Write release notes for PR 42" | Writes short release notes, and a PNG image of them, for the people who use the app |
 | `explainer` | 💬 | "Explain this PR visually" | Builds a one-page HTML explainer. Only when you ask or say yes to the offer |
 
 **Subagents.** The main agent spawns these. You do not call them.
