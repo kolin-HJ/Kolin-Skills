@@ -52,7 +52,7 @@ gh api -H 'Accept: application/vnd.github.raw' 'repos/HydroJug/hj-ui/contents/pa
 ```
 
    If the fetch fails, stop and tell Kolin. Never render without the tokens.
-3. Fill the header: `<App>`, `<Mon D>` and the number of changes. Use "users" or the role the repo names, such as "planners".
+3. Fill the header. The title is "What's new in `<App>`," with the full date, such as "November 4", as the big second line. The line under it gives the count and the readers: "4 new updates for planners". Use "users" when the repo names no role.
 4. Make the biggest change the wide hero card. Give it a headline of 8 words or fewer, one sentence, and up to three short facts. Replace the cutoff timeline with a small drawing of that change, or keep it if the change is a cutoff or date rule.
 5. Give each other page one card, in a row of two or three (`grid2` or `grid3`). Each card has a tag (the page name), a headline of 5 words or fewer, one sentence, and a small mock of the screen part that changed: the column, dropdown, checklist, button or chip from the template, or a new one drawn the same way.
 6. Draw a mock with grey skeleton bars (`.sk`), never with real item, customer or supplier names. Text in a mock is only a button, column or field label you read in the code, so the image cannot show a label the app does not have.
