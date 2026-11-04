@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>What's new</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="hj-tokens.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--muted); font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: var(--foreground); width: 1200px; -webkit-font-smoothing: antialiased; }
+  .wrap { padding: 40px; display: grid; gap: 24px; }
+
+  header { background: var(--sidebar); color: var(--sidebar-foreground); border-radius: var(--radius-md); padding: 22px 32px; border-bottom: 3px solid var(--marker); display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+  .wordmark { font-family: Georgia, serif; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--sidebar-foreground); opacity: .75; }
+  h1 { font-family: Georgia, serif; font-size: 26px; line-height: 1.2; font-weight: 400; margin-top: 6px; color: var(--sidebar-foreground); white-space: nowrap; }
+  h1 .when { font-size: 34px; font-weight: 700; color: var(--sidebar-accent-foreground); }
+  .sub { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 500; color: var(--sidebar-foreground); white-space: nowrap; }
+  .sub::before { content: ""; width: 20px; height: 3px; border-radius: 2px; background: var(--marker); }
+
+  .card { background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-surface); padding: 32px; }
+  .eyebrow { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); }
+  .eyebrow::before { content: ""; width: 16px; height: 3px; border-radius: 2px; background: var(--marker); }
+  h2 { font-family: Georgia, serif; font-size: 34px; line-height: 1.15; font-weight: 700; margin: 14px 0 10px; }
+  h3 { font-family: Georgia, serif; font-size: 26px; line-height: 1.2; font-weight: 700; margin: 12px 0 8px; }
+  p { font-size: 18px; line-height: 1.5; color: var(--muted-foreground); }
+  b { color: var(--foreground); font-weight: 600; }
+
+  .hero { display: grid; grid-template-columns: 400px 1fr; gap: 40px; align-items: center; }
+  .facts { display: grid; gap: 12px; margin-top: 20px; }
+  .fact { display: flex; gap: 12px; font-size: 17px; color: var(--muted-foreground); line-height: 1.45; }
+  .fact::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 2px; background: var(--primary); margin-top: 10px; }
+
+  .panel { background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 24px; }
+  .panel-label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); margin-bottom: 16px; }
+
+  .lane { position: relative; height: 210px; }
+  .months { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid var(--input); }
+  .months span { font-size: 13px; font-weight: 500; color: var(--muted-foreground); padding-top: 8px; text-align: center; }
+  .past { position: absolute; top: 0; bottom: 28px; left: 66.66%; right: 0; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+    background: color-mix(in srgb, var(--neutral) 10%, transparent); }
+  .end { position: absolute; top: 0; bottom: 28px; left: 66.66%; width: 2px; background: var(--primary); }
+  .end-pill { position: absolute; top: -2px; left: calc(66.66% + 10px); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--primary-foreground); background: var(--primary); padding: 5px 8px; border-radius: var(--radius-xs); }
+  .bar { position: absolute; height: 44px; border-radius: var(--radius-sm); display: flex; align-items: center; padding: 0 14px; font-size: 15px; font-weight: 600; gap: 10px; white-space: nowrap; border: 1px solid; }
+  .bar .dot { width: 8px; height: 8px; border-radius: 2px; background: currentColor; flex: none; }
+  .bar .x { margin-left: auto; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  .ok { left: 4%; width: 56%; top: 50px; color: var(--success-foreground); background: color-mix(in srgb, var(--success) var(--tint-fill), var(--card)); border-color: color-mix(in srgb, var(--success) var(--tint-line), var(--card)); }
+  .no { left: 30%; width: 64%; top: 118px; color: var(--destructive-foreground); background: color-mix(in srgb, var(--destructive) var(--tint-fill), var(--card)); border-color: color-mix(in srgb, var(--destructive) var(--tint-line), var(--card)); border-style: dashed; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+  .mock { margin-top: 24px; background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; }
+
+  .table { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xs); overflow: hidden; }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: 0; }
+  .row:nth-child(odd):not(.h) { background: var(--muted); }
+  .row.h { white-space: nowrap; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+  .row.h .new { color: var(--foreground); box-shadow: inset 0 -2px 0 var(--marker); padding-bottom: 2px; justify-self: start; }
+  .sk { height: 8px; border-radius: 2px; background: color-mix(in srgb, var(--neutral) 22%, var(--card)); }
+  .chips { display: flex; gap: 6px; }
+  .chip { height: 20px; border-radius: var(--radius-xs); background: color-mix(in srgb, var(--info) var(--tint-fill), var(--card)); border: 1px solid color-mix(in srgb, var(--info) var(--tint-line), var(--card)); }
+
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 4px 8px; border-radius: var(--radius-xs); margin-bottom: 16px; color: var(--warning-foreground); background: color-mix(in srgb, var(--warning) var(--tint-fill), var(--card)); border: 1px solid color-mix(in srgb, var(--warning) var(--tint-line), var(--card)); }
+  .field { font-size: 13px; font-weight: 500; line-height: 18px; color: var(--foreground); margin-bottom: 6px; }
+  .select { background: var(--card); border: 1px solid var(--ring); border-radius: var(--radius-sm); height: 40px; padding: 0 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 0 0 var(--focus-halo-width) color-mix(in srgb, var(--ring) var(--focus-halo-mix), transparent); }
+  .menu { margin-top: 8px; background: var(--popover); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px; box-shadow: var(--shadow-overlay); }
+  .opt { padding: 10px; border-radius: var(--radius-xs); }
+  .opt.on { background: var(--accent); }
+
+  .list { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xs); }
+  .todo { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-bottom: 1px solid var(--border); }
+  .todo:last-child { border-bottom: 0; }
+  .cb { width: 16px; height: 16px; border-radius: var(--radius-xs); border: 1px solid var(--input); flex: none; display: grid; place-items: center; background: var(--card); }
+  .cb.on { background: var(--primary); border-color: var(--primary); }
+  .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn { font-size: 14px; font-weight: 600; line-height: 20px; height: 36px; padding: 0 14px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; }
+  .btn.p { background: var(--primary); color: var(--primary-foreground); }
+  .btn.s { background: var(--card); border: 1px solid var(--secondary-foreground); color: var(--secondary-foreground); }
+
+  .tip { margin-top: 16px; font-size: 15px; color: var(--muted-foreground); line-height: 1.45; }
+
+  footer { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 16px; border-radius: var(--radius-md); background: var(--card); border: 1px solid var(--border); color: var(--foreground); font-size: 16px; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="wordmark">HydroJug</div>
+      <h1>What's new in App name, <span class="when">Month D</span></h1>
+    </div>
+    <div class="sub">4 new updates for users</div>
+  </header>
+
+  <section class="card hero">
+    <div>
+      <div class="eyebrow">Page · Page</div>
+      <h2>The biggest change, as a short headline</h2>
+      <p>One sentence on what the user sees now, with the <b>key term</b> in bold.</p>
+      <div class="facts">
+        <div class="fact"><span>A second detail of the same change.</span></div>
+        <div class="fact"><span>A third detail, with the <b>button name</b> in bold.</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">How the rule works</div>
+      <div class="lane">
+        <div class="past"></div>
+        <div class="end"></div>
+        <div class="end-pill">Cutoff</div>
+        <div class="bar ok"><span class="dot"></span>Before the cutoff<span class="x">Allowed</span></div>
+        <div class="bar no"><span class="dot"></span>After the cutoff<span class="x">Blocked</span></div>
+        <div class="months"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid3">
+    <section class="card">
+      <div class="eyebrow">Page</div>
+      <h3>A new column</h3>
+      <p>One sentence on what the user can do now.</p>
+      <div class="mock">
+        <div class="table">
+          <div class="row h"><span>Item</span><span>Existing</span><span class="new">New column</span></div>
+          <div class="row"><div class="sk" style="width:80%"></div><div class="sk" style="width:60%"></div><div class="chips"><div class="chip" style="width:46px"></div><div class="chip" style="width:34px"></div></div></div>
+          <div class="row"><div class="sk" style="width:65%"></div><div class="sk" style="width:40%"></div><div class="chips"><div class="chip" style="width:52px"></div></div></div>
+          <div class="row"><div class="sk" style="width:75%"></div><div class="sk" style="width:55%"></div><div class="chips"><div class="chip" style="width:30px"></div><div class="chip" style="width:42px"></div></div></div>
+        </div>
+      </div>
+      <p class="tip">Where else it shows. Not there? Add it from <b>Columns</b>.</p>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Page</div>
+      <h3>A new dropdown</h3>
+      <p>One sentence on when the user can use it.</p>
+      <div class="mock">
+        <span class="badge">Status</span>
+        <div class="field">Field name</div>
+        <div class="select"><div class="sk" style="width:120px"></div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
+        <div class="menu">
+          <div class="opt"><div class="sk" style="width:70%"></div></div>
+          <div class="opt on"><div class="sk" style="width:55%"></div></div>
+          <div class="opt"><div class="sk" style="width:80%"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Page</div>
+      <h3>A bulk action</h3>
+      <p>One sentence on what the user can do with several rows at once.</p>
+      <div class="mock">
+        <div class="list">
+          <div class="todo"><div class="cb on"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--primary-foreground)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div class="sk" style="width:75%"></div></div>
+          <div class="todo"><div class="cb on"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--primary-foreground)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div class="sk" style="width:60%"></div></div>
+          <div class="todo"><div class="cb"></div><div class="sk" style="width:50%"></div></div>
+        </div>
+        <div class="actions"><span class="btn p">Primary</span><span class="btn s">Secondary</span></div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+    Reload your tab to get the update.
+  </footer>
+</div>
+</body>
+</html>

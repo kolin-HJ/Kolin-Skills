@@ -1,6 +1,6 @@
 ---
 name: user-notes
-description: "Write short release notes for the people who use the app, from a merged release PR. Use when Kolin says \"user notes\", \"release notes\", \"what's new\" or \"changelog\" for a release or a PR. Not for a PR body or its Scope table."
+description: "Write short release notes and a matching PNG image, styled with the hj-ui design system, for the people who use the app, from a merged release PR. Use when Kolin says \"user notes\", \"release notes\", \"what's new\" or \"changelog\" for a release or a PR. Not for a PR body or its Scope table."
 ---
 # User notes
 
@@ -39,6 +39,36 @@ _Reload the tab to get the update._
 - A date the user waits for gets the date: "The first one is Oct 25."
 - No intro, no outro, no "we're excited".
 - Never make up a change the PR does not state.
+
+## Make the image
+
+Kolin posts a PNG of the notes with the title line as the message text, because people look at a picture and skip a list. Make the image from the same changes as the text, after the text is right.
+
+1. Copy `assets/card.html` from this skill's folder into the session's scratch folder as `notes.html`. Never edit the asset.
+2. Put the hj-ui brand tokens beside it, from the published branch, so the colors, radii and shadows come from the design system and never from a copy:
+
+```bash
+gh api -H 'Accept: application/vnd.github.raw' 'repos/HydroJug/hj-ui/contents/packages/ui/src/styles/tokens.css?ref=main' > "<scratch>/hj-tokens.css"
+```
+
+   If the fetch fails, stop and tell Kolin. Never render without the tokens.
+3. Fill the header, one short row so the updates get the space: "What's new in `<App>`," then the full date in bold, such as "November 4". On the right, the count and the readers: "4 new updates for planners". Use "users" when the repo names no role.
+4. Make the biggest change the wide hero card. Give it a headline of 8 words or fewer, one sentence, and up to three short facts. Replace the cutoff timeline with a small drawing of that change, or keep it if the change is a cutoff or date rule.
+5. Give each other page one card, in a row of two or three (`grid2` or `grid3`). Each card has a tag (the page name), a headline of 5 words or fewer, one sentence, and a small mock of the screen part that changed: the column, dropdown, checklist, button or chip from the template, or a new one drawn the same way.
+6. Draw a mock with grey skeleton bars (`.sk`), never with real item, customer or supplier names. Text in a mock is only a button, column or field label you read in the code, so the image cannot show a label the app does not have.
+7. Use no emojis. Use inline SVG icons or the mocks for pictures. Style only with the hj-ui tokens the template uses (`var(--primary)`, `var(--marker)`, `var(--radius-sm)` and the rest), never a hex value. Follow the hj-ui rules the template already follows: Georgia for titles, Inter 400 to 700 for the rest, no gradients, Brass (`--marker`) only for marks and never for text.
+8. Keep the reload footer only when the text notes keep the reload line.
+9. Render it at 2x with `agent-browser`, then look at the image before you hand it over. Fix any text that wraps badly or overlaps, then render it again:
+
+```bash
+agent-browser --session user-notes set viewport 1200 800 2
+agent-browser --session user-notes open "file://<scratch>/notes.html"
+agent-browser --session user-notes wait --load networkidle
+agent-browser --session user-notes screenshot --full "<scratch>/whats-new-<yyyy-mm-dd>.png"
+agent-browser --session user-notes close
+```
+
+Show the image in your reply and give its full path. Never make a PDF, because Chat shows a PDF as a download, not inline.
 
 ## After the notes
 
