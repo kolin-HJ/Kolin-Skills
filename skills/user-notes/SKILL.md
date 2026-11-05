@@ -78,12 +78,26 @@ Show the image in your reply and give its full path. Never make a PDF, because C
 
 ## Video
 
-A training / show-off video of the same user-facing changes, as if using the app: clicks, page flows, before then after. Prefer real app screens over abstract motion. Same language rules as the text notes: what the user sees, no PR numbers.
+A training / show-off video of the same user-facing changes. It must look like someone is using the app the notes are for: that app's real screens, a visible pointer, real clicks, typing and page changes. Never abstract motion, slides or a made-up UI. Same language rules as the text notes: what the user sees, no PR numbers.
 
-1. Read `/hyperframes`, then `/media-use`.
-2. Read `/reverse-any-video` only when the source is an existing clip to rebuild as editable HTML (shots, motion, type, layers).
-3. For stock music, SFX, images or Voice Turbo, run `hyperframes auth login` first. Do not wait for a Pro account.
-4. Follow those skills to make the video. Give Kolin the file path.
+1. Run the app from this repo locally with seed or test data, as its `AGENTS.md` or `run` skill says. Never record production data or real customer, supplier or staff names.
+2. Write a shot list first: one shot per change, biggest change first. Each shot names the page, the clicks and what the viewer should notice.
+3. Record each shot in the real app with `agent-browser`, pointer on, at the same viewport as the graphic:
+
+```bash
+agent-browser --session user-notes-video set viewport 1440 900
+agent-browser --session user-notes-video open "<local app url>/<page>"
+agent-browser --session user-notes-video wait --load networkidle
+agent-browser --session user-notes-video record start "<scratch>/shot-<n>.mp4" --cursor
+agent-browser --session user-notes-video click "<selector>"
+agent-browser --session user-notes-video record stop
+```
+
+   Move at a human pace: wait about one second after each click so the viewer sees the result.
+4. Read `/hyperframes`, then `/media-use`. Use them to cut the shots together, add a short caption per shot from the text notes, and zoom in on the part that changed. The app screens stay the main picture; captions and zooms only point at them.
+5. Read `/reverse-any-video` only when the source is an existing clip to rebuild as editable HTML.
+6. For stock music, SFX or Voice Turbo, run `hyperframes auth login` first. Do not wait for a Pro account.
+7. Watch the final file before you hand it over. Re-record a shot that shows a loading spinner, an error or a wrong page. Give Kolin the file path.
 
 ## After the notes
 
