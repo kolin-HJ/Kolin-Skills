@@ -29,7 +29,7 @@ These need my yes, prepared so yes is the last step:
 
 ## Cleanup
 
-Leave code you touch simpler. Plan: remove what the change makes dead or duplicate. Build: make a cleanup in code you touch that keeps behavior; note a larger or pre-existing one and leave it. Review: read the full diff and fill the PR body's `## Cleanup & simplify`, added if the template lacks it: is the net size earned, then each cleanup made or left, with `file:line`, the simpler shape and why it waits. A left cleanup never blocks.
+Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape code, old code included, into the structure that makes the most sense. Plan the removals with the change. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or its proof costs more than the task. In the PR body, fill `## Cleanup & simplify`, added if the template lacks it: is the net size earned, what you removed or reshaped, and each cleanup left, with `file:line` and why.
 
 ## Security
 
