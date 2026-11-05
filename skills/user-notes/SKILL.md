@@ -81,7 +81,7 @@ Show the image in your reply and give its full path. Never make a PDF, because C
 A training / show-off video of the same user-facing changes. It must look like someone is using the app the notes are for: that app's real screens, a visible pointer, real clicks, typing and page changes. Never abstract motion, slides or a made-up UI. Same language rules as the text notes: what the user sees, no PR numbers.
 
 1. Run the app from this repo locally with seed or test data, as its `AGENTS.md` or `run` skill says. Never record production data or real customer, supplier or staff names.
-2. Write a shot list first: one shot per change, biggest change first. Each shot names the page, the clicks and what the viewer should notice.
+2. Write a shot list first: one shot per change, biggest change first. Each shot names the page, the clicks and the one thing the viewer should notice.
 3. Record each shot in the real app with `agent-browser`, pointer on, at the same viewport as the graphic:
 
 ```bash
@@ -94,10 +94,17 @@ agent-browser --session user-notes-video record stop
 ```
 
    Move at a human pace: wait about one second after each click so the viewer sees the result.
-4. Read `/hyperframes`, then `/media-use`. Use them to cut the shots together, add a short caption per shot from the text notes, and zoom in on the part that changed. The app screens stay the main picture; captions and zooms only point at them.
-5. Read `/reverse-any-video` only when the source is an existing clip to rebuild as editable HTML.
-6. For stock music, SFX or Voice Turbo, run `hyperframes auth login` first. Do not wait for a Pro account.
-7. Watch the final file before you hand it over. Re-record a shot that shows a loading spinner, an error or a wrong page. Give Kolin the file path.
+4. Read `/hyperframes`, then `/media-use`. Use them to cut the shots together. The app screens stay the main picture; captions, zooms and highlights only point at them.
+5. Make each shot obvious to a viewer with the sound off who has never seen the change:
+   - Open the shot with a caption that names the feature and why it helps, in 8 words or fewer: "New: see line items on any order."
+   - Before the click, put a highlight ring or arrow on the button or field the pointer will use.
+   - Zoom in on the part that changed, and hold the result on screen for about 2 seconds.
+   - When the change replaces old behavior, show before, then after, each labeled.
+   - Show one feature at a time. Keep each shot to 10 to 20 seconds and the whole video under 90 seconds.
+   - End on a card with the release title and the page names, so viewers know where to find each change.
+6. Read `/reverse-any-video` only when the source is an existing clip to rebuild as editable HTML.
+7. For stock music, SFX or Voice Turbo, run `hyperframes auth login` first. Do not wait for a Pro account.
+8. Watch the final file before you hand it over. Re-record a shot that shows a loading spinner, an error or a wrong page, or where the point of the shot is not clear in 3 seconds. Give Kolin the file path.
 
 ## After the notes
 
