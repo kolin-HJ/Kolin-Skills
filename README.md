@@ -184,6 +184,7 @@ Each skill starts in one of two ways:
 | `user-notes` | 💬 | "Write release notes for PR 42" | Asks format first (text / graphic / video). Then writes short user-facing release notes in those formats |
 | `explainer` | 💬 | "Explain this PR visually" | Builds a one-page HTML explainer. Only when you ask or say yes to the offer |
 | `council` | 💬 | "council" or `/council` | Gets review from Claude Opus 5.5 and GPT 6.1 Sol at high effort, and loops until both agree. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
+| `hydrojug-untangle` | ⌨️ | `/hydrojug-untangle` | Opt-in slash. Untangles caller files or the current diff only, never the whole repo. Inspired by [caldoai/skills `untangle-codebase`](https://github.com/caldoai/skills/blob/main/skills/untangle-codebase/SKILL.md) (MIT); not pinned |
 
 **Subagents.** The main agent spawns these. You do not call them.
 

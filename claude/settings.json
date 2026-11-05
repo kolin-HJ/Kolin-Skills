@@ -159,6 +159,7 @@
     "anthropic-skills:deep-research": "user-invocable-only",
     "find-skills": "user-invocable-only",
     "full-send": "user-invocable-only",
+    "hydrojug-untangle": "user-invocable-only",
     "schedule": "user-invocable-only",
     "workflow-authoring": "user-invocable-only",
     "dataviz": "name-only",
