@@ -47,12 +47,12 @@ class ApplyTests(unittest.TestCase):
     def test_apply_drops_overrides_for_retired_skills_and_keeps_the_rest(self):
         settings = self.home / ".claude/settings.json"
         settings.parent.mkdir(parents=True, exist_ok=True)
-        settings.write_text(json.dumps({"skillOverrides": {"full-stop": "off", "council": "off", "mine": "name-only"}}))
+        settings.write_text(json.dumps({"skillOverrides": {"full-stop": "off", "modernize": "off", "mine": "name-only"}}))
         self.assertEqual(self.run_cli("apply").returncode, 0)
         overrides = json.loads(settings.read_text())["skillOverrides"]
         self.assertEqual(overrides["mine"], "name-only")
         self.assertNotIn("full-stop", overrides)
-        self.assertNotIn("council", overrides)
+        self.assertNotIn("modernize", overrides)
 
     def test_apply_removes_the_retired_git_guard_link(self):
         link = self.home / ".claude/hooks/block-forbidden-git.sh"
