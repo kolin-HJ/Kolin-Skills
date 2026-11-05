@@ -60,7 +60,7 @@ class PrBodyTests(unittest.TestCase):
             "**Docs** · 2 files · +2 -0\n"
             "- `README.md` +1 -0 · Other\n"
             "- `docs/price.md` +1 -0 · Pricing\n\n"
-            "## Check these\n", body)
+            "## Cleanup & simplify\n", body)
 
     def test_a_single_feature_does_not_repeat_its_name_on_each_file(self):
         self.write("src/price.ts", "export const price = 2;\n")

@@ -16,7 +16,8 @@ Read the repo's `AGENTS.md` and each skill the brief names.
 - Work only in the files the brief assigns, in the worktree it names.
 - Copy the exemplar the brief names. When a complexity rule fires, simplify in place; do not split the code out to pass it.
 - Prove the unit: run the repo's gate for your files and the check in the brief's **Done when**. A new test fails first on an assertion.
-- Report once, at the end: files changed, each command with its literal result, what you inferred without running, and any open decision.
+- Make a cleanup inside your files when the policy's Cleanup rule allows it.
+- Report once, at the end: files changed, each command with its literal result, what you inferred without running, each cleanup you made or left (`file:line`, the simpler shape), and any open decision.
 
 ## Stop and report, without a workaround
 

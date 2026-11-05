@@ -52,6 +52,8 @@ First line: `<depth> review at <head sha>: <Ship / Incomplete / Fix first>`, and
 
 Each finding: `file:line`, one sentence on what is wrong, the concrete way it fails, severity (**high** for security, data loss, crash or broken feature; **medium** for behavior change, structural regression or performance; **low** for polish) and confidence. A low-confidence finding never blocks. Report every blocking finding. Of the rest, report the five highest-leverage and count the others by severity. A quality finding names its replacement, or it is dropped.
 
+End with `Cleanup & simplify`, separate from the findings: whether the net size is earned and what drives it, then up to three cleanups in or next to the changed code, pre-existing ones included. Give each a `file:line`, the simpler shape, and whether it fits this PR or can wait. These never block.
+
 Verify each claim in the code before you report it. Drop taste calls freely; drop a correctness or security finding only when the code proves it wrong.
 
 After your pass, if a PR exists, read `gh pr view --comments` and fold in valid findings you missed, marked as such.
