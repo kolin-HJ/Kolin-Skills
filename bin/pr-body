@@ -116,6 +116,11 @@ def delta(files):
     return f"+{sum(f.added for f in counted)} -{sum(f.removed for f in counted)}"
 
 
+def test_ratio(files):
+    added = {kind: sum(f.added for f in files if f.kind == kind and not f.lock and not f.binary) for kind in KINDS}
+    return f" · {added['tests'] / added['code']:.1f} test lines per code line" if added["code"] and added["tests"] else ""
+
+
 def stats(files):
     parts = [files_label(len(files))]
     for kind in KINDS:
@@ -139,7 +144,7 @@ def render(features):
     groups = {kind: group for kind, group in groups.items() if group}
     headers = {kind: f"**{kind.capitalize()}** · {files_label(len(group))} · {delta(group)}"
                for kind, group in groups.items()}
-    total = f"**{files_label(len(files))} touched · {delta(files)}**\n\n"
+    total = f"**{files_label(len(files))} touched · {delta(files)}**{test_ratio(files)}\n\n"
     kept = {kind: [file_line(f, tags.get(f.path)) for f in group] for kind, group in groups.items()}
     not_shown_room = len(f"- Not shown: {files_label(GITHUB_BODY_LIMIT)}, see Files changed\n")
     size = (len(HEAD) + len(summary) + len(TAIL) + len(DIFF_HEADING) + len(total)

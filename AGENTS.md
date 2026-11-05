@@ -22,7 +22,7 @@ This repo is the source of truth for Kolin's agent setup on every machine: the g
 |---|---|---|
 | A skill | `skills/<name>/SKILL.md` | Run `kolin-skills apply`, or start a session. It links into `~/.agents/skills`, `~/.claude/skills` and `~/.cursor/skills`. |
 | A subagent | `agents/<name>.md` | `apply` links it for Claude and writes the Codex `.toml` mirror. |
-| A hook | `hooks/<name>.py`, plus an entry in `claude/settings.json` or `codex/hooks.json` | Add a case to `tests/test_hooks.py`. |
+| A hook | `hooks/<name>.py`, plus an entry in `claude/settings.json` or `codex/hooks.json` | Add a case to `tests/test_hooks.py` when the hook can block work or lose data. |
 | A third-party skill | `upstream/skills.json` | Run `kolin-skills upstream`. |
 | A skill or agent another tool wrote into home (`skill-creator`, `npx skills add`) | Nowhere by hand | Run `kolin-skills import <path>`. |
 
