@@ -1,6 +1,7 @@
 {
   "npm": {
     "agent-browser": "0.41.0",
-    "agent-desktop": "1.0.2"
+    "agent-desktop": "1.0.2",
+    "hyperframes": "0.9.16"
   }
 }

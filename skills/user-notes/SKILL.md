@@ -1,6 +1,6 @@
 ---
 name: user-notes
-description: "Write short release notes and a matching PNG image, styled with the hj-ui design system, for the people who use the app, from a merged release PR. Use when Kolin says \"user notes\", \"release notes\", \"what's new\" or \"changelog\" for a release or a PR. Not for a PR body or its Scope table."
+description: "Ask Kolin first: text, graphic and/or video (video is low-frequency; never auto-make graphic or video). Then write user-facing release notes in the formats he picked, from a merged release PR. Use when Kolin says \"user notes\", \"release notes\", \"what's new\" or \"changelog\" for a release or a PR. Not for a PR body or its Scope table."
 ---
 # User notes
 
@@ -14,7 +14,11 @@ The release PR is the merged PR from the integration branch into the deploy bran
 2. Read its body and commits: `gh pr view <N> --json title,body,commits,headRefName,mergedAt`. A release body lists the PRs it ships. Read a listed PR with `gh pr view` only when its row does not say what the user sees.
 3. Include follow-up PRs that merged into its `headRefName` before its `mergedAt`: `gh pr list --base <headRefName> --state merged`.
 
-## Write
+## Ask the format
+
+After the release is known, stop. Ask Kolin once which format(s) to deliver: **text**, **graphic**, and/or **video**. He can pick more than one. Do not write notes, make an image, or make a video until he answers. If this ask already named the format, use that and do not ask again.
+
+## Text
 
 Kolin pastes the notes into Google Chat, so write Chat syntax, not Markdown: `*bold*`, `_italic_`, `•` bullets, no `#` headings and no `**`. Put the notes in one fenced block, with the release PR's `mergedAt` date in Kolin's local time, for example "Oct 20":
 
@@ -40,9 +44,11 @@ _Reload the tab to get the update._
 - No intro, no outro, no "we're excited".
 - Never make up a change the PR does not state.
 
-## Make the image
+## Graphic
 
-Kolin posts a PNG of the notes with the title line as the message text, because people look at a picture and skip a list. Make the image from the same changes as the text, after the text is right.
+A short still of the same user-facing changes: app screenshots, or one composed PNG card. Chat can paste or attach it. No code internals.
+
+Kolin posts a PNG of the notes with the title line as the message text, because people look at a picture and skip a list. Make the image from the same user-facing changes. If text was also chosen, make the image after the text is right.
 
 1. Copy `assets/card.html` from this skill's folder into the session's scratch folder as `notes.html`. Never edit the asset.
 2. Put the hj-ui brand tokens beside it, from the published branch, so the colors, radii and shadows come from the design system and never from a copy:
@@ -70,6 +76,15 @@ agent-browser --session user-notes close
 
 Show the image in your reply and give its full path. Never make a PDF, because Chat shows a PDF as a download, not inline.
 
+## Video
+
+A training / show-off video of the same user-facing changes, as if using the app: clicks, page flows, before then after. Prefer real app screens over abstract motion. Same language rules as the text notes: what the user sees, no PR numbers.
+
+1. Read `/hyperframes`, then `/media-use`.
+2. Read `/reverse-any-video` only when the source is an existing clip to rebuild as editable HTML (shots, motion, type, layers).
+3. For stock music, SFX, images or Voice Turbo, run `hyperframes auth login` first. Do not wait for a Pro account.
+4. Follow those skills to make the video. Give Kolin the file path.
+
 ## After the notes
 
-In your reply after the notes block, not inside it, list for Kolin only the manual steps and checks the release body names: a backfill, a log to watch, a saved view or query that breaks. One line each. Leave this part out if there are none.
+In your reply after the deliverable(s), not inside a notes block, list for Kolin only the manual steps and checks the release body names: a backfill, a log to watch, a saved view or query that breaks. One line each. Leave this part out if there are none.

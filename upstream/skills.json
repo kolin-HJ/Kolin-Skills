@@ -7,5 +7,14 @@
   ],
   "vercel-labs/agent-browser": [
     "agent-browser"
+  ],
+  "heygen-com/hyperframes": [
+    "hyperframes",
+    "hyperframes-cli",
+    "hyperframes-registry",
+    "media-use",
+    "reverse-any-video",
+    "style-sampling",
+    "slideshow"
   ]
 }

@@ -181,7 +181,7 @@ Each skill starts in one of two ways:
 | Skill | Starts | Say | What it does |
 |---|---|---|---|
 | `local-supabase` | 💬 | "Start a local database" | Runs a local Supabase or Postgres per checkout, never in Docker |
-| `user-notes` | 💬 | "Write release notes for PR 42" | Writes short release notes, and a PNG image of them, for the people who use the app |
+| `user-notes` | 💬 | "Write release notes for PR 42" | Asks format first (text / graphic / video). Then writes short user-facing release notes in those formats |
 | `explainer` | 💬 | "Explain this PR visually" | Builds a one-page HTML explainer. Only when you ask or say yes to the offer |
 | `council` | 💬 | "council" or `/council` | Gets review from Claude Opus 5.5 and GPT 6.1 Sol at high effort, and loops until both agree. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
 
@@ -204,6 +204,7 @@ Each skill starts in one of two ways:
 | `npx skills` | `find-skills` | ⌨️ |
 | `npx skills` | `agent-browser` | The agent reads it to drive or check a web app or Electron web content. `upstream` also installs the CLI at its pin in `upstream/tools.json` |
 | `npx skills` | `agent-desktop` | The agent reads it to drive or check a native Mac, Windows or Linux app. `upstream` also installs the CLI at its pin. On macOS, grant Accessibility once with `agent-desktop permissions --guide` |
+| `npx skills` | HyperFrames: `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use` (core); `slideshow`, `reverse-any-video`, `style-sampling` (on demand) | Low-frequency app training/demo video. CLI pin `hyperframes@0.9.16` in `upstream/tools.json` (Node ≥22). Refresh with `npx hyperframes skills update`, or `npx hyperframes skills update reverse-any-video` for that optional. Sign in with `hyperframes auth login` for free music/SFX/stock and Voice Turbo. Pro/sign-in unlocks top gen models and asset libraries. |
 
 </details>
 
