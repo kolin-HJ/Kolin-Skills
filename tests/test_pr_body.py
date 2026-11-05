@@ -50,7 +50,7 @@ class PrBodyTests(unittest.TestCase):
         self.assertRegex(body, r"(?m)^- \*\*Other:\*\* .*`3 files · docs \+1 -0`$")
         self.assertIn(
             "## Diff\n\n"
-            "**6 files touched · +4 -1**\n\n"
+            "**6 files touched · +4 -1** · 1.0 test lines per code line\n\n"
             "**Code** · 3 files · +1 -1\n"
             "- `img.png` binary · Other\n"
             "- `package-lock.json` +1 -0, lockfile · Other\n"

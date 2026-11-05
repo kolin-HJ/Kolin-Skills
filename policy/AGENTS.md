@@ -35,7 +35,7 @@ Check authorization before every write; an auth check that errors denies. Keep s
 
 Done means proven on the real artifact. External AI code review is not a quality gate; proof of behavior is. `statechart` and formal verification are high-risk or ask-only, same path as `interrogate`, `senior-reviewer` and thermo. Run the repo's gate (`pnpm check` or its equivalent). If a check did not run, say so in the same sentence as "done". When a gate or hook blocks you, fix the cause or report it. Never work around it.
 
-Test what a caller relies on, and a bug before its fix. No snapshots, no mocks of your own modules, no tests of copy, styling or config.
+Test what a caller relies on, and a bug before its fix. A new test needs one reason: access, money, data loss, a past bug or a main flow. Without one, write no test and prove the change by running it. Test each behavior once, at the highest level that proves it. No snapshots, no mocks of your own modules, no tests of copy, styling or config.
 
 ## Pull requests
 
