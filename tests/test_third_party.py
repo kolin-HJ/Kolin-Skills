@@ -99,7 +99,7 @@ class PinnedCliTests(unittest.TestCase):
 
     def test_repo_manifest_pins_exact_versions(self):
         pins = third_party.npm_tool_pins(REPO)
-        self.assertEqual(set(pins), {"agent-browser", "agent-desktop"})
+        self.assertEqual(set(pins), {"agent-browser", "agent-desktop", "hyperframes"})
         for version in pins.values():
             self.assertRegex(version, r"^\d+\.\d+\.\d+$")
 
