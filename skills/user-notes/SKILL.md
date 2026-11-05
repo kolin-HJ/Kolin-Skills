@@ -78,10 +78,12 @@ Show the image in your reply and give its full path. Never make a PDF, because C
 
 ## Video
 
-A training / show-off video of the same user-facing changes. It must look like someone is using the app the notes are for: that app's real screens, a visible pointer, real clicks, typing and page changes. Never abstract motion, slides or a made-up UI. Same language rules as the text notes: what the user sees, no PR numbers.
+A training / show-off video of the same user-facing changes. It must look like someone is using the app the notes are for: that app's real screens, a visible pointer, real clicks, typing and page changes. Never abstract motion or a made-up UI. A change that a click cannot show goes on a notes slide instead (step 6). Same language rules as the text notes: what the user sees, no PR numbers.
 
 1. Run the app from this repo locally with seed or test data, as its `AGENTS.md` or `run` skill says. Never record production data or real customer, supplier or staff names.
-2. Write a shot list first: one shot per change, biggest change first. Each shot names the page, the clicks and the one thing the viewer should notice.
+2. Write a shot list first, biggest change first. Mark each change as a demo or a note:
+   - If a user can see it by clicking (a new button, column, filter or page): demo. The shot names the page, the clicks and the one thing the viewer should notice.
+   - If not (faster loading, an email or report that arrives later, a rule or date change, a fix with no new screen): note.
 3. Record each shot in the real app with `agent-browser`, pointer on, at the same viewport as the graphic:
 
 ```bash
@@ -100,12 +102,18 @@ agent-browser --session user-notes-video record stop
    - Before the click, put a highlight ring or arrow on the button or field the pointer will use.
    - Zoom in on the part that changed, and hold the result on screen for about 2 seconds.
    - When the change replaces old behavior, show before, then after, each labeled.
-   - Show one feature at a time. Keep each shot to 10 to 20 seconds and the whole video under 90 seconds.
-   - End on a card with the release title and the page names, so viewers know where to find each change.
-6. Read `/reverse-any-video` only when the source is an existing clip to rebuild as editable HTML.
-7. For stock music, SFX or Voice Turbo, run `hyperframes auth login` first. Do not wait for a Pro account.
-8. Watch the final file before you hand it over. Re-record a shot that shows a loading spinner, an error or a wrong page, or where the point of the shot is not clear in 3 seconds. Give Kolin the file path and ask him to approve it. Keep every shot and the HyperFrames project until he does, so a change is a re-cut and not a re-record.
-9. After Kolin approves, finish in this order:
+   - Show one feature at a time. Keep each shot to 10 to 20 seconds and the whole video, notes slide included, under 90 seconds.
+6. Put all note changes on a notes slide after the last demo shot, titled "Also new". Rules for the slide:
+   - One bullet per change, worded as in the text notes, about 15 words or fewer. Five bullets per slide; use a second slide if there are more.
+   - Group bullets by page name, as in the text notes.
+   - Bring the bullets in one at a time, and hold the full slide about 1 second per 3 words so it can be read.
+   - Style it like the graphic: copy the layout from `assets/card.html` and use only the hj-ui tokens it uses, Georgia for the title and Inter for the bullets, no emojis.
+   - Never put a change that has a demo shot on the notes slide too.
+7. End on a card with the release title and the page names, so viewers know where to find each change.
+8. Read `/reverse-any-video` only when the source is an existing clip to rebuild as editable HTML.
+9. For stock music, SFX or Voice Turbo, run `hyperframes auth login` first. Do not wait for a Pro account.
+10. Watch the final file before you hand it over. Re-record a shot that shows a loading spinner, an error or a wrong page, or where the point of the shot is not clear in 3 seconds. Give Kolin the file path and ask him to approve it. Keep every shot and the HyperFrames project until he does, so a change is a re-cut and not a re-record.
+11. After Kolin approves, finish in this order:
    1. Copy the final render to `~/Downloads/whats-new-<app>-<yyyy-mm-dd>.mp4`. If that name exists, add `-2`, never overwrite.
    2. Play the copy in `~/Downloads` once to confirm it is complete.
    3. Close the recording session: `agent-browser --session user-notes-video close`.
