@@ -48,7 +48,7 @@ OTHER_INSTALLERS = {
     "herdr": ["herdr-agent-state.sh"],
 }
 RETIRED_LINKS = [".claude/hooks/block-forbidden-git.sh"]
-DROPPED_SKILLS = {"break-ui", "council", "full-stop", "emil-design-eng", "loop-refactor-to-pstack", "mobile-native", "modernize", "firecrawl", "firecrawl-crawl", "firecrawl-map", "firecrawl-scrape", "firecrawl-search", "improve", "ponytail", "ponytail-audit"}
+DROPPED_SKILLS = {"break-ui", "full-stop", "emil-design-eng", "loop-refactor-to-pstack", "mobile-native", "modernize", "firecrawl", "firecrawl-crawl", "firecrawl-map", "firecrawl-scrape", "firecrawl-search", "improve", "ponytail", "ponytail-audit"}
 NPX_SKILL_LOCK = HOME / ".agents/.skill-lock.json"
 LINKS = {
     "policy/AGENTS.md": [".codex/AGENTS.md", ".claude/CLAUDE.md", ".grok/AGENTS.md"],
