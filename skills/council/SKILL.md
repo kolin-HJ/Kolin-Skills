@@ -1,6 +1,6 @@
 ---
 name: council
-description: Use only when Kolin says "council" or invokes /council. Gets review or feedback from Claude Opus 5.5 and GPT 6.1 Sol.
+description: Use only when Kolin says "council" or invokes /council. Gets review or feedback from Claude Opus 5.5, GPT 6.1 Sol and Grok 4.7 (via Cursor), one per provider, picked from what T3 Code shows is available.
 ---
 
 # Council
@@ -10,16 +10,29 @@ relevant checks. Give council the updated implementation; do not defer known
 fixes until reviews return. If the user wants to discard the implementation
 and explore new ideas, skip fixes to code being replaced.
 
-Bring in two delegates to help with the user's request, usually for review
-or feedback. Always use these two members, both at high reasoning effort:
+Bring in one delegate per model provider, so each opinion comes from a
+different model family. Run every member at high reasoning effort. The seats,
+in priority order:
 
-- Claude Opus 5.5
-- GPT 6.1 Sol
+1. Claude Opus 5.5. Always seated.
+2. GPT 6.1 Sol, from Codex, if available.
+3. Grok 4.7, from Cursor, if available. Set `fastMode: false` and
+   `reasoning_effort: high`. Never use a fast build such as `grok-4.7-build-fast`.
 
-In T3 Code, use `orchestrator_capabilities` to resolve the models, then
-`delegate_task` to start one delegate per model in parallel. Elsewhere, use
-the harness's subagent tools. If a member is unavailable, report it instead of
-substituting. Never add or use a Muse or Google model.
+In T3 Code, call `orchestrator_capabilities` first, then pick the seats:
+
+1. A seat is available when its provider is enabled, has no constraints and
+   lists the model.
+2. For Opus 5.5, use the `claudeAgent` instance. If it hits a usage limit,
+   use `claudeAgent_claude_personal`.
+3. For Grok 4.7, use the `cursor` instance. If Cursor is down or out of usage,
+   use `grok-4.7` from the `grok` instance.
+4. Start one `delegate_task` per seat, in parallel.
+
+If a seat is unavailable, or its delegate fails on a usage or rate limit,
+skip it and say so in the summary. Do not fill the seat with a second model
+from a provider already seated. Never add or use a Muse or Google model.
+Elsewhere, use the harness's subagent tools with the same seats.
 
 Give each delegate the request and relevant context. For review or feedback,
 keep their work read-only. Collect their responses and summarize the useful
@@ -41,14 +54,16 @@ Rounds: 2
 | --- | --- | --- |
 | Claude Opus 5.5 | 7/10 | 9/10 |
 | GPT 6.1 Sol | 8/10 | 10/10 |
+| Grok 4.7 | 6/10 | 9/10 |
 ```
 
 If a delegate gives no score, write `no score`. Do not invent one.
+If a seat was skipped, leave its row out and name it under the table.
 If the PR is open, edit the description. Do not post a comment for this.
 If there is no PR, put the same results in the final reply only.
 
 If you agree with their recommendations, make the changes and request a fresh
-review after. Continue this process until both delegates are satisfied with the
+review after. Continue this process until every seated delegate is satisfied with the
 outcome.
 
 Do not let repeated reviews result in scope creep. It is your job to fight to
