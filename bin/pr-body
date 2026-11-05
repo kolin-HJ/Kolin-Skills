@@ -21,6 +21,9 @@ HEAD = (
     "## Changes\n\n"
 )
 TAIL = (
+    "## Cleanup & simplify\n\n"
+    "- Size: <is the net growth earned, and what drives it>\n"
+    "- `<file:line>`: <the simpler shape. Made here, or left and why it waits>\n\n"
     "## Check these\n\n"
     "- [ ] `<file:line>`: <a question the reviewer should answer>\n\n"
     "## Verification\n\n"
