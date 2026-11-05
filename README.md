@@ -105,7 +105,7 @@ With Node older than 22.20, `install` skips the third-party skills and CLIs and 
 
 A clone with local edits also skips `pull`. Cursor and Grok Bot then keep whatever `apply` last wrote, even if `origin/main` moved.
 
-T3Bot owns apply verification on T3 DEVS and the home Mac. Box re-apply and hj-supply-chain unvendor are follow-ons ([`docs/consumer-drift.md`](docs/consumer-drift.md)). Weekly consumer drift and how a change lands: [`docs/maintain.md`](docs/maintain.md).
+T3Bot owns apply verification on T3 DEVS and the home Mac. hj-supply-chain unvendor is a follow-on ([`docs/consumer-drift.md`](docs/consumer-drift.md)). Weekly consumer drift and how a change lands: [`docs/maintain.md`](docs/maintain.md).
 
 ## Install (for agents)
 
