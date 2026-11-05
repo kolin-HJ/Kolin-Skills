@@ -104,7 +104,14 @@ agent-browser --session user-notes-video record stop
    - End on a card with the release title and the page names, so viewers know where to find each change.
 6. Read `/reverse-any-video` only when the source is an existing clip to rebuild as editable HTML.
 7. For stock music, SFX or Voice Turbo, run `hyperframes auth login` first. Do not wait for a Pro account.
-8. Watch the final file before you hand it over. Re-record a shot that shows a loading spinner, an error or a wrong page, or where the point of the shot is not clear in 3 seconds. Give Kolin the file path.
+8. Watch the final file before you hand it over. Re-record a shot that shows a loading spinner, an error or a wrong page, or where the point of the shot is not clear in 3 seconds. Give Kolin the file path and ask him to approve it. Keep every shot and the HyperFrames project until he does, so a change is a re-cut and not a re-record.
+9. After Kolin approves, finish in this order:
+   1. Copy the final render to `~/Downloads/whats-new-<app>-<yyyy-mm-dd>.mp4`. If that name exists, add `-2`, never overwrite.
+   2. Play the copy in `~/Downloads` once to confirm it is complete.
+   3. Close the recording session: `agent-browser --session user-notes-video close`.
+   4. Stop the local app and any preview server you started for the video.
+   5. Delete the raw shots, contact sheets, the HyperFrames project and any other render files you made in scratch.
+   6. Give Kolin the `~/Downloads` path and say what you deleted.
 
 ## After the notes
 
