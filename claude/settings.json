@@ -62,6 +62,15 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "Bash|Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'{{REPO}}/hooks/gate/block-forbidden-git.sh'"
+          }
+        ]
+      },
+      {
         "matcher": "Bash|Read|Grep",
         "hooks": [
           {
