@@ -224,7 +224,7 @@ class NativeHookPayloadTests(unittest.TestCase):
         self.assertEqual(blocked_size.returncode, 2, blocked_size.stderr)
         self.assertIn("file too long", blocked_size.stderr)
 
-    def test_agent_model_keeps_the_reviewer_seat_on_opus_and_leaves_other_agents_alone(self):
+    def test_agent_model_keeps_the_reviewer_seat_on_opus_runs_explore_on_sonnet_and_leaves_other_agents_alone(self):
         with tempfile.TemporaryDirectory() as directory:
             agents = pathlib.Path(directory) / ".claude/agents"
             agents.mkdir(parents=True)
@@ -238,7 +238,8 @@ class NativeHookPayloadTests(unittest.TestCase):
                 ({"subagent_type": "senior-reviewer", "model": "sonnet"}, None),
                 ({"subagent_type": "repo-builder", "model": "opus"}, None),
                 ({"subagent_type": "general-purpose"}, None),
-                ({"subagent_type": "Explore"}, None),
+                ({"subagent_type": "Explore"}, "sonnet"),
+                ({"subagent_type": "Explore", "model": "opus"}, None),
                 ({"subagent_type": "fork"}, None),
                 ({}, None),
             ]

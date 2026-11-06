@@ -261,7 +261,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `pr-body <base> --feature NAME=PATHS` | Prints a PR body skeleton with a line per feature, the diff size, Cleanup & simplify, and Verification |
 | `diff-audit <base>` | Flags reward hacks and slop in a diff: skipped tests, edited assertions, comments, new dependencies, growth in `AGENTS.md` |
 | `feature-budget` | Counts files and lines under `features/<name>/` against the plan's budget. Report only |
-| `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions` reports token use, hook blocks and failing tools |
+| `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions` and `--window` report tokens and list price per session and role, hook blocks and failing tools, and count a message copied into a side chat once |
 | `pglite-replay [root]` | Replays `supabase/migrations`, then `supabase/tests`, into an in-memory PGlite database |
 | `agent-browser-guard <args>` | Runs `agent-browser` for Codex outside its sandbox, with a fixed list of safe commands |
 
@@ -278,7 +278,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `pr-proof.py` | Claude Code, Codex | After a PR is opened or marked ready, sends it back to draft if `## Verification` is missing or `diff-audit` finds a block. Release PRs and drafts are skipped |
 | `lint-changed-lines.py` | Claude Code, Codex, Cursor | Lints the JS and TS lines the agent just changed |
 | `compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through context compaction |
-| `agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus even when a repo copy asks for a smaller model |
+| `agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus even when a repo copy asks for a smaller model, and `Explore` on Sonnet unless the call passes a model |
 | `keep-awake.py` | Claude Code | Keeps the Mac awake during each prompt and subagent run |
 
 </details>
