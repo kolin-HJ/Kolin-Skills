@@ -1,0 +1,33 @@
+{
+  "brand": "Acme",
+  "app": "Planner",
+  "date": "November 5",
+  "intro": "2 updates shown in the app, plus 1 more",
+  "viewport": [1440, 900],
+  "scenes": [
+    {
+      "id": "orders",
+      "layers": [
+        {
+          "src": "shot-orders.mp4",
+          "start": 0,
+          "dur": 9,
+          "mediaStart": 0.6,
+          "zoom": { "t": 6, "scale": 1.4, "x": 864, "y": 540 },
+          "rings": [
+            { "box": [233, 334, 70, 23], "t": 0.4, "d": 0.9 },
+            { "box": [600, 300, 160, 30], "t": 2.2, "d": 2.6, "label": "Click an order to open it" }
+          ]
+        }
+      ],
+      "captions": [
+        { "t": 0.2, "d": 4.6, "eyebrow": "New · Orders", "title": "See line items on any order", "sub": "Click an order number to open its lines." },
+        { "t": 6.4, "d": 2.6, "eyebrow": "Orders", "title": "Totals match the grid", "place": ["right", "low"] }
+      ]
+    }
+  ],
+  "notes": [
+    { "page": "Reports", "items": ["The weekly report now arrives Monday at 8 am."] }
+  ],
+  "pages": ["Orders", "Reports"]
+}

@@ -1,0 +1,13 @@
+.frame { position: absolute; left: 96px; top: 0; width: 1728px; height: 1080px; overflow: hidden; border-left: 1px solid var(--sidebar-border); border-right: 1px solid var(--sidebar-border); }
+.zoom { position: absolute; inset: 0; }
+.footage { position: absolute; left: 0; top: 0; width: 1728px; height: 1080px; object-fit: contain; }
+.ring { position: absolute; }
+.ring i { position: absolute; inset: 0; border: 4px solid var(--marker); border-radius: var(--radius-sm); box-shadow: 0 0 0 8px color-mix(in srgb, var(--marker) 22%, transparent); }
+.ring b { position: absolute; left: 0; top: calc(100% + 12px); white-space: nowrap; font-family: Inter, sans-serif; font-size: 28px; font-weight: 700; color: var(--sidebar-accent-foreground); background: var(--sidebar); padding: 8px 14px; border-radius: var(--radius-sm); border-left: 5px solid var(--marker); }
+.cap { position: absolute; left: 200px; top: 740px; width: 1000px; }
+.cap.right { left: auto; right: 120px; width: 600px; top: 620px; }
+.cap.low { top: 800px; }
+.cap-card { background: var(--sidebar); color: var(--sidebar-foreground); border-radius: var(--radius-md); padding: 26px 34px; border-left: 6px solid var(--marker); box-shadow: var(--shadow-overlay); }
+.cap-eyebrow { font-family: Inter, sans-serif; font-size: 28px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
+.cap-title { font-family: Georgia, serif; font-size: 44px; font-weight: 700; line-height: 1.15; margin-top: 8px; color: var(--sidebar-accent-foreground); }
+.cap-sub { font-family: Inter, sans-serif; font-size: 28px; line-height: 1.4; margin-top: 10px; opacity: .9; }
