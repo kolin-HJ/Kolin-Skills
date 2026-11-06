@@ -164,12 +164,12 @@ class ContextAuditTests(unittest.TestCase):
                                                    "cache_creation": {"ephemeral_1h_input_tokens": 1_000_000}})
         transcript(self.home / ".claude/projects/p/parent.jsonl", copied, parent, {"type": "user", "message": {"content": "x" * 500}})
         haiku = message("m4", "claude-haiku-5-5", {"input_tokens": 1_000_000})
-        transcript(self.home / ".claude/projects/p/side.jsonl", copied, side, haiku)
+        transcript(self.home / ".claude_personal/projects/p/side.jsonl", copied, side, haiku)
         result = self.run_cli("--window", "2026-11-05", "2026-11-05")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("list price $30.70 (main $30.70)", result.stdout)
+        self.assertIn("list price $31.10 (main $31.10)", result.stdout)
         self.assertIn("p parent 2026-11-05T09:00:00+00:00 $24.00 2,000,000", result.stdout)
-        self.assertIn("p side 2026-11-05T09:00:00+00:00 $6.70 4,000,000", result.stdout)
+        self.assertIn("p side 2026-11-05T09:00:00+00:00 $7.10 4,000,000", result.stdout)
         transcript(self.home / ".claude/projects/p/old.jsonl", message("m5", "claude-opus-4-1", {"input_tokens": 1}))
         unpriced = self.run_cli("--window", "2026-11-05", "2026-11-05")
         self.assertNotEqual(unpriced.returncode, 0)
@@ -253,9 +253,9 @@ exec cat "$GH_FIXTURES/head-$(echo "$base" | tr / _).json"
         oneshot = mention("https://github.com/o/r/pull/11")
         oneshot["message"]["content"][1]["name"] = "StructuredOutput"
         transcript(self.projects / "p/sess7777-x.jsonl", oneshot)
-        own = mention("https://github.com/o/r/pull/11")
+        own = mention("see https://github.com/o/r/pull/11")
         own["message"]["content"][1]["input"] = {"command": "bin/context-audit --pr o/r#10"}
-        transcript(self.projects / "p/sess6666-x.jsonl", own)
+        transcript(self.projects / "p/sess6666-x.jsonl", own, {"type": "user", "message": {"content": "x" * 2000}})
         transcript(self.projects / "p/sess1111-x/subagents/agent-a.jsonl", mention("helper"))
         transcript(self.projects / "p/sess3333-x/subagents/agent-a.jsonl", mention("stray"))
         output = self.run_cli("--pr", "o/r#10", **self.gh_fixture()).stdout

@@ -261,7 +261,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `pr-body <base> --feature NAME=PATHS` | Prints a PR body skeleton with a line per feature, the diff size, Cleanup & simplify, and Verification |
 | `diff-audit <base>` | Flags reward hacks and slop in a diff: skipped tests, edited assertions, comments, new dependencies, growth in `AGENTS.md` |
 | `feature-budget` | Counts files and lines under `features/<name>/` against the plan's budget. Report only |
-| `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions` and `--window` report tokens and list price (by model id) per session and role, hook blocks and failing tools, and count a message copied into a side chat once |
+| `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions` and `--window` report tokens and list price (by model id, with Haiku 5.5's above-100K tier) per session and role, hook blocks and failing tools, and count a message copied into a side chat once |
 | `pglite-replay [root]` | Replays `supabase/migrations`, then `supabase/tests`, into an in-memory PGlite database |
 | `agent-browser-guard <args>` | Runs `agent-browser` for Codex outside its sandbox, with a fixed list of safe commands |
 
