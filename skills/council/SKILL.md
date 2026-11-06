@@ -27,8 +27,8 @@ Muse Wonder is not in Cursor's short list, so also call it with
 
 1. A seat is available when its provider is enabled, has no constraints and
    lists the model.
-2. For Opus 5.5, use the `claudeAgent` instance. If it hits a usage limit,
-   use `claudeAgent_claude_personal`.
+2. For Opus 5.5, use the `claudeAgent_claude_personal` instance. If it hits
+   a usage limit, use `claudeAgent`.
 3. For Muse Wonder, use only the `cursor` instance, never the `muse`
    instance.
 4. For Grok 4.7, use the `grok` instance. If it is down or out of usage, use
