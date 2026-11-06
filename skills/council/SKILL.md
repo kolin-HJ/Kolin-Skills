@@ -1,6 +1,6 @@
 ---
 name: council
-description: Use only when Kolin says "council" or invokes /council. Gets review or feedback from Claude Opus 5.5, GPT 6.1 Sol and Grok 4.7 (via Cursor), one per provider, picked from what T3 Code shows is available.
+description: Use only when Kolin says "council" or invokes /council. Gets review or feedback from Claude Opus 5.5, GPT 6.1 Sol, Muse Wonder (via Cursor) and Grok 4.7 (via the Grok subscription), one per provider, all at high effort, picked from what T3 Code shows is available.
 ---
 
 # Council
@@ -11,27 +11,34 @@ fixes until reviews return. If the user wants to discard the implementation
 and explore new ideas, skip fixes to code being replaced.
 
 Bring in one delegate per model provider, so each opinion comes from a
-different model family. Run every member at high reasoning effort. The seats,
-in priority order:
+different model family. Run every member at `high` effort, never the
+provider's default. The seats, in priority order:
 
-1. Claude Opus 5.5. Always seated.
-2. GPT 6.1 Sol, from Codex, if available.
-3. Grok 4.7, from Cursor, if available. Set `fastMode: false` and
-   `reasoning_effort: high`. Never use a fast build such as `grok-4.7-build-fast`.
+1. Claude Opus 5.5 (`claude-opus-5-5`), with `effort: high`. Always seated.
+2. GPT 6.1 Sol (`gpt-6.1-sol`), from `codex`, with `reasoningEffort: high`.
+3. Muse Wonder (`muse-wonder-1.0`), from `cursor`, with
+   `reasoning_effort: high`. Its default is `xhigh`, so set it.
+4. Grok 4.7 (`grok-4.7`), from `grok`, with `reasoningEffort: high`. Never
+   use a fast build such as `grok-4.7-build-fast`.
 
-In T3 Code, call `orchestrator_capabilities` first, then pick the seats:
+In T3 Code, call `orchestrator_capabilities` first, then pick the seats.
+Muse Wonder is not in Cursor's short list, so also call it with
+`search: "muse"`.
 
 1. A seat is available when its provider is enabled, has no constraints and
    lists the model.
-2. For Opus 5.5, use the `claudeAgent` instance. If it hits a usage limit,
-   use `claudeAgent_claude_personal`.
-3. For Grok 4.7, use the `cursor` instance. If Cursor is down or out of usage,
-   use `grok-4.7` from the `grok` instance.
-4. Start one `delegate_task` per seat, in parallel.
+2. For Opus 5.5, use the `claudeAgent_claude_personal` instance. If it hits
+   a usage limit, use `claudeAgent`.
+3. For Muse Wonder, use only the `cursor` instance, never the `muse`
+   instance.
+4. For Grok 4.7, use the `grok` instance. If it is down or out of usage, use
+   `grok-4.7` from `cursor` with `fastMode: false` and
+   `reasoning_effort: high`.
+5. Start one `delegate_task` per seat, in parallel.
 
 If a seat is unavailable, or its delegate fails on a usage or rate limit,
 skip it and say so in the summary. Do not fill the seat with a second model
-from a provider already seated. Never add or use a Muse or Google model.
+from a provider already seated. Never add a Google model.
 Elsewhere, use the harness's subagent tools with the same seats.
 
 Give each delegate the request and relevant context. For review or feedback,
@@ -54,6 +61,7 @@ Rounds: 2
 | --- | --- | --- |
 | Claude Opus 5.5 | 7/10 | 9/10 |
 | GPT 6.1 Sol | 8/10 | 10/10 |
+| Muse Wonder | 7/10 | 9/10 |
 | Grok 4.7 | 6/10 | 9/10 |
 ```
 

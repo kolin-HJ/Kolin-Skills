@@ -151,7 +151,7 @@ A skill starts in one of three ways:
 | `local-supabase` | 💬 "start a local database" | Runs a local Supabase or Postgres for each checkout, never in Docker |
 | `user-notes` | 💬 "release notes for PR 42" | Asks which format I want (text, graphic or video), then writes short release notes for users |
 | `explainer` | 💬 "explain this PR visually" | Builds a one-page HTML explainer, only when asked |
-| `council` | 💬 "council" | Gets a review from three model families at once (Claude, GPT and Grok) and loops until they agree. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
+| `council` | 💬 "council" | Gets a review from four model families at once (Claude, GPT, Muse and Grok) and loops until they agree. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
 | `hydrojug-untangle` | ⌨️ `/hydrojug-untangle` | Untangles only the files I name or the current diff, never the whole repo. Inspired by [caldoai `untangle-codebase`](https://github.com/caldoai/skills/blob/main/skills/untangle-codebase/SKILL.md) (MIT) |
 
 **The method** comes from pstack. `poteto-mode` (📜) holds the playbooks for a feature, a bug fix, a refactor, a review and shipping. The policy sends any code work bigger than a one-line change to it.
