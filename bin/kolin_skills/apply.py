@@ -8,7 +8,7 @@ import sys
 
 from kolin_skills.helpers import (
     DERIVED, DROPPED_SKILLS, GIT, HOME, LINKS, MERGED_JSON, NPX_SKILL_LOCK, OTHER_INSTALLERS,
-    OWN_SKILL_HOMES, READ_ONLY_EXECUTABLES, RENDERED, REPO, RETIRED_LINKS, STATE_DIR, TRUNK,
+    OWN_SKILL_HOMES, READ_ONLY_EXECUTABLES, RENDERED, REPO, STATE_DIR, TRUNK,
     VENDOR, VENDOR_AGENTS, VENDOR_SKILL_HOMES, WATCHED_HOMES, Plan, codex_agent_toml,
     declared_upstream_skills, git, merge_settings, model_locked, render_template, self_invoking,
     state_lock, vendor_pin_problems, vendor_skills, wired_repo, without_model_lock,
@@ -103,10 +103,6 @@ def apply(plan, roots):
             path = HOME / home / name
             if path.is_symlink() or path.exists():
                 plan.retire(path)
-
-    for relative in RETIRED_LINKS:
-        if (HOME / relative).is_symlink():
-            plan.remove(HOME / relative)
 
     own_agents = sorted((REPO / "agents").glob("*.md"))
     vendored_agents = [VENDOR / path for path in VENDOR_AGENTS if (VENDOR / path).is_file()]

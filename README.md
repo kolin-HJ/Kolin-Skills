@@ -125,13 +125,14 @@ Hooks block an action and tell the agent why and what to do instead. They do not
 
 | 🚫 Blocked | Why |
 |---|---|
+| Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge; API merges | Protected branches change only through a PR. Agents may merge a PR into `staging`. A merge into `main`, `master` or `sandbox` needs me. An agent may create a missing protected branch with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
 | Reading a `.env` file | Secrets stay out of the agent's context. `.env.example` stays readable |
 | Starting a database in Docker | Agents use the native Supabase CLI instead (see `local-supabase`) |
 | Marking a PR ready with no `## Verification`, or with a reward hack such as a skipped test | The PR goes back to draft, so a PR with no proof does not reach me |
 
 Other hooks help instead of block: they lint the JS and TS lines the agent just changed, keep the branch and changed files through context compaction, keep the Mac awake during long turns, and share heavy jobs across 3 slots so parallel agents do not overload the machine.
 
-**What is not blocked.** No hook stops a merge, a push to a protected branch, a force push, `--no-verify`, or an edit to a hook. The policy asks for my yes on these, but that is a written rule, not a lock. GitHub branch protection is the real lock. The PR check also catches *missing* proof, not *false* proof, so read the diff on anything that matters.
+**What is not blocked.** Nothing stops an agent from merging a PR into `staging`. GitHub branch protection is still the real lock for `main`. The PR check also catches *missing* proof, not *false* proof, so read the diff on anything that matters.
 
 ## Skills
 
@@ -272,6 +273,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 
 | Hook | Tools | What it does |
 |---|---|---|
+| `gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks pushes to protected branches, PR merges into `main`, `master` and `sandbox`, force push, `--no-verify`, auto-merge, and edits to hook files |
 | `block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
 | `bash-guard.py` | Claude Code | Blocks Docker databases, keeps gate output unfiltered, and queues heavy jobs into 3 shared slots |
 | `heavy-slot.py` | Claude Code (through `bash-guard`) | Gives each heavy job a slot and keeps the Mac awake while it runs |
