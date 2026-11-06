@@ -33,9 +33,11 @@ NOT_A_PR = "Could not resolve to a PullRequest"
 TRUNKS = {"main", "master", "sandbox", "staging"}
 FAMILY = re.compile(r"opus|sonnet|haiku")
 LIST_PRICE_PER_MTOK = {
-    "opus": {"input": 4, "output": 20, "cache_read": 0.2, "cache_write_5m": 5, "cache_write_1h": 8},
-    "sonnet": {"input": 2, "output": 10, "cache_read": 0.1, "cache_write_5m": 2.5, "cache_write_1h": 4},
-    "haiku": {"input": 1, "output": 5, "cache_read": 0.1, "cache_write_5m": 1.25, "cache_write_1h": 2},
+    "claude-opus-5-5": {"input": 4, "output": 20, "cache_read": 0.2, "cache_write_5m": 5, "cache_write_1h": 8},
+    "claude-sonnet-5-5": {"input": 2, "output": 10, "cache_read": 0.1, "cache_write_5m": 2.5, "cache_write_1h": 4},
+    "claude-haiku-5-5": {"input": 0.1, "output": 0.5, "cache_read": 0.01, "cache_write_5m": 0.125, "cache_write_1h": 0.2},
+    "claude-haiku-4-5": {"input": 1, "output": 5, "cache_read": 0.1, "cache_write_5m": 1.25, "cache_write_1h": 2},
+    "claude-fable-5-1": {"input": 10, "output": 50, "cache_read": 0.25, "cache_write_5m": 12.5, "cache_write_1h": 20},
 }
 LONG_RUN_CALLS = 200
 HOOK_BLOCK = re.compile(r"hook error: \[[^\]]*?([^/\s']+?)'?\]: (.{0,50})", re.S)
@@ -62,11 +64,16 @@ def context_tokens(usage):
     return usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
 
 
+def model_price(model):
+    matches = [key for key in LIST_PRICE_PER_MTOK if model == key or (model or "").startswith((key + "-", key + "["))]
+    return LIST_PRICE_PER_MTOK[max(matches, key=len)] if matches else None
+
+
 def list_price(model, usage):
-    price = LIST_PRICE_PER_MTOK.get(family(model))
+    price = model_price(model)
     if not price:
         if context_tokens(usage) or usage.get("output_tokens", 0):
-            sys.exit(f"context-audit: no list price for model {model!r}; add its family to LIST_PRICE_PER_MTOK")
+            sys.exit(f"context-audit: no list price for model {model!r}; add it to LIST_PRICE_PER_MTOK from ~/.t3/userdata/usage-model-rates.json")
         return 0.0
     written = usage.get("cache_creation_input_tokens", 0)
     hour = (usage.get("cache_creation") or {}).get("ephemeral_1h_input_tokens", 0)
@@ -278,10 +285,10 @@ def session_stats(path, counted):
                 blocked = HOOK_BLOCK.search(result_text(block.get("content", ""))) if failed else None
                 if blocked:
                     hooks[(blocked.group(1), " ".join(blocked.group(2).split()))] += 1
-    counted.update(messages)
     models = collections.Counter(model for model, _, _, _ in messages.values())
     return {
         "model": models.most_common(1)[0][0] if models else "unknown",
+        "messages": set(messages),
         "tokens": sum(context + output for _, context, output, _ in messages.values()),
         "cost": sum(cost for _, _, _, cost in messages.values()),
         "peak": max((context for _, context, _, _ in messages.values()), default=0),
@@ -292,11 +299,10 @@ def session_stats(path, counted):
 
 def session_files(days):
     cutoff = time.time() - days * 86400
-    for root in config_dirs():
-        for pattern, is_agent in (("*/*.jsonl", False), ("*/*/subagents/agent-*.jsonl", True)):
-            for path in largest_first(root.glob(pattern)):
-                if path.stat().st_mtime >= cutoff:
-                    yield path, is_agent
+    for pattern, is_agent in (("*/*.jsonl", False), ("*/*/subagents/agent-*.jsonl", True)):
+        for path in largest_first(path for root in config_dirs() for path in root.glob(pattern)):
+            if path.stat().st_mtime >= cutoff:
+                yield path, is_agent
 
 
 def largest_first(paths):
@@ -336,6 +342,7 @@ def print_sessions(days, needles=()):
         stats = session_stats(path, counted)
         if needles and not is_agent and (stats["audits"] or all(name == "StructuredOutput" for name, _ in stats["tools"])):
             continue
+        counted |= stats["messages"]
         side = "subagent" if is_agent else "main"
         label = agent_meta(path).get("agentType", "unknown") if is_agent else "main"
         runs[(label, stats["model"])].append(stats)
@@ -414,29 +421,31 @@ class WindowSession:
 
 def window_sessions(start, end):
     sessions, counted = [], set()
-    for root in (HOME / ".claude_personal/projects", HOME / ".claude/projects"):
-        for path in largest_first(root.glob("*/*.jsonl")):
-            first = next((record.get("timestamp") for record in records(path) if record.get("timestamp")), None)
-            if not first:
-                continue
-            timestamp = datetime.datetime.fromisoformat(first.replace("Z", "+00:00"))
-            if timestamp.tzinfo is None:
-                continue
-            timestamp = timestamp.astimezone(datetime.timezone.utc)
-            if not start <= timestamp.date() <= end:
-                continue
-            main = session_stats(path, counted)
-            roles = collections.Counter()
-            subagent_tokens = long_builders = 0
-            subagent_cost = 0.0
-            for agent in largest_first((path.parent / path.stem / "subagents").glob("agent-*.jsonl")):
-                role = agent_meta(agent).get("agentType", "unknown")
-                stats = session_stats(agent, counted)
-                roles[role] += 1
-                subagent_tokens += stats["tokens"]
-                subagent_cost += stats["cost"]
-                long_builders += role == "poteto-agent" and stats["calls"] > LONG_RUN_CALLS
-            sessions.append(WindowSession(path.parent.name, path.stem, timestamp, main, subagent_tokens, subagent_cost, roles, long_builders))
+    roots = (HOME / ".claude_personal/projects", HOME / ".claude/projects")
+    for path in largest_first(path for root in roots for path in root.glob("*/*.jsonl")):
+        first = next((record.get("timestamp") for record in records(path) if record.get("timestamp")), None)
+        if not first:
+            continue
+        timestamp = datetime.datetime.fromisoformat(first.replace("Z", "+00:00"))
+        if timestamp.tzinfo is None:
+            continue
+        timestamp = timestamp.astimezone(datetime.timezone.utc)
+        if not start <= timestamp.date() <= end:
+            continue
+        main = session_stats(path, counted)
+        counted |= main["messages"]
+        roles = collections.Counter()
+        subagent_tokens = long_builders = 0
+        subagent_cost = 0.0
+        for agent in largest_first((path.parent / path.stem / "subagents").glob("agent-*.jsonl")):
+            role = agent_meta(agent).get("agentType", "unknown")
+            stats = session_stats(agent, counted)
+            counted |= stats["messages"]
+            roles[role] += 1
+            subagent_tokens += stats["tokens"]
+            subagent_cost += stats["cost"]
+            long_builders += role == "poteto-agent" and stats["calls"] > LONG_RUN_CALLS
+        sessions.append(WindowSession(path.parent.name, path.stem, timestamp, main, subagent_tokens, subagent_cost, roles, long_builders))
     return sessions
 
 

@@ -224,7 +224,7 @@ class NativeHookPayloadTests(unittest.TestCase):
         self.assertEqual(blocked_size.returncode, 2, blocked_size.stderr)
         self.assertIn("file too long", blocked_size.stderr)
 
-    def test_agent_model_keeps_the_reviewer_seat_on_opus_runs_explore_on_sonnet_and_leaves_other_agents_alone(self):
+    def test_agent_model_keeps_the_reviewer_seat_on_opus_runs_unpinned_explore_on_sonnet_and_leaves_other_agents_alone(self):
         with tempfile.TemporaryDirectory() as directory:
             agents = pathlib.Path(directory) / ".claude/agents"
             agents.mkdir(parents=True)
@@ -249,6 +249,9 @@ class NativeHookPayloadTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stderr)
                     output = json.loads(result.stdout)["hookSpecificOutput"] if result.stdout else None
                     self.assertEqual(output["updatedInput"]["model"] if output else None, expected)
+            (agents / "Explore.md").write_text("---\nname: Explore\nmodel: haiku\n---\n")
+            pinned = invoke(MODEL_HOOK, {"cwd": str(nested), "tool_input": {"subagent_type": "Explore"}}, directory)
+            self.assertEqual((pinned.returncode, pinned.stdout), (0, ""))
 
     def test_agent_model_leaves_an_opus_pinned_reviewer_seat_alone(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -130,7 +130,7 @@ class ContextAuditTests(unittest.TestCase):
 
     def test_window_includes_nested_agents_by_parent_start_and_deduplicates_messages(self):
         def message(identifier, timestamp, tokens, calls=0):
-            return {"type": "assistant", "timestamp": timestamp, "message": {"id": identifier, "model": "claude-opus", "usage": {"input_tokens": tokens}, "content": [{"type": "tool_use", "id": f"{identifier}-{n}", "name": "Read"} for n in range(calls)]}}
+            return {"type": "assistant", "timestamp": timestamp, "message": {"id": identifier, "model": "claude-opus-5-5", "usage": {"input_tokens": tokens}, "content": [{"type": "tool_use", "id": f"{identifier}-{n}", "name": "Read"} for n in range(calls)]}}
 
         parent = self.home / ".claude_personal/projects/project/session.jsonl"
         first = message("main", "2026-10-28T00:00:00Z", 100, 2)
@@ -154,7 +154,7 @@ class ContextAuditTests(unittest.TestCase):
         self.assertNotIn("other end", limited.stdout)
         self.assertNotEqual(self.run_cli("--window", "2026-11-01", "2026-10-31").returncode, 0)
 
-    def test_window_prices_each_message_once_when_a_side_chat_copies_its_parent(self):
+    def test_window_prices_each_model_id_and_each_message_once_when_a_side_chat_copies_its_parent(self):
         def message(identifier, model, usage):
             return {"type": "assistant", "timestamp": "2026-11-05T09:00:00Z", "message": {"id": identifier, "model": model, "usage": usage, "content": []}}
 
@@ -163,12 +163,17 @@ class ContextAuditTests(unittest.TestCase):
         side = message("m3", "claude-sonnet-5-5", {"cache_read_input_tokens": 1_000_000, "cache_creation_input_tokens": 2_000_000,
                                                    "cache_creation": {"ephemeral_1h_input_tokens": 1_000_000}})
         transcript(self.home / ".claude/projects/p/parent.jsonl", copied, parent, {"type": "user", "message": {"content": "x" * 500}})
-        transcript(self.home / ".claude/projects/p/side.jsonl", copied, side)
+        haiku = message("m4", "claude-haiku-5-5", {"input_tokens": 1_000_000})
+        transcript(self.home / ".claude/projects/p/side.jsonl", copied, side, haiku)
         result = self.run_cli("--window", "2026-11-05", "2026-11-05")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("list price $30.60 (main $30.60)", result.stdout)
+        self.assertIn("list price $30.70 (main $30.70)", result.stdout)
         self.assertIn("p parent 2026-11-05T09:00:00+00:00 $24.00 2,000,000", result.stdout)
-        self.assertIn("p side 2026-11-05T09:00:00+00:00 $6.60 3,000,000", result.stdout)
+        self.assertIn("p side 2026-11-05T09:00:00+00:00 $6.70 4,000,000", result.stdout)
+        transcript(self.home / ".claude/projects/p/old.jsonl", message("m5", "claude-opus-4-1", {"input_tokens": 1}))
+        unpriced = self.run_cli("--window", "2026-11-05", "2026-11-05")
+        self.assertNotEqual(unpriced.returncode, 0)
+        self.assertIn("no list price for model 'claude-opus-4-1'", unpriced.stderr)
 
     def spawn_fixture(self, requested):
         def assistant(identifier, model, *content):

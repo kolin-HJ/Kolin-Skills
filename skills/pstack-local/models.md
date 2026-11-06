@@ -2,7 +2,7 @@
 
 Replaces `~/.cursor/rules/pstack-models.mdc`. Role labels match the ones pstack skills name. Claude is the only provider. Every role runs as a native Claude subagent through the Agent tool, and no other provider's CLI or API is called.
 
-- `default`: a native subagent with no `model` passed. `CLAUDE_CODE_SUBAGENT_MODEL` runs it on Sonnet, including a repo's agents, read-only or not. A definition's `model` and the Agent tool's `model` win. `Explore` and `Plan` ignore the variable and inherit the session's model, so the model hook runs `Explore` on Sonnet unless the call passes `model`.
+- `default`: a native subagent with no `model` passed. `CLAUDE_CODE_SUBAGENT_MODEL` runs it on Sonnet, including a repo's agents, read-only or not. A definition's `model` and the Agent tool's `model` win. `Explore` and `Plan` ignore the variable and inherit the session's model, so the model hook runs `Explore` on Sonnet unless the call passes `model` or an `Explore.md` exists in the repo's or home's agent folders.
 - `opus`, `sonnet`: a native subagent with that model passed as the Agent tool's `model`.
 
 No role runs on Grok, GPT or any non-Claude model. Read an upstream `grok-*` default as `sonnet`.
