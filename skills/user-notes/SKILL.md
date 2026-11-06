@@ -78,48 +78,59 @@ Show the image in your reply and give its full path. Never make a PDF, because C
 
 ## Video
 
-A training / show-off video of the same user-facing changes. It must look like someone is using the app the notes are for: that app's real screens, a visible pointer, real clicks, typing and page changes. Never abstract motion or a made-up UI. A change that a click cannot show goes on a notes slide instead (step 6). Same language rules as the text notes: what the user sees, no PR numbers.
+A training video of the same user-facing changes. It must look like someone is using the app: its real screens, a visible pointer, real clicks, typing and page changes. Never abstract motion or a made-up UI. Same language rules as the text notes.
 
-1. Run the app from this repo locally with seed or test data, as its `AGENTS.md` or `run` skill says. Never record production data or real customer, supplier or staff names.
-2. Write a shot list first, biggest change first. Mark each change as a demo or a note:
-   - If a user can see it by clicking (a new button, column, filter or page): demo. The shot names the page, the clicks and the one thing the viewer should notice.
-   - If not (faster loading, an email or report that arrives later, a rule or date change, a fix with no new screen): note.
-3. Record each shot in the real app with `agent-browser`, pointer on, at the same viewport as the graphic:
+The kit in `assets/video/` does the repeated work: `rec.sh` (record helpers), `clean.js` (blur and hide), `scenes.py` (builds the HyperFrames project from one `spec.json`), `scene.css` and `spec.example.json`. Copy it into the session's scratch folder; never edit the assets.
+
+### Plan the coverage
+
+1. List every change in the release body a user could notice. For each, pick **demo** if a user can see it by clicking (a button, column, popup, filter, page, label or value), else **note** (a schedule, a report that arrives later, a removed thing). A change that has a screen is a demo, even a small one such as a renamed column or a new date format. Put the list in your reply before you record.
+2. Order the demos by impact. Each demo shows the whole flow: where to find it, the action, and the result the user gets, on screen and readable. A button alone is not a demo: open the popup, scroll to the part that explains the number, and hold it.
+
+### Record
+
+3. Run the app locally with seed or test data, as the repo's `AGENTS.md` or `run` skill says. Never record production data. When a page needs a permission or a record, add it to the local database only, tag it so you can find it (`granted_by='local:user-notes-video'`, a `ZZ`-style name), and remove it after approval. Never press a button that writes to an outside system (a NetSuite create, a BigQuery push, an email).
+4. Edit `clean.js` for the app: `PRIVATE` blurs customer, supplier and staff names, emails and other private text; `NOISE` hides dev banners and load warnings. Load it as an init script so every page is clean before the first frame.
+5. Scout each shot with screenshots first. Find each target, tag it with `tag <name> '{q:"<css>",t:"<text>"}'`, and read its footage box with `box <name>` (agent-browser selectors are CSS only).
+6. Record each shot in a **fresh** browser session: `source rec.sh; fresh clean.js`. A long-lived session freezes the screencast. Set `MARKS=<scratch>/shots/<n>.marks`, run `mark start` right after `record start`, and `mark <event>` after each action. Wait about one second after each action.
+7. If a control does not respond in headless Chrome (a date input, say), drive the other path a user has (the grid cell, a keyboard entry). Never fake the result.
+8. Prove each shot before you use it: take a screenshot at the end and read the result value, and make a 6-frame strip (`ffmpeg -i shot.mp4 -vf "fps=1/2,scale=480:-1,tile=6x1"`) to show the frames change. Re-record a frozen, spinning or wrong shot.
+
+### Build
+
+9. Read `/hyperframes`. Write `spec.json` from `spec.example.json`:
+   - Footage times are local to the scene: event time = mark − `start` mark − `mediaStart`.
+   - A ring goes on the target about 0.8 s before its click, with the box you read in step 5 (footage pixels at the 1440×900 viewport). Give a ring a `label` when the step is not obvious ("Typo: pick the right value").
+   - A caption has an eyebrow (`New · <Section> → <Page>` or `Fix · …`), a title of 8 words or fewer, and a `sub` that tells the user how to use it. Put `place: ["right"]` or `["right","low"]` on a caption that would cover the result.
+   - Zoom (`scale` 1.4 to 1.5) on the result, then hold it about 2 s.
+   - `notes` holds the note changes for the "Also new" slide, grouped by page, worded as in the text notes, about 15 words each, five at most. Never put a demoed change there.
+   - `intro` counts the demos and notes: "6 updates shown in the app, plus 4 more". `pages` lists `<Section> → <Page>` for the end card.
+10. Build and check:
 
 ```bash
-agent-browser --session user-notes-video set viewport 1440 900
-agent-browser --session user-notes-video open "<local app url>/<page>"
-agent-browser --session user-notes-video wait --load networkidle
-agent-browser --session user-notes-video record start "<scratch>/shot-<n>.mp4" --cursor
-agent-browser --session user-notes-video click "<selector>"
-agent-browser --session user-notes-video record stop
+python3 -I <scratch>/scenes.py <scratch>/spec.json <scratch>/project
+cp <scratch>/shots/*.mp4 <scratch>/project/assets/
+gh api -H 'Accept: application/vnd.github.raw' 'repos/HydroJug/hj-ui/contents/packages/ui/src/styles/tokens.css?ref=main' > <scratch>/project/assets/hj-tokens.css
+cd <scratch>/project && npx hyperframes check --json
 ```
 
-   Move at a human pace: wait about one second after each click so the viewer sees the result.
-4. Read `/hyperframes`, then `/media-use`. Use them to cut the shots together. The app screens stay the main picture; captions, zooms and highlights only point at them.
-5. Make each shot obvious to a viewer with the sound off who has never seen the change:
-   - Open the shot with a caption that names the feature and why it helps, in 8 words or fewer: "New: see line items on any order."
-   - Before the click, put a highlight ring or arrow on the button or field the pointer will use.
-   - Zoom in on the part that changed, and hold the result on screen for about 2 seconds.
-   - When the change replaces old behavior, show before, then after, each labeled.
-   - Show one feature at a time. Keep each shot to 10 to 20 seconds and the whole video, notes slide included, under 90 seconds.
-6. Put all note changes on a notes slide after the last demo shot, titled "Also new". Rules for the slide:
-   - One bullet per change, worded as in the text notes, about 15 words or fewer. Five bullets per slide; use a second slide if there are more.
-   - Group bullets by page name, as in the text notes.
-   - Bring the bullets in one at a time, and hold the full slide about 1 second per 3 words so it can be read.
-   - Style it like the graphic: copy the layout from `assets/card.html` and use only the hj-ui tokens it uses, Georgia for the title and Inter for the bullets, no emojis.
-   - Never put a change that has a demo shot on the notes slide too.
-7. End on a card with the release title and the page names, so viewers know where to find each change.
-8. Read `/reverse-any-video` only when the source is an existing clip to rebuild as editable HTML.
-9. For stock music, SFX or Voice Turbo, run `hyperframes auth login` first. Do not wait for a Pro account.
-10. Watch the final file before you hand it over. Re-record a shot that shows a loading spinner, an error or a wrong page, or where the point of the shot is not clear in 3 seconds. Give Kolin the file path and ask him to approve it. Keep every shot and the HyperFrames project until he does, so a change is a re-cut and not a re-record.
-11. After Kolin approves, finish in this order:
+   Fix every `line_unread` warning: a label or caption stays on screen 0.5 s + 0.3 s per word.
+11. Snapshot each ring and caption time (`npx hyperframes snapshot . --at <t,…> --no-end -o ../snaps`) and look at every frame. Move a caption that covers the result or the pointer.
+12. Render (`npx hyperframes render --video-frame-format png -o ../whats-new-<app>-<yyyy-mm-dd>.mp4`) and look at a frame sheet of the file.
+13. Keep the video under 90 s. When showing every change needs more, go up to 2 minutes and say the length when you ask for approval. Full coverage wins over a short video.
+14. Read `/media-use` only for music or voice; for stock music, SFX or Voice Turbo, run `hyperframes auth login` first. Read `/reverse-any-video` only to rebuild an existing clip.
+
+### Approve and clean up
+
+15. Show Kolin the video, the list of demos and notes, and the length. Ask him to approve it. Keep every shot and the project until he does, so a change is a re-cut and not a re-record.
+16. After Kolin approves, finish in this order:
    1. Copy the final render to `~/Downloads/whats-new-<app>-<yyyy-mm-dd>.mp4`. If that name exists, add `-2`, never overwrite.
    2. Play the copy in `~/Downloads` once to confirm it is complete.
    3. Close the recording session: `agent-browser --session user-notes-video close`.
    4. Stop the local app and any preview server you started for the video.
-   5. Delete the raw shots, contact sheets, the HyperFrames project and any other render files you made in scratch.
-   6. Give Kolin the `~/Downloads` path and say what you deleted.
+   5. Remove the local grants and test records from step 3.
+   6. Delete the raw shots, contact sheets, the project and any other render files in scratch.
+   7. Give Kolin the `~/Downloads` path and say what you deleted.
 
 ## After the notes
 
