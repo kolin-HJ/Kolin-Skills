@@ -74,11 +74,5 @@ If you agree with their recommendations, make the changes and request a fresh
 review after. Continue this process until every seated delegate is satisfied with the
 outcome.
 
-A seat is satisfied when it names no defect: a bug, a false claim or a
-broken repo rule. Optional points and wording do not count. Stop when a round
-has no defect from any seat, whatever the scores. Seats score in whole
-numbers, so a decimal target such as 9.2 means every seat at 9 or more with
-no defect. Never run a round only to raise a score.
-
 Do not let repeated reviews result in scope creep. It is your job to fight to
 keep scope limited.

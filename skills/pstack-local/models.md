@@ -33,7 +33,7 @@ interrogate reviewers: opus, opus, sonnet
 fork: inherits Opus and the parent's whole context; use it when that context is the point
 ```
 
-Builders start on Sonnet. Pass `model: "opus"` when the job is hard enough to need it. A fix round, a builder briefed with named review findings, runs on Sonnet; the orchestrator fixes a small finding itself. An Opus judgment role runs as `judge`, or `senior-reviewer` for a diff; a Sonnet seat passes `model: "sonnet"`. Never use `Plan` for judgment, because `Plan` and `Explore` start without `CLAUDE.md` or `AGENTS.md`. The judgment roles are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
+Builders start on Sonnet. Pass `model: "opus"` when the job is hard enough to need it. A fix round, a builder briefed with named review findings, also starts on Sonnet, even when Opus built the unit. An Opus judgment role runs as `judge`, or `senior-reviewer` for a diff; a Sonnet seat passes `model: "sonnet"`. Never use `Plan` for judgment, because `Plan` and `Explore` start without `CLAUDE.md` or `AGENTS.md`. The judgment roles are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
 
 Interrogate is on demand, not the pre-PR gate (policy, Pull requests). Spawn it only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. When it runs, run each Opus seat as `senior-reviewer` and the Sonnet seat as `senior-reviewer` with `model: "sonnet"`, with the lens in the brief. Interrogate gives each reviewer one lens:
 

@@ -14,7 +14,7 @@ Read the repo's `AGENTS.md` and each skill the brief names.
 ## Do
 
 - Work only in the files the brief assigns, in the worktree it names.
-- In an isolated worktree, the harness refuses a Bash call it cannot prove stays inside the worktree, and each refusal costs a turn. Spell paths and commands out: no shell variable or `$(...)` in their place. Write and change files with Write and Edit, never `cat > file <<EOF` or `python3 - <<EOF`. Use no subshell `( ... )`, `$?`, `xargs` or `git -C`. Put a script that needs any of these in a file and run the file.
+- In an isolated worktree, the harness refuses a Bash call it cannot prove stays inside the worktree, and each refusal costs a turn. Spell paths and commands out: no shell variable or `$(...)` in their place. Write and change files with Write and Edit, never `cat > file <<EOF` or `python3 - <<EOF`. Use no subshell `( ... )`, `$?`, `eval` (`pnpm -s verify eval` included), `xargs` or `git -C`, and run from the worktree root, not a `cd` into a subfolder. Put a script that needs any of these in a file and run the file.
 - Copy the exemplar the brief names. When a complexity rule fires, simplify in place; do not split the code out to pass it.
 - Prove the unit: run the repo's gate for your files and the check in the brief's **Done when**. A new test fails first on an assertion.
 - Delete and refactor freely inside your files, per the policy's Cleanup rule. A cleanup that needs a file outside your list is a stop and report, not a skip.
