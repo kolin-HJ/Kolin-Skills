@@ -14,6 +14,7 @@ A panel role is a list, with one subagent per entry, each with its own brief and
 ```
 feature, refactoring: default
 bug-fix: default
+fix round (named review findings): default
 perf-issue: default
 hillclimb: default
 judgment and prose: opus
