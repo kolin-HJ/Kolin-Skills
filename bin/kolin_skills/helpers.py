@@ -67,6 +67,7 @@ LINKS = {
     "bin/pr-body": [".local/bin/pr-body"],
     "bin/diff-audit": [".local/bin/diff-audit"],
     "bin/pglite-replay": [".local/bin/pglite-replay"],
+    "bin/disk-cleanup": [".local/bin/disk-cleanup"],
 }
 MERGED_JSON = {
     "claude/settings.json": ".claude/settings.json",
