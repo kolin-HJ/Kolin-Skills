@@ -2,7 +2,7 @@
 
 Replaces `~/.cursor/rules/pstack-models.mdc`. Role labels match the ones pstack skills name. Claude is the only provider. Every role runs as a native Claude subagent through the Agent tool, and no other provider's CLI or API is called.
 
-- `default`: a native subagent with no `model` passed. `CLAUDE_CODE_SUBAGENT_MODEL` runs it on Sonnet, including a repo's agents, read-only or not. A definition's `model` and the Agent tool's `model` win. `Explore` and `Plan` ignore the variable and inherit the session's model.
+- `default`: a native subagent with no `model` passed. `CLAUDE_CODE_SUBAGENT_MODEL` runs it on Sonnet, including a repo's agents, read-only or not. A definition's `model` and the Agent tool's `model` win. `Explore` and `Plan` ignore the variable and inherit the session's model, so the model hook runs `Explore` on Sonnet unless the call passes `model` or an `Explore.md` exists in the repo's or home's agent folders.
 - `opus`, `sonnet`: a native subagent with that model passed as the Agent tool's `model`.
 
 No role runs on Grok, GPT or any non-Claude model. Read an upstream `grok-*` default as `sonnet`.
@@ -47,7 +47,7 @@ Plan, build and review are separate roles:
 |---|---|---|---|
 | Orchestrator | the main session | Opus | Plan, Kolin's asks, briefs, reads every delegated hunk. Builds small work itself |
 | Builder | `poteto-agent`, or the repo's implementer | Sonnet, high | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
-| Searcher | `Explore` | The session's model | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
+| Searcher | `Explore` | Sonnet. Pass `model: "opus"` when the search needs judgment | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
 | Judge | `judge` | Opus, no edit tools | One design or judgment call, with the policy and the repo's `AGENTS.md` loaded |
 | Reviewer | `senior-reviewer` | Opus, high, read-only | Do not spawn by default. Prefer tests, the verify skill, UI proof and harnesses. Spawn only for high-risk work or when Kolin or the CEO asks; never the builder. If spawned: a re-check limited to a small fix delta is that Lite re-review on sonnet, unless the delta touches auth, money or data deletion (then Opus). If a reviewer returns without a verdict, resume or message that same subagent once before spawning another. |
 | Comment sweep | `comment-sicko` (pstack) | Sonnet | Deletes comments before review |

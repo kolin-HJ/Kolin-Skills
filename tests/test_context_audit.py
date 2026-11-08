@@ -114,10 +114,10 @@ class ContextAuditTests(unittest.TestCase):
         agent.with_suffix(".meta.json").write_text(json.dumps({"agentType": "reviewer"}))
         rows = {line.split()[0]: line.split() for line in self.run_cli("--sessions", config=".claude_personal").stdout.splitlines() if line.strip()}
         self.assertEqual(rows["Sessions"][5:10], ["1", "main", "sessions,", "1", "subagents,"])
-        self.assertEqual(rows["main"][1:], ["claude-opus-5-5", "1", "315", "7", "0", "200", "200"])
+        self.assertEqual(rows["main"][1:], ["claude-opus-5-5", "1", "315", "$", "0.00", "7", "0", "200", "200"])
         self.assertNotIn("mcp__x__flaky:", rows)
-        self.assertEqual(rows["reviewer"][1:], ["claude-sonnet-5-5", "1", "1,050", "1", "0", "1,000", "1,000"])
-        self.assertEqual(rows["proj"][1:], ["2026-10-20", "1,365", "1", "1"])
+        self.assertEqual(rows["reviewer"][1:], ["claude-sonnet-5-5", "1", "1,050", "$", "0.00", "1", "0", "1,000", "1,000"])
+        self.assertEqual(rows["proj"][1:], ["2026-10-20", "1,365", "$", "0.00", "1", "1"])
         self.assertEqual(rows["1"][1:4], ["main", "heavy-jobs.py:", "Blocked:"])
         self.assertEqual(rows["mcp__x__query:"], ["mcp__x__query:", "3"])
         self.assertEqual(rows["Unique"][-1], "1")
@@ -130,7 +130,7 @@ class ContextAuditTests(unittest.TestCase):
 
     def test_window_includes_nested_agents_by_parent_start_and_deduplicates_messages(self):
         def message(identifier, timestamp, tokens, calls=0):
-            return {"type": "assistant", "timestamp": timestamp, "message": {"id": identifier, "model": "claude-opus", "usage": {"input_tokens": tokens}, "content": [{"type": "tool_use", "id": f"{identifier}-{n}", "name": "Read"} for n in range(calls)]}}
+            return {"type": "assistant", "timestamp": timestamp, "message": {"id": identifier, "model": "claude-opus-5-5", "usage": {"input_tokens": tokens}, "content": [{"type": "tool_use", "id": f"{identifier}-{n}", "name": "Read"} for n in range(calls)]}}
 
         parent = self.home / ".claude_personal/projects/project/session.jsonl"
         first = message("main", "2026-10-28T00:00:00Z", 100, 2)
@@ -146,23 +146,44 @@ class ContextAuditTests(unittest.TestCase):
         transcript(self.projects / "other/outside.jsonl", message("out", "2026-10-27T23:59:59Z", 900))
         result = self.run_cli("--window", "2026-10-28", "2026-10-31")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("2 sessions, 360 tokens, main 110 (30.6%), builders 1, builders >200 calls 1", result.stdout)
-        self.assertIn("project session 2026-10-28T00:00:00+00:00 350 100 250 2 100 1 poteto-agent=1, reviewer=1", result.stdout)
+        self.assertIn("2 sessions, 360 tokens, main 110 (30.6%), list price $0.00 (main $0.00), builders 1, builders >200 calls 1", result.stdout)
+        self.assertIn("project session 2026-10-28T00:00:00+00:00 $0.00 350 100 250 2 100 1 poteto-agent=1, reviewer=1", result.stdout)
         self.assertNotIn("outside", result.stdout)
         self.assertFalse((self.home / ".kolin-skills").exists())
         limited = self.run_cli("--window", "2026-10-28", "2026-10-31", "--top", "1")
         self.assertNotIn("other end", limited.stdout)
         self.assertNotEqual(self.run_cli("--window", "2026-11-01", "2026-10-31").returncode, 0)
 
+    def test_window_prices_each_model_id_and_each_message_once_when_a_side_chat_copies_its_parent(self):
+        def message(identifier, model, usage):
+            return {"type": "assistant", "timestamp": "2026-11-05T09:00:00Z", "message": {"id": identifier, "model": model, "usage": usage, "content": []}}
+
+        copied = message("m1", "claude-opus-5-5", {"input_tokens": 1_000_000})
+        parent = message("m2", "claude-opus-5-5", {"output_tokens": 1_000_000})
+        side = message("m3", "claude-sonnet-5-5", {"cache_read_input_tokens": 1_000_000, "cache_creation_input_tokens": 2_000_000,
+                                                   "cache_creation": {"ephemeral_1h_input_tokens": 1_000_000}})
+        transcript(self.home / ".claude/projects/p/parent.jsonl", copied, parent, {"type": "user", "message": {"content": "x" * 500}})
+        haiku = message("m4", "claude-haiku-5-5", {"input_tokens": 1_000_000})
+        transcript(self.home / ".claude_personal/projects/p/side.jsonl", copied, side, haiku)
+        result = self.run_cli("--window", "2026-11-05", "2026-11-05")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("list price $31.10 (main $31.10)", result.stdout)
+        self.assertIn("p parent 2026-11-05T09:00:00+00:00 $24.00 2,000,000", result.stdout)
+        self.assertIn("p side 2026-11-05T09:00:00+00:00 $7.10 4,000,000", result.stdout)
+        transcript(self.home / ".claude/projects/p/old.jsonl", message("m5", "claude-opus-4-1", {"input_tokens": 1}))
+        unpriced = self.run_cli("--window", "2026-11-05", "2026-11-05")
+        self.assertNotEqual(unpriced.returncode, 0)
+        self.assertIn("no list price for model 'claude-opus-4-1'", unpriced.stderr)
+
     def spawn_fixture(self, requested):
-        def assistant(model, *content):
-            return {"type": "assistant", "timestamp": "2026-10-20T10:00:00Z", "message": {"id": model + str(len(content)), "model": model, "usage": {"input_tokens": 1}, "content": list(content)}}
+        def assistant(identifier, model, *content):
+            return {"type": "assistant", "timestamp": "2026-10-20T10:00:00Z", "message": {"id": identifier, "model": model, "usage": {"input_tokens": 1}, "content": list(content)}}
 
         spawns = [{"type": "tool_use", "id": f"toolu_{n}", "name": "Agent", "input": {"model": model, "subagent_type": "general-purpose"}} for n, model in enumerate(requested)]
-        transcript(self.projects / "p/s.jsonl", assistant("claude-opus-5-5", *spawns))
+        transcript(self.projects / "p/s.jsonl", assistant("parent", "claude-opus-5-5", *spawns))
         for n, _ in enumerate(requested):
             agent = self.projects / f"p/s/subagents/agent-{n}"
-            transcript(agent.with_suffix(".jsonl"), assistant("claude-sonnet-5-5"))
+            transcript(agent.with_suffix(".jsonl"), assistant(f"agent-{n}", "claude-sonnet-5-5"))
             agent.with_suffix(".meta.json").write_text(json.dumps({"agentType": "general-purpose", "toolUseId": f"toolu_{n}"}))
         output = self.run_cli("--sessions").stdout
         return output.partition("Seat mismatches: agent type, requested, ran, count\n")[2].split("Hook blocks")[0].strip().splitlines()
@@ -232,9 +253,9 @@ exec cat "$GH_FIXTURES/head-$(echo "$base" | tr / _).json"
         oneshot = mention("https://github.com/o/r/pull/11")
         oneshot["message"]["content"][1]["name"] = "StructuredOutput"
         transcript(self.projects / "p/sess7777-x.jsonl", oneshot)
-        own = mention("https://github.com/o/r/pull/11")
+        own = mention("see https://github.com/o/r/pull/11")
         own["message"]["content"][1]["input"] = {"command": "bin/context-audit --pr o/r#10"}
-        transcript(self.projects / "p/sess6666-x.jsonl", own)
+        transcript(self.projects / "p/sess6666-x.jsonl", own, {"type": "user", "message": {"content": "x" * 2000}})
         transcript(self.projects / "p/sess1111-x/subagents/agent-a.jsonl", mention("helper"))
         transcript(self.projects / "p/sess3333-x/subagents/agent-a.jsonl", mention("stray"))
         output = self.run_cli("--pr", "o/r#10", **self.gh_fixture()).stdout
