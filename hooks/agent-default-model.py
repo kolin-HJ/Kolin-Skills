@@ -3,7 +3,8 @@ import os
 import re
 import sys
 
-SEAT_MODELS = {"senior-reviewer": "opus"}
+SEAT_FLOORS = {"senior-reviewer": "opus"}
+BUILT_IN_DEFAULTS = {"Explore": "sonnet"}
 PINNED = re.compile(r"^model:[ \t]*(\S+)", re.M)
 
 
@@ -33,22 +34,30 @@ def pinned_model(text):
     return match.group(1) if match else None
 
 
+def chosen_model(agent, cwd):
+    text = definition(agent, cwd)
+    if text is None and agent in BUILT_IN_DEFAULTS:
+        return BUILT_IN_DEFAULTS[agent], f"{agent} ignores CLAUDE_CODE_SUBAGENT_MODEL, so it runs on {BUILT_IN_DEFAULTS[agent]} unless the call passes a model"
+    seat = SEAT_FLOORS.get(agent)
+    pinned = pinned_model(text) if seat and text else None
+    if pinned and seat not in pinned.lower():
+        return seat, f"{agent} runs on {seat}; this repo's copy pins a lower model"
+    return None, None
+
+
 def main():
     event = json.load(sys.stdin)
     tool_input = event.get("tool_input") or {}
-    agent = tool_input.get("subagent_type") or ""
-    seat = SEAT_MODELS.get(agent)
-    if not seat or tool_input.get("model"):
+    if tool_input.get("model"):
         return 0
-    text = definition(agent, event.get("cwd") or os.getcwd())
-    pinned = pinned_model(text) if text else None
-    if not pinned or seat in pinned.lower():
+    model, reason = chosen_model(tool_input.get("subagent_type") or "", event.get("cwd") or os.getcwd())
+    if not model:
         return 0
     json.dump({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "allow",
-        "permissionDecisionReason": f"{agent} runs on {seat}; this repo's copy pins a lower model",
-        "updatedInput": {**tool_input, "model": seat},
+        "permissionDecisionReason": reason,
+        "updatedInput": {**tool_input, "model": model},
     }}, sys.stdout)
     return 0
 
