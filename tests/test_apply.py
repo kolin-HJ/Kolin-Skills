@@ -54,13 +54,6 @@ class ApplyTests(unittest.TestCase):
         self.assertNotIn("full-stop", overrides)
         self.assertNotIn("modernize", overrides)
 
-    def test_apply_removes_the_retired_git_guard_link(self):
-        link = self.home / ".claude/hooks/block-forbidden-git.sh"
-        link.parent.mkdir(parents=True, exist_ok=True)
-        link.symlink_to(self.repo / "hooks/gate/block-forbidden-git.sh")
-        self.assertEqual(self.run_cli("apply").returncode, 0)
-        self.assertFalse(link.is_symlink())
-
     def test_second_apply_changes_nothing_and_check_passes(self):
         self.assertEqual(self.run_cli("apply").returncode, 0)
         again = self.run_cli("apply")

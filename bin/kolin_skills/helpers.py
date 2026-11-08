@@ -47,7 +47,6 @@ OTHER_INSTALLERS = {
     "claude.ai skill sync": ["synced"],
     "herdr": ["herdr-agent-state.sh"],
 }
-RETIRED_LINKS = [".claude/hooks/block-forbidden-git.sh"]
 DROPPED_SKILLS = {"break-ui", "full-stop", "emil-design-eng", "loop-refactor-to-pstack", "mobile-native", "modernize", "firecrawl", "firecrawl-crawl", "firecrawl-map", "firecrawl-scrape", "firecrawl-search", "improve", "ponytail", "ponytail-audit"}
 NPX_SKILL_LOCK = HOME / ".agents/.skill-lock.json"
 LINKS = {
@@ -61,6 +60,7 @@ LINKS = {
     "hooks/block-env-reads.py": [".claude/hooks/block-env-reads.py"],
     "hooks/heavy-slot.py": [".kolin-skills/bin/heavy-slot.py"],
     "hooks/agent-default-model.py": [".claude/hooks/agent-default-model.py"],
+    "hooks/gate/block-forbidden-git.sh": [".claude/hooks/block-forbidden-git.sh"],
     "bin/kolin-skills": [".local/bin/kolin-skills"],
     "bin/context-audit": [".local/bin/context-audit"],
     "bin/feature-budget": [".local/bin/feature-budget"],
@@ -81,7 +81,7 @@ WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
 SPEND_CAPS = {"subagent_model": "sonnet", "max_compact_window": 400_000}
 TRUNK = "main"
 REQUIRED_TOOLS = {
-    "jq": "claude/statusline.sh reads the session data with it",
+    "jq": "hooks/gate/block-forbidden-git.sh reads the tool call with it, and without it blocks every shell command",
     "node": "the repo-standard PR proof script is tested with it, and npx skills needs it",
 }
 SKILL_INDEXES = ["README.md"]
