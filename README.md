@@ -263,6 +263,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `diff-audit <base>` | Flags reward hacks and slop in a diff: skipped tests, edited assertions, comments, new dependencies, growth in `AGENTS.md` |
 | `feature-budget` | Counts files and lines under `features/<name>/` against the plan's budget. Report only |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions` and `--window` report tokens and list price (by model id, with Haiku 5.5's above-100K tier) per session and role, hook blocks and failing tools, and count a message copied into a side chat once |
+| `disk-cleanup` | Dry run by default. Reports, and with `--apply` removes, merged git worktrees (`git worktree remove`, never forced), unmerged ones idle over 7 days (the branch stays), orphaned local Supabase stacks, and npm, pnpm, turbo and Docker caches. `--scan DIR` adds repos, `--json` prints rows. Writes `~/.kolin-skills/disk-cleanup.json` |
 | `pglite-replay [root]` | Replays `supabase/migrations`, then `supabase/tests`, into an in-memory PGlite database |
 | `agent-browser-guard <args>` | Runs `agent-browser` for Codex outside its sandbox, with a fixed list of safe commands |
 

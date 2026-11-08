@@ -1,0 +1,510 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import collections
+import dataclasses
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import Callable, Optional
+
+HOME = Path.home()
+STATE = HOME / ".kolin-skills"
+REPORT = STATE / "disk-cleanup.json"
+STACKS = HOME / ".supabase" / "stacks"
+INTEGRATION_BRANCHES = ("main", "master", "staging")
+REMOTE_SLUG = re.compile(r"[:/]([^/:]+/[^/]+?)(?:\.git)?/?$")
+PR_FIELDS = "headRefName,headRefOid,state,number"
+DONE = {"remove": "removed", "archive": "archived", "clean": "cleaned"}
+WORKERS = 8
+GIT_TIMEOUT = 900
+PROBE_TIMEOUT = 60
+
+
+@dataclasses.dataclass
+class Result:
+    code: int
+    out: str
+    err: str
+
+
+@dataclasses.dataclass
+class Row:
+    step: str
+    target: str
+    action: str
+    reason: str
+
+
+@dataclasses.dataclass
+class Policy:
+    now: float
+    active_hours: float
+    stale_days: float
+
+
+@dataclasses.dataclass
+class Context:
+    apply: bool
+    policy: Policy
+    located: list
+    commons: list
+
+
+@dataclasses.dataclass
+class Repo:
+    common: Path
+    root: Path
+    prs: Optional[list]
+    refs: list
+    blocker: Optional[str] = None
+
+
+@dataclasses.dataclass
+class Worktree:
+    path: Path
+    common: Optional[Path] = None
+    branch: Optional[str] = None
+    head: str = ""
+    dirty: int = 0
+    activity: float = 0.0
+    in_use: bool = False
+    open_pr: Optional[int] = None
+    merged: Optional[str] = None
+    blocker: Optional[str] = None
+
+
+@dataclasses.dataclass
+class Stack:
+    path: Path
+    root: Optional[str]
+    running: bool
+    blocker: Optional[str] = None
+
+
+def fail(message):
+    sys.exit(f"disk-cleanup: {message}")
+
+
+def run(args, timeout=GIT_TIMEOUT):
+    try:
+        done = subprocess.run(args, capture_output=True, text=True, errors="replace", timeout=timeout)
+    except FileNotFoundError:
+        return Result(127, "", f"{args[0]} not installed")
+    except subprocess.TimeoutExpired:
+        return Result(124, "", f"{args[0]} timed out")
+    return Result(done.returncode, done.stdout.strip(), done.stderr.strip())
+
+
+def git(*args):
+    return run(["git", *args])
+
+
+def first_line(text):
+    return text.splitlines()[0] if text else "no output"
+
+
+def children(directory):
+    if not directory.is_dir():
+        return []
+    return sorted(p for p in directory.iterdir() if p.is_dir() and not p.is_symlink())
+
+
+def remove_tree(path):
+    try:
+        shutil.rmtree(path)
+    except OSError as error:
+        return str(error)
+    return None
+
+
+def read_json(path):
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def process_cwds():
+    result = run(["lsof", "-a", "-d", "cwd", "-Fn"])
+    if result.code == 127:
+        fail("lsof is required to tell which worktrees are in use")
+    return [line[1:] for line in result.out.splitlines() if line.startswith("n")]
+
+
+def inside(cwds, path):
+    return any(cwd == str(path) or cwd.startswith(f"{path}/") for cwd in cwds)
+
+
+def decide(rules, subject, policy):
+    for matches, verdict, reason in rules:
+        if matches(subject, policy):
+            return verdict, reason(subject, policy)
+    return "keep", "no rule matched"
+
+
+def linked_gitdir(path):
+    match = re.match(r"gitdir:\s*(.+)", (path / ".git").read_text())
+    return (path / match.group(1).strip()).resolve() if match else None
+
+
+def last_activity(gitdir):
+    return max((p.stat().st_mtime for p in (gitdir / "HEAD", gitdir / "logs" / "HEAD") if p.exists()), default=0.0)
+
+
+def common_dir_of(path):
+    result = git("-C", str(path), "rev-parse", "--path-format=absolute", "--git-common-dir")
+    return Path(result.out).resolve() if result.code == 0 else None
+
+
+def discover(scan):
+    home_worktrees = HOME / ".t3" / "worktrees"
+    located = []
+    for project in children(home_worktrees):
+        if (project / ".git").is_file():
+            located.append(project)
+        else:
+            located.extend(entry for entry in children(project) if (entry / ".git").is_file())
+    for bucket in children(HOME / ".codex" / "worktrees"):
+        located.extend(entry for entry in children(bucket) if (entry / ".git").is_file())
+    scanned = [entry for directory in scan for entry in children(directory) if (entry / ".git").exists()]
+    commons = {}
+    for path in [*located, *scanned]:
+        common = common_dir_of(path)
+        if common is not None:
+            commons.setdefault(common, None)
+    return located, list(commons)
+
+
+def remote_slug(url):
+    match = REMOTE_SLUG.search(url)
+    return match.group(1) if match else None
+
+
+def fetch_prs(slug):
+    if slug is None:
+        return None
+    result = run(["gh", "pr", "list", "-R", slug, "--state", "all", "--limit", "3000", "--json", PR_FIELDS])
+    if result.code != 0:
+        return None
+    try:
+        return json.loads(result.out)
+    except ValueError:
+        return None
+
+
+def load_repo(common):
+    root = common.parent if common.name == ".git" else common
+    url = git("--git-dir", str(common), "remote", "get-url", "origin")
+    if url.code != 0:
+        return Repo(common, root, None, [], "no origin remote")
+    if git("--git-dir", str(common), "fetch", "--prune", "--quiet", "origin").code != 0:
+        return Repo(common, root, None, [], "fetch failed")
+    refs = [
+        f"origin/{name}" for name in INTEGRATION_BRANCHES
+        if git("--git-dir", str(common), "rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{name}").code == 0
+    ]
+    return Repo(common, root, fetch_prs(remote_slug(url.out)), refs)
+
+
+def listed_worktrees(common):
+    listing = git("--git-dir", str(common), "worktree", "list", "--porcelain")
+    if listing.code != 0:
+        fail(f"git cannot list worktrees of {common}: {first_line(listing.err)}")
+    entries = [Path(line[len("worktree "):]) for line in listing.out.splitlines() if line.startswith("worktree ")]
+    return [entry.resolve() for entry in entries[1:] if entry.exists()]
+
+
+def ancestor_ref(repo, path, head):
+    return next(
+        (ref for ref in repo.refs if git("-C", str(path), "merge-base", "--is-ancestor", head, ref).code == 0), None
+    )
+
+
+def absorbing_ref(repo, path):
+    for ref in repo.refs:
+        tree = git("-C", str(path), "rev-parse", "--verify", "--quiet", f"{ref}^{{tree}}")
+        merge = git("-C", str(path), "merge-tree", "--write-tree", ref, "HEAD")
+        if tree.code == 0 and merge.code == 0 and merge.out.partition("\n")[0] == tree.out:
+            return ref
+    return None
+
+
+def pr_evidence(prs, head, branch):
+    mine = [pr for pr in prs if pr["headRefOid"] == head or (branch and pr["headRefName"] == branch)]
+    open_pr = next((pr["number"] for pr in mine if pr["state"] == "OPEN"), None)
+    merged_pr = next((pr["number"] for pr in mine if pr["state"] == "MERGED" and pr["headRefOid"] == head), None)
+    return open_pr, merged_pr
+
+
+def load_worktree(path, repos, cwds):
+    gitdir = linked_gitdir(path)
+    if gitdir is None or not gitdir.exists():
+        return Worktree(path, blocker="git link missing")
+    worktree = Worktree(path, activity=last_activity(gitdir), in_use=inside(cwds, path))
+    common = common_dir_of(path)
+    head = git("-C", str(path), "rev-parse", "HEAD")
+    status = git("-C", str(path), "status", "--porcelain")
+    if common is None or head.code != 0 or status.code != 0:
+        worktree.blocker = "git cannot read it"
+        return worktree
+    branch = git("-C", str(path), "symbolic-ref", "-q", "--short", "HEAD")
+    worktree.common = common
+    worktree.head = head.out
+    worktree.branch = branch.out if branch.code == 0 else None
+    worktree.dirty = len(status.out.splitlines())
+    repo = repos.get(common)
+    if repo is None:
+        worktree.blocker = "repository not discovered"
+        return worktree
+    if repo.blocker:
+        worktree.blocker = repo.blocker
+        return worktree
+    ancestor = ancestor_ref(repo, path, head.out)
+    if ancestor is None and repo.prs is None:
+        worktree.blocker = "gh failed, no merge evidence"
+        return worktree
+    open_pr, merged_pr = pr_evidence(repo.prs or [], head.out, worktree.branch)
+    worktree.open_pr = open_pr
+    if ancestor:
+        worktree.merged = f"commit is in {ancestor}"
+    elif merged_pr:
+        worktree.merged = f"PR #{merged_pr} merged"
+    else:
+        absorbed = absorbing_ref(repo, path)
+        worktree.merged = f"all changes already in {absorbed}" if absorbed else None
+    return worktree
+
+
+WORKTREE_RULES: list[tuple[Callable, str, Callable]] = [
+    (lambda w, p: w.blocker, "keep", lambda w, p: w.blocker),
+    (lambda w, p: w.in_use, "keep", lambda w, p: "a running program is inside it"),
+    (lambda w, p: w.dirty, "keep", lambda w, p: "uncommitted changes"),
+    (lambda w, p: p.now - w.activity < p.active_hours * 3600, "keep",
+     lambda w, p: f"used in the last {p.active_hours:g} hours"),
+    (lambda w, p: w.open_pr, "keep", lambda w, p: "open PR"),
+    (lambda w, p: w.merged, "remove", lambda w, p: w.merged),
+    (lambda w, p: p.now - w.activity > p.stale_days * 86400, "archive",
+     lambda w, p: f"unmerged, idle more than {p.stale_days:g} days"),
+    (lambda w, p: True, "keep", lambda w, p: "unmerged, active this week"),
+]
+
+
+def archive_branch(worktree):
+    name = f"archive/{worktree.path.name}"
+    existing = git("-C", str(worktree.path), "rev-parse", "--verify", "--quiet", f"refs/heads/{name}")
+    if existing.code == 0 and existing.out == worktree.head:
+        return None
+    created = git("-C", str(worktree.path), "branch", name, worktree.head)
+    return None if created.code == 0 else f"archive branch failed: {first_line(created.err)}"
+
+
+def remove_worktree(worktree):
+    removed = git("--git-dir", str(worktree.common), "worktree", "remove", str(worktree.path))
+    return None if removed.code == 0 else first_line(removed.err)
+
+
+def settle_worktree(ctx, repos, worktree, verdict, reason):
+    target = str(worktree.path)
+    if verdict == "keep" or not ctx.apply:
+        return Row("worktrees", target, verdict, reason)
+    fresh = load_worktree(worktree.path, repos, process_cwds())
+    again, why = decide(WORKTREE_RULES, fresh, ctx.policy)
+    if again != verdict:
+        return Row("worktrees", target, "keep", f"changed before delete: {why}")
+    problem = archive_branch(fresh) if verdict == "archive" and fresh.branch is None else None
+    problem = problem or remove_worktree(fresh)
+    if problem:
+        return Row("worktrees", target, "failed", problem)
+    return Row("worktrees", target, DONE[verdict], reason)
+
+
+def step_worktrees(ctx):
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        loaded = list(pool.map(load_repo, ctx.commons))
+        repos = {repo.common: repo for repo in loaded}
+        paths = {path.resolve() for path in ctx.located}
+        for repo in loaded:
+            paths.update(listed_worktrees(repo.common))
+        cwds = process_cwds()
+        worktrees = list(pool.map(lambda path: load_worktree(path, repos, cwds), sorted(paths)))
+    rows = []
+    for worktree in worktrees:
+        verdict, reason = decide(WORKTREE_RULES, worktree, ctx.policy)
+        rows.append(settle_worktree(ctx, repos, worktree, verdict, reason))
+    return rows
+
+
+def pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def load_stack(path):
+    state = read_json(path / "state.json")
+    if state is None:
+        return Stack(path, None, False, "no readable state.json")
+    root = state.get("identity", {}).get("projectRoot")
+    if not isinstance(root, str) or not root:
+        return Stack(path, None, False, "no projectRoot in state.json")
+    owner_file = path / "owner.json"
+    if not owner_file.exists():
+        return Stack(path, root, False)
+    owner = read_json(owner_file)
+    pid = owner.get("pid") if isinstance(owner, dict) else None
+    if not isinstance(pid, int) or pid <= 0:
+        return Stack(path, root, False, "unreadable owner.json")
+    return Stack(path, root, pid_alive(pid))
+
+
+STACK_RULES: list[tuple[Callable, str, Callable]] = [
+    (lambda s, p: s.blocker, "keep", lambda s, p: s.blocker),
+    (lambda s, p: s.running, "keep", lambda s, p: "running"),
+    (lambda s, p: Path(s.root).exists(), "keep", lambda s, p: "checkout exists"),
+    (lambda s, p: True, "remove", lambda s, p: "checkout gone"),
+]
+
+
+def settle_stack(ctx, stack, verdict, reason):
+    target = str(stack.path)
+    if verdict == "keep" or not ctx.apply:
+        return Row("supabase-stacks", target, verdict, reason)
+    fresh = load_stack(stack.path)
+    again, why = decide(STACK_RULES, fresh, ctx.policy)
+    if again != verdict:
+        return Row("supabase-stacks", target, "keep", f"changed before delete: {why}")
+    problem = remove_tree(stack.path)
+    if problem:
+        return Row("supabase-stacks", target, "failed", problem)
+    return Row("supabase-stacks", target, DONE[verdict], reason)
+
+
+def step_supabase_stacks(ctx):
+    rows = []
+    for path in children(STACKS):
+        stack = load_stack(path)
+        verdict, reason = decide(STACK_RULES, stack, ctx.policy)
+        rows.append(settle_stack(ctx, stack, verdict, reason))
+    return rows
+
+
+def tool_row(ctx, name, args):
+    command = " ".join([name, *args])
+    if shutil.which(name) is None:
+        return Row("caches", command, "skipped", f"{name} not installed")
+    if not ctx.apply:
+        return Row("caches", command, "clean", "would run")
+    result = run([name, *args])
+    if result.code != 0:
+        return Row("caches", command, "failed", first_line(result.err or result.out))
+    return Row("caches", command, DONE["clean"], "ran")
+
+
+def turbo_row(ctx, root):
+    cache = root / ".turbo" / "cache"
+    if not cache.is_dir() or cache.is_symlink():
+        return None
+    if not ctx.apply:
+        return Row("caches", str(cache), "clean", "turbo cache")
+    problem = remove_tree(cache)
+    if problem:
+        return Row("caches", str(cache), "failed", problem)
+    return Row("caches", str(cache), DONE["clean"], "turbo cache")
+
+
+def docker_rows(ctx):
+    if shutil.which("docker") is None:
+        return [Row("caches", "docker", "skipped", "docker not installed")]
+    if run(["docker", "info"], timeout=PROBE_TIMEOUT).code != 0:
+        return [Row("caches", "docker", "skipped", "docker is not running")]
+    return [
+        tool_row(ctx, "docker", ["image", "prune", "-a", "-f"]),
+        tool_row(ctx, "docker", ["builder", "prune", "-a", "-f"]),
+    ]
+
+
+def step_caches(ctx):
+    rows = [tool_row(ctx, "npm", ["cache", "clean", "--force"]), tool_row(ctx, "pnpm", ["store", "prune"])]
+    turbo = (turbo_row(ctx, common.parent if common.name == ".git" else common) for common in ctx.commons)
+    rows.extend(row for row in turbo if row)
+    rows.extend(docker_rows(ctx))
+    return rows
+
+
+STEPS: dict[str, Callable] = {
+    "worktrees": step_worktrees,
+    "supabase-stacks": step_supabase_stacks,
+    "caches": step_caches,
+}
+
+
+def gigabytes(size):
+    return f"{size / 1e9:.1f} GB"
+
+
+def render(rows, apply, before, after):
+    lines = [f"disk-cleanup: {'applied' if apply else 'dry run, nothing deleted (pass --apply)'}", ""]
+    lines += [f"{row.step:16} {row.action:9} {row.target}  ({row.reason})" for row in rows if row.action != "keep"]
+    counts = collections.Counter((row.step, row.action) for row in rows)
+    lines += ["", "Summary"]
+    lines += [f"  {step:16} {action:9} {count}" for (step, action), count in sorted(counts.items())]
+    lines += ["", f"  free before {gigabytes(before)}, after {gigabytes(after)}"]
+    kept = collections.defaultdict(list)
+    for row in rows:
+        if row.action == "keep":
+            kept[row.reason].append(row.target)
+    lines += ["", "Kept"] if kept else []
+    for reason, targets in sorted(kept.items(), key=lambda item: -len(item[1])):
+        lines.append(f"  {reason} ({len(targets)})")
+        lines += [f"    {target}" for target in targets]
+    return "\n".join(lines)
+
+
+def scan_dir(value):
+    path = Path(value).expanduser()
+    if not path.is_dir():
+        raise argparse.ArgumentTypeError(f"{value} is not a directory")
+    return path
+
+
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description="Remove merged or stale git worktrees, orphaned Supabase stacks and caches.")
+    parser.add_argument("--apply", action="store_true", help="delete; without it the run only reports")
+    parser.add_argument("--json", action="store_true", help="print the rows as JSON")
+    parser.add_argument("--active-hours", type=float, default=6, help="keep worktrees used within this many hours")
+    parser.add_argument("--stale-days", type=float, default=7, help="archive unmerged worktrees idle longer than this")
+    parser.add_argument("--scan", type=scan_dir, action="append", default=[], metavar="DIR",
+                        help="also find repos one level under DIR (repeatable)")
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    located, commons = discover(args.scan)
+    ctx = Context(args.apply, Policy(time.time(), args.active_hours, args.stale_days), located, commons)
+    before = shutil.disk_usage(HOME).free
+    rows = [row for step in STEPS.values() for row in step(ctx)]
+    after = shutil.disk_usage(HOME).free
+    STATE.mkdir(parents=True, exist_ok=True)
+    REPORT.write_text(json.dumps([dataclasses.asdict(row) for row in rows], indent=1) + "\n")
+    if args.json:
+        print(json.dumps([dataclasses.asdict(row) for row in rows], indent=1))
+    else:
+        print(render(rows, args.apply, before, after))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
