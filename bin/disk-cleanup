@@ -19,6 +19,8 @@ HOME = Path.home()
 STATE = HOME / ".kolin-skills"
 REPORT = STATE / "disk-cleanup.json"
 STACKS = HOME / ".supabase" / "stacks"
+T3_WORKTREES = HOME / ".t3" / "worktrees"
+CODEX_WORKTREES = HOME / ".codex" / "worktrees"
 INTEGRATION_BRANCHES = ("main", "master", "staging")
 REMOTE_SLUG = re.compile(r"[:/]([^/:]+/[^/]+?)(?:\.git)?/?$")
 PR_FIELDS = "headRefName,headRefOid,state,number"
@@ -164,15 +166,19 @@ def common_dir_of(path):
     return Path(result.out).resolve() if result.code == 0 else None
 
 
+def agent_owned(path, repo_root):
+    roots = (T3_WORKTREES, CODEX_WORKTREES, repo_root / ".claude" / "worktrees")
+    return any(path.is_relative_to(root.resolve()) for root in roots)
+
+
 def discover(scan):
-    home_worktrees = HOME / ".t3" / "worktrees"
     located = []
-    for project in children(home_worktrees):
+    for project in children(T3_WORKTREES):
         if (project / ".git").is_file():
             located.append(project)
         else:
             located.extend(entry for entry in children(project) if (entry / ".git").is_file())
-    for bucket in children(HOME / ".codex" / "worktrees"):
+    for bucket in children(CODEX_WORKTREES):
         located.extend(entry for entry in children(bucket) if (entry / ".git").is_file())
     scanned = [entry for directory in scan for entry in children(directory) if (entry / ".git").exists()]
     commons = {}
@@ -332,7 +338,7 @@ def step_worktrees(ctx):
         repos = {repo.common: repo for repo in loaded}
         paths = {path.resolve() for path in ctx.located}
         for repo in loaded:
-            paths.update(listed_worktrees(repo.common))
+            paths.update(path for path in listed_worktrees(repo.common) if agent_owned(path, repo.root))
         cwds = process_cwds()
         worktrees = list(pool.map(lambda path: load_worktree(path, repos, cwds), sorted(paths)))
     rows = []

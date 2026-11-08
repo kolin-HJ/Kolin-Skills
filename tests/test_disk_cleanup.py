@@ -82,9 +82,13 @@ class DiskCleanupTests(unittest.TestCase):
         self.commit(self.worktrees / "active", "active-change")
         self.sha = {name: self.git(self.worktrees / name, "rev-parse", "HEAD")
                     for name in ("unmerged", "detached")}
+        self.subagent = self.main / ".claude" / "worktrees" / "subagent"
+        self.tool = self.main / ".verify" / "tool"
+        self.git(self.main, "worktree", "add", "-q", str(self.subagent), "-b", "subagent")
+        self.git(self.main, "worktree", "add", "-q", str(self.tool), "-b", "tool")
         self.cwds.write_text(f"n{self.worktrees / 'inuse'}/src\n")
         shutil.rmtree(self.gitdir("broken"))
-        for name in ("merged", "dirty", "unmerged", "detached", "inuse"):
+        for name in ("merged", "dirty", "unmerged", "detached", "inuse", "subagent", "tool"):
             self.age(name, 10)
 
     def build_stacks(self):
@@ -141,6 +145,11 @@ class DiskCleanupTests(unittest.TestCase):
         self.assertEqual(rows["recent"]["reason"], "used in the last 6 hours")
         self.assertTrue((self.worktrees / "inuse").exists())
         self.assertEqual(rows["inuse"]["reason"], "a running program is inside it")
+
+        self.assertFalse(self.subagent.exists())
+        self.assertEqual(rows["subagent"]["action"], "removed")
+        self.assertTrue(self.tool.exists())
+        self.assertNotIn("tool", rows)
 
         self.assertTrue((self.worktrees / "broken").exists())
         self.assertEqual(rows["broken"]["reason"], "git link missing")
