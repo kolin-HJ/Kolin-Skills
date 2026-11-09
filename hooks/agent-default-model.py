@@ -4,6 +4,7 @@ import re
 import sys
 
 SEAT_FLOORS = {"senior-reviewer": "opus"}
+MEETS_FLOOR = {"opus": ("opus", "fable", "mythos")}
 BUILT_IN_DEFAULTS = {"Explore": "sonnet"}
 PINNED = re.compile(r"^model:[ \t]*(\S+)", re.M)
 
@@ -40,7 +41,7 @@ def chosen_model(agent, cwd):
         return BUILT_IN_DEFAULTS[agent], f"{agent} ignores CLAUDE_CODE_SUBAGENT_MODEL, so it runs on {BUILT_IN_DEFAULTS[agent]} unless the call passes a model"
     seat = SEAT_FLOORS.get(agent)
     pinned = pinned_model(text) if seat and text else None
-    if pinned and seat not in pinned.lower():
+    if pinned and not any(tier in pinned.lower() for tier in MEETS_FLOOR[seat]):
         return seat, f"{agent} runs on {seat}; this repo's copy pins a lower model"
     return None, None
 

@@ -253,14 +253,15 @@ class NativeHookPayloadTests(unittest.TestCase):
             pinned = invoke(MODEL_HOOK, {"cwd": str(nested), "tool_input": {"subagent_type": "Explore"}}, directory)
             self.assertEqual((pinned.returncode, pinned.stdout), (0, ""))
 
-    def test_agent_model_leaves_an_opus_pinned_reviewer_seat_alone(self):
-        with tempfile.TemporaryDirectory() as directory:
-            agents = pathlib.Path(directory) / ".claude/agents"
-            agents.mkdir(parents=True)
-            (agents / "senior-reviewer.md").write_text(
-                "---\nname: senior-reviewer\ntools: Read, Grep\nmodel: claude-opus-5-5\n---\n")
-            result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": {"subagent_type": "senior-reviewer"}}, directory)
-            self.assertEqual((result.returncode, result.stdout), (0, ""))
+    def test_agent_model_leaves_a_reviewer_seat_pinned_at_or_above_opus_alone(self):
+        for pinned in ["claude-opus-5-5", "opus", "claude-fable-5-2", "fable"]:
+            with self.subTest(pinned=pinned), tempfile.TemporaryDirectory() as directory:
+                agents = pathlib.Path(directory) / ".claude/agents"
+                agents.mkdir(parents=True)
+                (agents / "senior-reviewer.md").write_text(
+                    f"---\nname: senior-reviewer\ntools: Read, Grep\nmodel: {pinned}\n---\n")
+                result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": {"subagent_type": "senior-reviewer"}}, directory)
+                self.assertEqual((result.returncode, result.stdout), (0, ""))
 
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
         with tempfile.TemporaryDirectory() as directory:

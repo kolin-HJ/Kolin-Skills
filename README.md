@@ -162,7 +162,7 @@ A skill starts in one of three ways:
 | Agent | Model | Used for |
 |---|---|---|
 | `poteto-agent` | Sonnet | Building a large, independent piece of code in parallel with other work |
-| `judge` | Opus | One design or judgment call. It cannot edit files, and unlike the built-in `Plan` agent, it loads my policy |
+| `judge` | Opus, or Fable 5.2 for architecture planning | One design or judgment call. It cannot edit files, and unlike the built-in `Plan` agent, it loads my policy |
 | `senior-reviewer` | Opus | A fresh-eyes diff review, only on high-risk work or when asked |
 
 <details>
@@ -281,7 +281,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `pr-proof.py` | Claude Code, Codex | After a PR is opened or marked ready, sends it back to draft if `## Verification` is missing or `diff-audit` finds a block. Release PRs and drafts are skipped |
 | `lint-changed-lines.py` | Claude Code, Codex, Cursor | Lints the JS and TS lines the agent just changed |
 | `compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through context compaction |
-| `agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus even when a repo copy asks for a smaller model, and `Explore` on Sonnet unless the call passes a model or an `Explore.md` exists in the repo's or home's agent folders |
+| `agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus when a repo copy asks for a smaller model, and leaves an Opus or Fable pin alone, and `Explore` on Sonnet unless the call passes a model or an `Explore.md` exists in the repo's or home's agent folders |
 | `keep-awake.py` | Claude Code | Keeps the Mac awake during each prompt and subagent run |
 
 </details>
