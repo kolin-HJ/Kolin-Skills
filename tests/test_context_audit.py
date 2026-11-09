@@ -92,7 +92,7 @@ class ContextAuditTests(unittest.TestCase):
     def test_sessions_report_counts_each_message_once_and_names_hook_blocks_and_failing_tools(self):
         def assistant(message_id, model, usage, *calls):
             content = [{"type": "tool_use", "id": call_id, "name": name, "input": {}} for call_id, name in calls]
-            return {"type": "assistant", "timestamp": "2026-10-20T10:00:00Z", "message": {"id": message_id, "model": model, "usage": usage, "content": content}}
+            return {"type": "assistant", "timestamp": "2026-10-20T10:00:00Z", "effort": "high", "message": {"id": message_id, "model": model, "usage": usage, "content": content}}
 
         def result(call_id, text, failed=True):
             return {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": call_id, "is_error": failed, "content": text}]}}
@@ -117,6 +117,7 @@ class ContextAuditTests(unittest.TestCase):
         self.assertEqual(rows["main"][1:], ["claude-opus-5-5", "1", "315", "$", "0.00", "7", "0", "200", "200"])
         self.assertNotIn("mcp__x__flaky:", rows)
         self.assertEqual(rows["reviewer"][1:], ["claude-sonnet-5-5", "1", "1,050", "$", "0.00", "1", "0", "1,000", "1,000"])
+        self.assertEqual(rows["high"][1:], ["main", "claude-opus-5-5", "2", "315", "$", "0.00"])
         self.assertEqual(rows["proj"][1:], ["2026-10-20", "1,365", "$", "0.00", "1", "1"])
         self.assertEqual(rows["1"][1:4], ["main", "heavy-jobs.py:", "Blocked:"])
         self.assertEqual(rows["mcp__x__query:"], ["mcp__x__query:", "3"])
