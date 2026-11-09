@@ -2,8 +2,9 @@
   "brand": "Acme",
   "app": "Planner",
   "date": "November 5",
-  "intro": "2 updates shown in the app, plus 1 more",
+  "intro": "1 update shown in the app, plus 1 more",
   "viewport": [1440, 900],
+  "stage": { "intro": "stage-intro.mp4", "outro": "stage-outro.png" },
   "scenes": [
     {
       "id": "orders",
@@ -27,7 +28,7 @@
     }
   ],
   "notes": [
-    { "page": "Reports", "items": ["The weekly report now arrives Monday at 8 am."] }
+    { "page": "Reports", "text": "The weekly report now arrives Monday at 8 am.", "clip": "stage-note-reports.mp4", "dur": 6 }
   ],
   "pages": ["Orders", "Reports"]
 }

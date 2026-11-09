@@ -5,8 +5,9 @@ import shutil
 import sys
 
 FADE = 0.5
-INTRO = 3.5
+INTRO = 5.0
 OUTRO = 4.5
+ENTER = "{ opacity: 0, x: 60 }"
 
 
 def esc(text):
@@ -85,100 +86,56 @@ def scene_length(scene):
     return round(max(ends), 2)
 
 
-def intro_scene(spec):
+def side_scene(sid, body, media, length, shot_from):
     out = [
         "<template>",
-        "  <style>\n    #root { position: absolute; inset: 0; }\n    #in-bg { position: absolute; inset: 0; background: var(--sidebar); }"
-        "\n    #in-body { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 240px; gap: 22px; color: var(--sidebar-foreground); }"
-        "\n    #in-word { font-family: Georgia, serif; font-size: 28px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .75; }"
-        "\n    #in-title { font-family: Georgia, serif; font-size: 72px; line-height: 1.1; font-weight: 400; color: var(--sidebar-accent-foreground); }"
-        "\n    #in-title b { font-weight: 700; }"
-        "\n    #in-sub { display: flex; align-items: center; gap: 16px; font-family: Inter, sans-serif; font-size: 30px; font-weight: 500; }"
-        "\n    #in-mark { width: 36px; height: 5px; border-radius: 2px; background: var(--marker); }\n  </style>",
-        '  <div id="root" data-composition-id="intro" data-width="1920" data-height="1080">',
-        '    <div id="in-bg"></div>\n    <div id="in-body">',
-        f'      <div id="in-word">{esc(spec["brand"])}</div>',
-        f'      <div id="in-title">What\'s new in {esc(spec["app"])}, <b>{esc(spec["date"])}</b></div>',
-        f'      <div id="in-sub"><span id="in-mark"></span><span>{esc(spec["intro"])}</span></div>',
+        '  <style>\n    #root { position: absolute; inset: 0; }\n  </style>',
+        f'  <div id="root" data-composition-id="{sid}" data-width="1920" data-height="1080">',
+        f'    <div id="{sid}-bg" class="side-bg"></div>\n    <div id="{sid}-body" class="side-body">',
+        *body,
         "    </div>",
+        f'    <video id="{sid}-shot" class="clip shot" data-start="0" data-duration="{length}" data-media-start="0" data-track-index="0"'
+        f' src="assets/{esc(media)}" muted playsinline></video>'
+        if media.endswith(".mp4")
+        else f'    <img id="{sid}-shot" class="shot" src="assets/{esc(media)}" alt="" />',
     ]
     tl = [
-        'tl.fromTo("#in-word", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 0.15);',
-        'tl.fromTo("#in-title", { y: 12 }, { y: 0, duration: 0.9, ease: "power3.out" }, 0);',
-        'tl.fromTo("#in-mark", { scaleX: 0, transformOrigin: "left center" }, { scaleX: 1, duration: 0.5, ease: "expo.out" }, 0.8);',
-        'tl.fromTo("#in-sub", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, ease: "sine.out" }, 0.8);',
+        f'tl.fromTo("#{sid}-bg", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.3, ease: "power1.out" }}, 0);',
+        f'tl.fromTo("#{sid}-shot", {shot_from}, {{ opacity: 1, x: 0, duration: 0.8, ease: "power3.out" }}, 0);',
+        f'tl.fromTo("#{sid}-body > *", {{ opacity: 0, y: 16 }}, {{ opacity: 1, y: 0, duration: 0.5, ease: "power2.out", stagger: 0.25 }}, 0.35);',
     ]
-    return finish(out, tl, "intro")
+    return finish(out, tl, sid)
 
 
-def notes_scene(spec):
-    rows, sels = [], []
-    words = 0
-    for gi, group in enumerate(spec["notes"]):
-        rows.append(f'        <div id="nt-g{gi}">\n          <div class="nt-page">{esc(group["page"])}</div>')
-        sels.append(f"#nt-g{gi} .nt-page")
-        for ii, item in enumerate(group["items"]):
-            rows.append(f'          <div id="nt-b{gi}-{ii}" class="nt-item">{esc(item)}</div>')
-            sels.append(f"#nt-b{gi}-{ii}")
-            words += len(item.split())
-        rows.append("        </div>")
-    out = [
-        "<template>",
-        "  <style>\n    #root { position: absolute; inset: 0; }\n    #nt-bg { position: absolute; inset: 0; background: var(--muted); }"
-        "\n    #nt-body { position: absolute; inset: 0; padding: 90px 200px; display: flex; flex-direction: column; gap: 26px; color: var(--foreground); }"
-        "\n    #nt-head { display: flex; align-items: center; gap: 16px; font-family: Inter, sans-serif; font-size: 28px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-foreground); }"
-        '\n    #nt-head::before { content: ""; width: 28px; height: 5px; border-radius: 2px; background: var(--marker); }'
-        "\n    #nt-title { font-family: Georgia, serif; font-size: 80px; font-weight: 700; line-height: 1.1; margin-top: -12px; }"
-        "\n    #nt-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-surface); padding: 34px 48px; display: flex; flex-direction: column; gap: 16px; }"
-        "\n    .nt-page { font-family: Inter, sans-serif; font-size: 28px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); margin-top: 4px; }"
-        "\n    .nt-item { display: flex; gap: 18px; font-family: Inter, sans-serif; font-size: 40px; line-height: 1.3; color: var(--foreground); }"
-        '\n    .nt-item::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 3px; background: var(--primary); margin-top: 20px; }\n  </style>',
-        '  <div id="root" data-composition-id="notes" data-width="1920" data-height="1080">',
-        '    <div id="nt-bg"></div>\n    <div id="nt-body">',
-        '      <div id="nt-head">Also in this update</div>\n      <div id="nt-title">Also new</div>',
-        '      <div id="nt-card" data-hold>',
-        *rows,
-        "      </div>\n    </div>",
+def title_line(spec):
+    return f'      <div class="side-title">What\'s new in {esc(spec["app"])}, <b>{esc(spec["date"])}</b></div>'
+
+
+def intro_scene(spec):
+    body = [
+        f'      <div class="side-word">{esc(spec["brand"])}</div>',
+        title_line(spec),
+        f'      <div class="side-label side-count">{esc(spec["intro"])}</div>',
     ]
-    tl = [
-        'tl.fromTo("#nt-bg", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power1.out" }, 0);',
-        'tl.fromTo("#nt-head", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 0.3);',
-        'tl.fromTo("#nt-title", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.4);',
-        'tl.fromTo("#nt-card", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 0.7);',
+    return side_scene("intro", body, spec["stage"]["intro"], INTRO, "{ opacity: 1, x: 60 }")
+
+
+def note_scene(index, note):
+    body = [
+        f'      <div class="side-label">Also new · {esc(note["page"])}</div>',
+        f'      <div class="side-title">{esc(note["text"])}</div>',
     ]
-    for i, sel in enumerate(sels):
-        dx = 0 if sel.endswith(".nt-page") else -24
-        tl.append(f'tl.fromTo("{sel}", {{ opacity: 0, x: {dx} }}, {{ opacity: 1, x: 0, duration: 0.45, ease: "power2.out" }}, {round(1.1 + i * 0.9, 2)});')
-    length = round(1.1 + len(sels) * 0.9 + words / 3, 1)
-    return finish(out, tl, "notes"), length
+    return side_scene(f"note{index}", body, note["clip"], note["dur"], ENTER)
 
 
 def outro_scene(spec):
-    chips = "".join(f'        <span class="out-chip">{esc(page)}</span>\n' for page in spec["pages"])
-    out = [
-        "<template>",
-        "  <style>\n    #root { position: absolute; inset: 0; }\n    #out-bg { position: absolute; inset: 0; background: var(--sidebar); }"
-        "\n    #out-body { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 240px; gap: 34px; color: var(--sidebar-foreground); }"
-        "\n    #out-title { font-family: Georgia, serif; font-size: 72px; line-height: 1.1; color: var(--sidebar-accent-foreground); }"
-        "\n    #out-title b { font-weight: 700; }"
-        "\n    #out-label { display: flex; align-items: center; gap: 16px; font-family: Inter, sans-serif; font-size: 28px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }"
-        '\n    #out-label::before { content: ""; width: 28px; height: 5px; border-radius: 2px; background: var(--marker); }'
-        "\n    #out-pages { display: flex; flex-wrap: wrap; gap: 14px; max-width: 1440px; }"
-        "\n    .out-chip { font-family: Inter, sans-serif; font-size: 34px; font-weight: 500; padding: 12px 22px; border-radius: var(--radius-sm); background: var(--sidebar-accent); border: 1px solid var(--sidebar-border); color: var(--sidebar-accent-foreground); }\n  </style>",
-        '  <div id="root" data-composition-id="outro" data-width="1920" data-height="1080">',
-        '    <div id="out-bg"></div>\n    <div id="out-body">',
-        f'      <div id="out-title">What\'s new in {esc(spec["app"])}, <b>{esc(spec["date"])}</b></div>',
-        '      <div id="out-label">Where to find it</div>',
-        f'      <div id="out-pages">\n{chips}      </div>',
-        "    </div>",
+    chips = "".join(f'<span class="side-chip">{esc(page)}</span>' for page in spec["pages"])
+    body = [
+        title_line(spec),
+        '      <div class="side-label">Where to find it</div>',
+        f'      <div class="side-chips">{chips}</div>',
     ]
-    tl = [
-        'tl.fromTo("#out-bg", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power1.out" }, 0);',
-        'tl.fromTo("#out-title", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.3);',
-        'tl.fromTo("#out-label", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "sine.out" }, 0.7);',
-        'tl.fromTo(".out-chip", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.6)", stagger: 0.12 }, 0.9);',
-    ]
-    return finish(out, tl, "outro")
+    return side_scene("outro", body, spec["stage"]["outro"], OUTRO, ENTER)
 
 
 def index_html(timeline, total):
@@ -229,9 +186,9 @@ def build(spec_path, project):
         files[scene["id"]] = demo_scene(scene, scale)
         lengths[scene["id"]] = scene_length(scene)
     order = ["intro"] + [scene["id"] for scene in spec["scenes"]]
-    if spec.get("notes"):
-        files["notes"], lengths["notes"] = notes_scene(spec)
-        order.append("notes")
+    for i, note in enumerate(spec.get("notes", [])):
+        files[f"note{i}"], lengths[f"note{i}"] = note_scene(i, note), note["dur"]
+        order.append(f"note{i}")
     files["outro"] = outro_scene(spec)
     lengths["outro"] = OUTRO
     order.append("outro")
