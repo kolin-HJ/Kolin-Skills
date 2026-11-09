@@ -273,7 +273,7 @@ def session_stats(path, counted):
             identifier = message.get("id") or record.get("uuid")
             if identifier in counted and identifier not in messages:
                 continue
-            messages[identifier] = (message.get("model"), context_tokens(usage), usage.get("output_tokens", 0), list_price(message.get("model"), usage))
+            messages[identifier] = (message.get("model"), context_tokens(usage), usage.get("output_tokens", 0), list_price(message.get("model"), usage), record.get("effort") or "unset")
             for block in message["content"] if isinstance(message.get("content"), list) else []:
                 if block.get("type") == "tool_use":
                     calls[block["id"]] = block["name"]
@@ -289,13 +289,20 @@ def session_stats(path, counted):
                 blocked = HOOK_BLOCK.search(result_text(block.get("content", ""))) if failed else None
                 if blocked:
                     hooks[(blocked.group(1), " ".join(blocked.group(2).split()))] += 1
-    models = collections.Counter(model for model, _, _, _ in messages.values())
+    models = collections.Counter(model for model, _, _, _, _ in messages.values())
+    efforts = collections.defaultdict(lambda: [0, 0, 0.0])
+    for model, context, output, cost, effort in messages.values():
+        spent = efforts[(effort, model)]
+        spent[0] += 1
+        spent[1] += context + output
+        spent[2] += cost
     return {
+        "efforts": dict(efforts),
         "model": models.most_common(1)[0][0] if models else "unknown",
         "messages": set(messages),
-        "tokens": sum(context + output for _, context, output, _ in messages.values()),
-        "cost": sum(cost for _, _, _, cost in messages.values()),
-        "peak": max((context for _, context, _, _ in messages.values()), default=0),
+        "tokens": sum(context + output for _, context, output, _, _ in messages.values()),
+        "cost": sum(cost for _, _, _, cost, _ in messages.values()),
+        "peak": max((context for _, context, _, _, _ in messages.values()), default=0),
         "calls": len(calls), "compactions": compactions, "hooks": hooks, "urls": urls, "first": first, "spawns": spawns, "audits": audits,
         "tools": [(name, outcomes.get(tool_id) is False) for tool_id, name in calls.items()],
     }
@@ -334,11 +341,26 @@ def median(values):
     return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
 
 
+def add_efforts(totals, side, efforts):
+    for (effort, model), (messages, tokens, cost) in efforts.items():
+        spent = totals[(effort, side, model)]
+        spent[0] += messages
+        spent[1] += tokens
+        spent[2] += cost
+
+
+def print_efforts(totals):
+    print("\nBy effort, side and model: messages, tokens, list price")
+    for (effort, side, model), (messages, tokens, cost) in sorted(totals.items(), key=lambda item: -item[1][2]):
+        print(f"  {effort:<8} {side:<8} {model:<28} {messages:>7,} {tokens:>15,} ${cost:>9,.2f}")
+
+
 def print_sessions(days, needles=()):
     runs, tools = collections.defaultdict(list), collections.defaultdict(lambda: [0, 0])
     hooks, urls, split = collections.Counter(), set(), collections.Counter()
     sessions = collections.defaultdict(lambda: {"tokens": 0, "cost": 0.0, "compactions": 0, "date": "", "subagents": 0})
     spawns, ran, counted = {}, [], set()
+    efforts = collections.defaultdict(lambda: [0, 0, 0.0])
     for path, is_agent in session_files(days):
         owner = (path.parent.parent.parent.name, path.parent.parent.name) if is_agent else (path.parent.name, path.stem)
         if needles and (owner not in sessions if is_agent else not mentions(path, needles)):
@@ -350,6 +372,7 @@ def print_sessions(days, needles=()):
         side = "subagent" if is_agent else "main"
         label = agent_meta(path).get("agentType", "unknown") if is_agent else "main"
         runs[(label, stats["model"])].append(stats)
+        add_efforts(efforts, side, stats["efforts"])
         spawns.update(stats["spawns"])
         if is_agent:
             ran.append((agent_meta(path).get("toolUseId"), label, stats["model"]))
@@ -382,6 +405,7 @@ def print_sessions(days, needles=()):
         peaks = [run["peak"] for run in group]
         print(f"  {label:<24} {model:<28} {len(group):>5} {sum(run['tokens'] for run in group):>15,} ${sum(run['cost'] for run in group):>9,.2f} {median([run['calls'] for run in group]):>7g} "
               f"{sum(run['calls'] > LONG_RUN_CALLS for run in group):>4} {int(median(peaks)):>11,} {max(peaks):>11,}")
+    print_efforts(efforts)
     print("\nCostliest sessions, subagents included: project, date, tokens, list price, subagents, compactions")
     for (project, _), entry in sorted(sessions.items(), key=lambda item: -item[1]["cost"])[:5]:
         print(f"  {project[-40:]:<40} {entry['date'] or '-':<10} {entry['tokens']:>15,} ${entry['cost']:>9,.2f} {entry['subagents']:>4} {entry['compactions']:>3}")
@@ -413,6 +437,7 @@ class WindowSession:
     subagent_cost: float
     roles: collections.Counter
     long_builders: int
+    subagent_efforts: dict
 
     @property
     def tokens(self):
@@ -439,6 +464,7 @@ def window_sessions(start, end):
         main = session_stats(path, counted)
         counted |= main["messages"]
         roles = collections.Counter()
+        subagent_efforts = collections.defaultdict(lambda: [0, 0, 0.0])
         subagent_tokens = long_builders = 0
         subagent_cost = 0.0
         for agent in largest_first((path.parent / path.stem / "subagents").glob("agent-*.jsonl")):
@@ -446,10 +472,11 @@ def window_sessions(start, end):
             stats = session_stats(agent, counted)
             counted |= stats["messages"]
             roles[role] += 1
+            add_efforts(subagent_efforts, "subagent", stats["efforts"])
             subagent_tokens += stats["tokens"]
             subagent_cost += stats["cost"]
             long_builders += role == "poteto-agent" and stats["calls"] > LONG_RUN_CALLS
-        sessions.append(WindowSession(path.parent.name, path.stem, timestamp, main, subagent_tokens, subagent_cost, roles, long_builders))
+        sessions.append(WindowSession(path.parent.name, path.stem, timestamp, main, subagent_tokens, subagent_cost, roles, long_builders, subagent_efforts))
     return sessions
 
 
@@ -464,6 +491,15 @@ def print_window(start, end, top):
     main_cost = sum(session.main["cost"] for session in sessions)
     print(f"Window {start} through {end} UTC by session start: {len(sessions)} sessions, {total:,} tokens, main {main:,} ({share:.1f}%), "
           f"list price ${cost:,.2f} (main ${main_cost:,.2f}), builders {builders}, builders >{LONG_RUN_CALLS} calls {long_builders}.")
+    efforts = collections.defaultdict(lambda: [0, 0, 0.0])
+    for session in sessions:
+        add_efforts(efforts, "main", session.main["efforts"])
+        for key, (messages, tokens, session_cost) in session.subagent_efforts.items():
+            spent = efforts[key]
+            spent[0] += messages
+            spent[1] += tokens
+            spent[2] += session_cost
+    print_efforts(efforts)
     print("\nTop sessions by list price: project, session, start UTC, list price, total tokens, main tokens, subagent tokens, main calls, main peak context, compactions, roles")
     for session in sorted(sessions, key=lambda item: -item.cost)[:top]:
         roles = ", ".join(f"{role}={count}" for role, count in sorted(session.roles.items())) or "-"
