@@ -6,9 +6,7 @@ For code work beyond a one-line change, load poteto-mode before editing.
 
 ## Working
 
-Treat "can you", "I want to" and "help me" as instructions, and carry the work to the outcome. Ask only when a wrong reading would change the work; otherwise state the assumption and continue. Keep the active goal when I add a correction or a side question.
-
-Finish the work before the turn ends. Do not end on an offer to continue, or on a list of what is left, while you can still do it. Work through ordinary obstacles (an error, a timeout, a busy tool, an empty result): find the cause, then retry, fix the call or use another tool. Stop only for a decision that is mine, or for a blocker someone set on purpose (a guard hook, withheld access, a file marked do-not-touch). Then say what you found, and look for another safe way to finish. This does not remove any yes listed under Approvals.
+Treat "can you", "I want to" and "help me" as instructions, and carry the work to the outcome. Never end on an offer to continue while you can still act. Ask only when a wrong reading would change the work; otherwise state the assumption and continue. Keep the active goal when I add a correction or a side question. Work through an error, timeout, busy tool or empty result: find the cause, then retry or take another route. Stop for my decision or a blocker set on purpose, such as withheld access.
 
 ## Approvals
 
@@ -31,7 +29,7 @@ These need my yes, prepared so yes is the last step:
 
 ## Cleanup
 
-Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape code, old code included, into the structure that makes the most sense. Plan the removals with the change. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or its proof costs more than the task. In the PR body, fill `## Cleanup & simplify`, added if the template lacks it: is the net size earned, what you removed or reshaped, and each cleanup left, with `file:line` and why. A cleanup keeps each feature's behavior the same unless the task changes it. The PR body and the final reply name every change, small ones too, because I may read the summary before the diff.
+Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape code, old code included, into the structure that makes the most sense. Plan the removals with the change. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or its proof costs more than the task. In the PR body, fill `## Cleanup & simplify`, added if the template lacks it: is the net size earned, every change you made, small ones too, and each cleanup left, with `file:line` and why.
 
 ## Security
 
@@ -39,17 +37,17 @@ Check authorization before every write; an auth check that errors denies. Keep s
 
 ## Done
 
-Done means proven on the real artifact. External AI code review is not a quality gate; proof of behavior is. `statechart` and formal verification are high-risk or ask-only, same path as `interrogate`, `senior-reviewer` and thermo. Run the repo's gate (`pnpm check` or its equivalent). If a check did not run, say so in the same sentence as "done". When a gate or hook blocks you, fix the cause or report it. Never work around it.
+Done means proven on the real artifact. External AI code review is not a quality gate; proof of behavior is. Run the repo's gate (`pnpm check` or its equivalent). If a check did not run, say so in the same sentence as "done". When a gate or hook blocks you, fix the cause or report it. Never work around it.
 
 Test what a caller relies on, and a bug before its fix. A new test needs one reason: access, money, data loss, a past bug or a main flow. Without one, write no test and prove the change by running it. Test each behavior once, at the highest level that proves it. No snapshots, no mocks of your own modules, no tests of copy, styling or config.
 
 ## Pull requests
 
-Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. Before the PR opens, prove the change in this same session: the repo's gate, tests, and the verify skill or UI proof the repo requires. Do not spawn a separate AI code reviewer. Spawn `senior-reviewer` or `interrogate`, or read `thermo-nuclear-code-quality-review`, `statechart` or formal verification, only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. Start the body from the repo's template, else `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`.
+Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. Before the PR opens, prove the change in this same session: the repo's gate, tests, and the verify skill or UI proof the repo requires. Spawn `senior-reviewer` or `interrogate`, or read `thermo-nuclear-code-quality-review`, `statechart` or formal verification, only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. Start the body from the repo's template, else `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`.
 
 ## Writing
 
-Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code names, paths and domain terms exact. Explain in plain words first, with real names only where I need them to act. Show a flow as short numbered steps, never as ASCII art. A final reply stands on its own: the reader saw none of your tool calls or files. Never use a term or short name you made up during the work. Use a short paragraph where ideas connect, and bullets for separate items.
+Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code names, paths and domain terms exact. Explain in plain words first, with real names only where I need them to act. Show a flow as short numbered steps, never as ASCII art.
 
 ## Adding rules
 

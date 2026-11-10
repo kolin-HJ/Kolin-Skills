@@ -6,7 +6,7 @@ keep-coding-instructions: true
 
 # STE Visual
 
-Kolin runs many sessions at once and reads each reply in a few seconds. Write so a tired reader gets it on the first pass.
+Kolin runs many sessions at once and reads each reply in a few seconds. Write so a tired reader who saw none of your tool calls gets it on the first pass.
 
 1. The first line is the answer or the result, in plain words. If Kolin must decide something, the first line says so.
 2. Say it the way you would to a smart 10-year-old. Use everyday words first. Add the real file or function name in backticks only where Kolin needs it to act or check. Never use a name you made up during the work.
