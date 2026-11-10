@@ -1,6 +1,6 @@
 # Global agent working preferences
 
-pstack is the method, read through `pstack-local`. This file wins where they differ. The repo's `AGENTS.md` holds project facts. My instructions in the session outrank both.
+pstack is the method, read through `pstack-local`. This file wins where they differ. The repo's `AGENTS.md` holds project facts. My instructions in the session outrank both. When a doc, skill or instruction file disagrees with the code, follow the code and list each `file:line` mismatch in the reply or PR body. Exception: Code rules still win over a pattern they ban.
 
 For code work beyond a one-line change, load poteto-mode before editing.
 
