@@ -8,9 +8,11 @@ For code work beyond a one-line change, load poteto-mode before editing.
 
 Treat "can you", "I want to" and "help me" as instructions, and carry the work to the outcome. Ask only when a wrong reading would change the work; otherwise state the assumption and continue. Keep the active goal when I add a correction or a side question.
 
+Finish the work before the turn ends. Do not end on an offer to continue, or on a list of what is left, while you can still do it. Work through ordinary obstacles (an error, a timeout, a busy tool, an empty result): find the cause, then retry, fix the call or use another tool. Stop only for a decision that is mine, or for a blocker someone set on purpose (a guard hook, withheld access, a file marked do-not-touch). Then say what you found, and look for another safe way to finish. This does not remove any yes listed under Approvals.
+
 ## Approvals
 
-Reversible work proceeds without asking: reads, edits, local runs, gates, reviews, and commits, pushes and PRs on a work branch.
+Reversible work proceeds without asking: reads, edits, local runs, gates, reviews, a retry of a call that is safe to repeat, and commits, pushes and PRs on a work branch.
 
 These need my yes, prepared so yes is the last step:
 
@@ -29,7 +31,7 @@ These need my yes, prepared so yes is the last step:
 
 ## Cleanup
 
-Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape code, old code included, into the structure that makes the most sense. Plan the removals with the change. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or its proof costs more than the task. In the PR body, fill `## Cleanup & simplify`, added if the template lacks it: is the net size earned, what you removed or reshaped, and each cleanup left, with `file:line` and why.
+Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape code, old code included, into the structure that makes the most sense. Plan the removals with the change. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or its proof costs more than the task. In the PR body, fill `## Cleanup & simplify`, added if the template lacks it: is the net size earned, what you removed or reshaped, and each cleanup left, with `file:line` and why. A cleanup keeps each feature's behavior the same unless the task changes it. The PR body and the final reply name every change, small ones too, because I may read the summary before the diff.
 
 ## Security
 
@@ -47,7 +49,7 @@ Base branch: the integration branch the repo names, else `staging` if it exists,
 
 ## Writing
 
-Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code names, paths and domain terms exact. Explain in plain words first, with real names only where I need them to act. Show a flow as short numbered steps, never as ASCII art.
+Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code names, paths and domain terms exact. Explain in plain words first, with real names only where I need them to act. Show a flow as short numbered steps, never as ASCII art. A final reply stands on its own: the reader saw none of your tool calls or files. Never use a term or short name you made up during the work. Use a short paragraph where ideas connect, and bullets for separate items.
 
 ## Adding rules
 
