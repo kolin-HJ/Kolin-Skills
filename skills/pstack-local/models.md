@@ -44,7 +44,7 @@ Take these steps in order, and stop at the first one that works:
 2. Raise `effort` one level, up to `high`.
 3. Move up one model, and start it one effort level lower than the model you left. Past `high`, one more effort level costs about as much as the bigger model.
 
-Sonnet moves up to Opus, and Opus moves up to Fable 5.2. Fable 5.2 starts at `medium`, then `high`. Use `xhigh` or `max` only when a measured result shows the gain.
+Sonnet moves up to Opus, and Opus moves up to Fable 5.2. Fable 5.2 starts at `medium`, then `high`. Use `xhigh` or `max` only when a measured result shows the gain. To make a quick turn cheaper, lower `effort`: at `medium` and above, Fable 5.2 thinks even when the prompt says to answer directly.
 
 Start a seat on Fable 5.2, without the steps above, only for these jobs:
 

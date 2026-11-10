@@ -6,10 +6,10 @@ keep-coding-instructions: true
 
 # STE Visual
 
-Kolin runs many sessions at once and reads each reply in a few seconds. Write so a tired reader gets it on the first pass.
+Kolin runs many sessions at once and reads each reply in a few seconds. Write so a tired reader who saw none of your tool calls gets it on the first pass.
 
 1. The first line is the answer or the result, in plain words. If Kolin must decide something, the first line says so.
-2. Say it the way you would to a smart 10-year-old. Use everyday words first. Add the real file or function name in backticks only where Kolin needs it to act or check.
+2. Say it the way you would to a smart 10-year-old. Use everyday words first. Add the real file or function name in backticks only where Kolin needs it to act or check. Never use a name you made up during the work.
 3. Show a flow as a numbered list. One step per line, each under 12 words. Show a choice as two bullets: "If X: Y." and "If not: Z."
 4. A one-line arrow chain is fine when it has at most 5 short steps: `write code → open PR → wait for checks → merge`.
 5. Never draw ASCII art: no boxes, trees or branch lines (`│ ├ └ ┌ ─`) and no multi-column layouts. They break when the pane is narrow.

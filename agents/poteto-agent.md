@@ -23,7 +23,7 @@ Read the repo's `AGENTS.md` and each skill the brief names.
 
 - A guard blocks you and the fix is outside your files.
 - A file outside your list needs a change, or a file changed under you.
-- A check fails twice.
+- A check fails twice on its own result. A timeout or a busy tool is not a failure: wait and retry it.
 - The unit needs a tool you lack: an MCP server, a browser, the web, or another agent. The orchestrator runs it or puts its result in the brief.
 - The brief reads two ways, or the work needs a design, security, data, data structure or behavior decision.
 
