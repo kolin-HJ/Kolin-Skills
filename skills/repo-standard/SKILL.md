@@ -62,7 +62,7 @@ Read only. Measure, do not guess, and record each row's command and count.
 
 | Area | Measure |
 |---|---|
-| Instruction file | One root `AGENTS.md`, under about 200 lines; no `CLAUDE.md` copy |
+| Instruction file | One root `AGENTS.md`, under about 200 lines; no `CLAUDE.md` copy; each factual line (path, command, name, behavior) checked against the code: followed, contradicted (`file:line`), or not checkable |
 | Gates | Formatter, type-aware linter, strict type check, dead-code check, tests, and one gate command. Local hooks (pre-commit, pre-push, `verify` evidence) if there is no CI. With CI, each job's command also runs in the local gate; a check only CI runs is a gap (a CI-only `bundle-budget` let a red build reach `staging` twice in one release) |
 | Ratchets | A baseline file with target 0 per rule; counts per rule today: `any`, `@ts-ignore` / `@ts-expect-error`, `eslint-disable` without `-- <reason>`, files over 1,000 lines. Missing: CI does not compare those counts to the base branch (exemplar: hj-supply-chain `check-baseline-ratchet.mjs`) |
 | Typing | `any`, casts, non-null assertions, untyped JS files |
@@ -71,7 +71,7 @@ Read only. Measure, do not guess, and record each row's command and count.
 | Errors | Swallowed errors, try/catch around own code, retries outside one owner |
 | Tests | A test for each behavior a caller relies on (policy, Done), not one per entry point; tests of a constant, config, prose or file existence, and tests with none of the policy's reasons, to delete; the test-to-code ratio from `pr-body`, reported, never a limit; recorded contract fixtures for external APIs; slow or sleeping tests; surviving mutants in tested code (Stryker for TypeScript), reported, not ratcheted; without the tool, mark it missing and propose it. For hj-plm and hj-supply-chain, propose changed-file Stryker (or the repo's equivalent) as a report-only `Ran:` line in the PR body; never a blocking score |
 | Boundaries | Import rules, one home per concept, parked or out-of-scope code |
-| Guardrails | Agent hooks that block gate skips and protected pushes; secrets out of the tree; on GitHub, `delete_branch_on_merge` on (a stacked PR merged into its already-merged base is lost) and the CI jobs required on the integration branch |
+| Guardrails | Agent hooks that block gate skips and protected pushes; secrets out of the tree; on GitHub, `delete_branch_on_merge` on (a stacked PR merged into its already-merged base is lost) and the CI jobs required on the integration branch; third-party GitHub Actions pinned to a full commit SHA (count unpinned `uses:`); flag `pull_request_target` workflows that check out PR head code; CI-installed tool versions, pinned |
 | Approval text | Repo instruction text (`AGENTS.md`, repo skills) that requires an ask before a reversible step on a work branch (commit, push, opening a PR) conflicts with the global policy's Approvals. Flag it with `file:line` and rewrite it to match. |
 | Agent roles | A repo agent that shares a global agent's name (`senior-reviewer`, `poteto-agent`) and pins a lower model than `skills/pstack-local/models.md` gives that role. Flag it |
 | Verification | A verification skill with a CLI and feature maps; parity against staging or the base |
