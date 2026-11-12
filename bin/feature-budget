@@ -4,6 +4,7 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
 
 KINDS = {"read": (5, 800), "edit": (7, 1200), "write": (12, 2500)}
@@ -18,6 +19,8 @@ HEADER = ("feature-budget: {n} features (report-only). "
           "Over budget fails review; over 2x stops the wave (repo-standard, Layout)")
 REVIEW = "over — fails review"
 WAVE = "2x — wave stops until Kolin approves a new budget (repo-standard, Layout)"
+GREW = ("FAIL: {name} is over twice its budget and this change adds {net} lines against {base}. "
+        "Cut the feature back, or raise its budget in {plan} for Kolin to approve (repo-standard, Layout).")
 
 
 def relative(path, root):
@@ -37,7 +40,10 @@ def walk(root):
                 yield path
 
 
-def feature_folder(rel):
+def feature_folder(rel, owned):
+    for name, paths in owned:
+        if any(rel == path or rel.startswith(path + "/") for path in paths):
+            return name, name
     parts = pathlib.PurePosixPath(rel).parts
     if "features" not in parts:
         return None, None
@@ -83,27 +89,46 @@ def is_wrapper(path, specs):
     return pkg in stem or stem in pkg
 
 
-def load_plan(root):
-    path = root / PLAN
+def load_plan(path):
     if not path.is_file():
-        return {}
+        return {}, KINDS
     try:
         data = json.loads(path.read_text())
-    except json.JSONDecodeError:
-        return {}
-    return data if isinstance(data, dict) else {}
+    except json.JSONDecodeError as error:
+        sys.exit(f"feature-budget: {path} is not valid JSON ({error}). Fix the file; a broken plan never falls back to defaults.")
+    defaults = {kind: (int(size["files"]), int(size["lines"])) for kind, size in data.get("defaults", {}).items()}
+    return data.get("features", {}), {**KINDS, **defaults}
 
 
-def budget(name, folder, plan):
-    entry = plan.get(folder) or plan.get(name) or {}
-    if not isinstance(entry, dict):
-        entry = {}
+def owned_paths(plan):
+    return [(name, [path.strip("/") for path in entry["paths"]])
+            for name, entry in plan.items() if entry.get("paths")]
+
+
+def net_growth(root, base, owned):
+    diff = subprocess.run(["git", "-C", str(root), "diff", "--relative", "--numstat", "--no-renames", "-z",
+                           f"{base}...HEAD"], text=True, capture_output=True)
+    if diff.returncode:
+        sys.exit(f"feature-budget: cannot diff against {base}: {diff.stderr.strip()}")
+    net = {}
+    for row in filter(None, diff.stdout.split("\0")):
+        added, deleted, rel = row.split("\t", 2)
+        if added == "-" or pathlib.PurePosixPath(rel).suffix not in SOURCE or TEST.search(rel):
+            continue
+        folder, _ = feature_folder(rel, owned)
+        if folder is not None:
+            net[folder] = net.get(folder, 0) + int(added) - int(deleted)
+    return net
+
+
+def budget(name, plan, kinds):
+    entry = plan.get(name, {})
     if "files" in entry and "lines" in entry:
         return int(entry["files"]), int(entry["lines"]), "plan"
     kind = entry.get("kind", "read")
-    if kind not in KINDS:
-        kind = "read"
-    files, lines = KINDS[kind]
+    if kind not in kinds:
+        sys.exit(f"feature-budget: {name} has kind {kind!r}. Use one of {', '.join(sorted(kinds))}.")
+    files, lines = kinds[kind]
     return files, lines, kind
 
 
@@ -127,30 +152,35 @@ def incoming(files):
     return counts, specs_by
 
 
-def report(root):
+def report(root, plan_path, base):
     root = pathlib.Path(root)
     files = {path.resolve() for path in walk(root)}
+    plan, kinds = load_plan(plan_path)
+    owned = owned_paths(plan)
     features = {}
     for path in files:
         rel = relative(path, root)
-        folder, name = feature_folder(rel)
+        folder, name = feature_folder(rel, owned)
         if folder is None or TEST.search(rel):
             continue
         features.setdefault(folder, {"name": name, "files": []})["files"].append(path)
-    plan = load_plan(root)
+    net = net_growth(root, base, owned) if base else {}
     counts, specs_by = incoming(files)
     rows = [HEADER.format(n=len(features))]
+    failures = []
     for folder in sorted(features):
         item = features[folder]
         paths = item["files"]
         file_count = len(paths)
         line_count = sum(lines_of(path) for path in paths)
-        budget_files, budget_lines, source = budget(item["name"], folder, plan)
+        budget_files, budget_lines, source = budget(item["name"], plan, kinds)
+        state = status(file_count, line_count, budget_files, budget_lines)
         rows.append(
             f"{item['name']}  files={file_count} lines={line_count} "
-            f"budget={budget_files}/{budget_lines} ({source})  "
-            f"{status(file_count, line_count, budget_files, budget_lines)}"
+            f"budget={budget_files}/{budget_lines} ({source})  {state}"
         )
+        if state == WAVE and net.get(folder, 0) > 0:
+            failures.append(GREW.format(name=item["name"], net=net[folder], base=base, plan=plan_path))
         for path in sorted(paths, key=lambda candidate: relative(candidate, root)):
             n = lines_of(path)
             if n >= 40 or counts.get(path, 0) != 1:
@@ -158,19 +188,26 @@ def report(root):
             if is_wrapper(path, specs_by.get(path, [])):
                 continue
             rows.append(f"  fragment: {relative(path, root)} {n} lines, 1 importer")
-    return "\n".join(rows) + "\n"
+    return "\n".join(rows) + "\n", failures
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="Report per-feature file and line counts against the plan budget. "
-                    "Report-only: never fails the gate. Over budget fails review; over 2x stops the wave "
-                    "(repo-standard, Layout)."
+                    "A feature is a features/<name>/ folder, or a plan entry with paths. "
+                    "Without --base it is report-only. With --base it fails when a feature over twice its budget "
+                    "gained net source lines since that ref (repo-standard, Layout)."
     )
     parser.add_argument("root", nargs="?", default=".")
+    parser.add_argument("--plan", help=f"plan file, default <root>/{PLAN}")
+    parser.add_argument("--base", help="git ref to measure growth against, such as origin/staging")
     args = parser.parse_args()
-    sys.stdout.write(report(args.root))
-    return 0
+    plan_path = pathlib.Path(args.plan) if args.plan else pathlib.Path(args.root) / PLAN
+    text, failures = report(args.root, plan_path, args.base)
+    sys.stdout.write(text)
+    for failure in failures:
+        print(failure, file=sys.stderr)
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
