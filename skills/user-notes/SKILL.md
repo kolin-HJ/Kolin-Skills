@@ -93,8 +93,25 @@ The kit in `assets/video/` does the repeated work: `rec.sh` (record helpers), `c
 
 3. Run the app locally with seed or test data, as the repo's `AGENTS.md` or `run` skill says. Never record production data. When a page needs a permission or a record, add it to the local database only, tag it so you can find it (`granted_by='local:user-notes-video'`, a `ZZ`-style name), and remove it after approval. Never press a button that writes to an outside system (a NetSuite create, a BigQuery push, an email).
 4. Edit `clean.js` for the app: `PRIVATE` blurs customer, supplier and staff names, emails and other private text; `NOISE` hides dev banners and load warnings. Load it as an init script so every page is clean before the first frame.
-5. Scout each shot with screenshots first. Find each target, tag it with `tag <name> '{q:"<css>",t:"<text>"}'`, and read its footage box with `box <name>` (agent-browser selectors are CSS only).
-6. Record each shot in a **fresh** browser session: `source rec.sh; fresh clean.js`. A long-lived session freezes the screencast. Set `MARKS=<scratch>/shots/<n>.marks`, run `mark start` right after `record start`, and `mark <event>` after each action. Wait about one second after each action.
+5. Scout each shot with screenshots first. Find each target and tag it with `tag <name> '{q:"<css>",t:"<text>"}'` (agent-browser selectors are CSS only). The tag name is the event name the spec uses, so use each name once per shot. Tag a target that appears after a click once it is on screen.
+6. Record each shot in a **fresh** browser session, because a long-lived session freezes the screencast. Drive it only with the `rec.sh` helpers, so the pointer moves like a person's and every action lands in the marks file:
+
+```bash
+source rec.sh; fresh clean.js
+export MARKS=<scratch>/shots/<n>.marks
+A open <url>; tag <name> '<target>'
+roll <scratch>/shots/<n>.mp4
+click <name>
+typein <name> "<text>"
+hover <result>
+wrap
+```
+
+   - `roll` starts the recording with a visible pointer and marks `start`. `wrap` holds the last frame and stops.
+   - `click` glides the pointer to the target, clicks it, marks it with its box, and waits.
+   - `typein` clicks the target, then types one letter at a time.
+   - `hover` glides to a result and marks it without a click. Use it on the result each demo ends on, so the spec can zoom there.
+   - Never use `A click`, `A fill` or `A type` while recording, because the pointer jumps and the marks miss the action.
 7. If a control does not respond in headless Chrome (a date input, say), drive the other path a user has (the grid cell, a keyboard entry). Never fake the result.
 8. Prove each shot before you use it: take a screenshot at the end and read the result value, and make a 6-frame strip (`ffmpeg -i shot.mp4 -vf "fps=1/2,scale=480:-1,tile=6x1"`) to show the frames change. Re-record a frozen, spinning or wrong shot.
 
@@ -128,10 +145,11 @@ node scripts/film.mjs "http://127.0.0.1:5199/?capture=un-intro" --select '#examp
 ### Build
 
 13. Read `/hyperframes`. Write `spec.json` from `spec.example.json`:
-   - Footage times are local to the scene: event time = mark − `start` mark − `mediaStart`.
-   - A ring goes on the target about 0.8 s before its click, with the box you read in step 5 (footage pixels at the 1440×900 viewport). Give a ring a `label` when the step is not obvious ("Typo: pick the right value").
+   - Each layer names its `marks` file, relative to `spec.json`. Never type a time or a box. Rings, zooms and captions name an event with `at`, and `scenes.py` reads its time and box from the marks. `at: "start"` is the start of the scene. `offset` moves the item later in seconds, or earlier when negative.
+   - `mediaStart` trims the footage before the first action, about 1 s after `start`. The build stops when an event falls in the trimmed part.
+   - A ring goes on each clicked target and shows as the pointer arrives. Give a ring a `label` when the step is not obvious ("Typo: pick the right value").
    - A caption has an eyebrow (`New · <Section> → <Page>` or `Fix · …`), a title of 8 words or fewer, and a `sub` that tells the user how to use it. Put `place: ["right"]` or `["right","low"]` on a caption that would cover the result.
-   - Zoom (`scale` 1.4 to 1.5) on the result, then hold it about 2 s.
+   - Zoom (`scale` 1.4 to 1.5) on the `hover` result, then hold it about 2 s.
    - `stage` names the intro clip and the end-card still from step 12.
    - `notes` holds one entry per note, five at most: `page`, `text` worded as in the text notes (about 15 words), `clip`, and `dur` (the seconds you recorded, at least 1 s + 0.3 s per word). Never put a demoed change there.
    - `intro` counts the demos and notes: "6 updates shown in the app, plus 4 more". `pages` lists `<Section> → <Page>` for the end card.

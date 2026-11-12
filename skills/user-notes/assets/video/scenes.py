@@ -8,6 +8,8 @@ FADE = 0.5
 INTRO = 5.0
 OUTRO = 4.5
 ENTER = "{ opacity: 0, x: 60 }"
+LEAD = 0.6
+RING = 1.6
 
 
 def esc(text):
@@ -19,8 +21,49 @@ def ring_box(box, scale, pad=10):
     return round(x * scale - pad), round(y * scale - pad), round(w * scale + 2 * pad), round(h * scale + 2 * pad)
 
 
-def demo_scene(scene, scale):
+def read_marks(path):
+    marks = {}
+    with open(path) as f:
+        for line in f:
+            name, at, *box = line.split()
+            if name in marks:
+                sys.exit(f"{path}: {name} is marked twice; tag the second target with another name")
+            marks[name] = (float(at), [int(v) for v in box])
+    zero = marks["start"][0]
+    return {name: (at - zero, box) for name, (at, box) in marks.items() if name != "start"}
+
+
+def scene_events(scene, base):
+    events = {"start": (0.0, [])}
+    for layer in scene["layers"]:
+        path = os.path.join(base, layer["marks"])
+        for name, (at, box) in read_marks(path).items():
+            if name in events:
+                sys.exit(f"{scene['id']}: {name} is marked in two layers; tag one of them with another name")
+            if at < layer["mediaStart"]:
+                sys.exit(f"{path}: {name} happens before mediaStart {layer['mediaStart']}")
+            events[name] = (layer["start"] + at - layer["mediaStart"], box)
+    return events
+
+
+def when(events, sid, item, lead=0.0):
+    name = item["at"]
+    if name not in events:
+        sys.exit(f"{sid}: no mark named {name}; marked: {', '.join(events)}")
+    at, box = events[name]
+    return round(max(0.0, at + item.get("offset", 0) - lead), 2), box
+
+
+def target(events, sid, item, lead=0.0):
+    t, box = when(events, sid, item, lead)
+    if not box:
+        sys.exit(f"{sid}: {item['at']} has no box; mark it with click, hover or typein")
+    return t, box
+
+
+def demo_scene(scene, scale, base):
     sid = scene["id"]
+    events = scene_events(scene, base)
     out = [
         "<template>",
         f"  <style>\n    #root {{ position: absolute; inset: 0; }}\n    #{sid}-stage {{ position: absolute; inset: 0; background: var(--sidebar); }}\n    .{sid}-layer {{ position: absolute; inset: 0; }}\n  </style>",
@@ -40,26 +83,30 @@ def demo_scene(scene, scale):
         if li > 0:
             tl.append(f'tl.fromTo("#{lid}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.35, ease: "none" }}, {layer["start"]});')
         for ri, ring in enumerate(layer.get("rings", [])):
-            x, y, w, h = ring_box(ring["box"], scale)
+            t, box = target(events, sid, ring, LEAD)
+            d = ring.get("d", RING)
+            x, y, w, h = ring_box(box, scale)
             rid = f"{sid}-r{li}{ri}"
             label = f'<b id="{rid}-b">{esc(ring["label"])}</b>' if ring.get("label") else ""
             out.append(
-                f'          <div id="{rid}" class="clip ring" data-start="{ring["t"]}" data-duration="{ring["d"]}" data-track-index="{track}"'
+                f'          <div id="{rid}" class="clip ring" data-start="{t}" data-duration="{d}" data-track-index="{track}"'
                 f' style="left:{x}px;top:{y}px;width:{w}px;height:{h}px"><i id="{rid}-i"></i>{label}</div>'
             )
-            tl.append(f'tl.fromTo("#{rid}-i", {{ opacity: 0, scale: 1.4 }}, {{ opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }}, {ring["t"]});')
+            tl.append(f'tl.fromTo("#{rid}-i", {{ opacity: 0, scale: 1.4 }}, {{ opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }}, {t});')
             if label:
-                tl.append(f'tl.fromTo("#{rid}-b", {{ opacity: 0, y: -8 }}, {{ opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }}, {ring["t"] + 0.2});')
+                tl.append(f'tl.fromTo("#{rid}-b", {{ opacity: 0, y: -8 }}, {{ opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }}, {round(t + 0.2, 2)});')
         track += 1
         if layer.get("zoom"):
             z = layer["zoom"]
-            origin = f'{z["x"]}px {z["y"]}px'
+            t, (x, y, w, h) = target(events, sid, z)
+            origin = f"{round((x + w / 2) * scale)}px {round((y + h / 2) * scale)}px"
             tl.append(
-                f'tl.fromTo("#{zid}", {{ scale: 1, transformOrigin: "{origin}" }}, {{ scale: {z["scale"]}, transformOrigin: "{origin}", duration: 1.1, ease: "power2.inOut" }}, {z["t"]});'
+                f'tl.fromTo("#{zid}", {{ scale: 1, transformOrigin: "{origin}" }}, {{ scale: {z["scale"]}, transformOrigin: "{origin}", duration: 1.1, ease: "power2.inOut" }}, {t});'
             )
         out.append("        </div></div>")
     out.append("      </div>\n    </div>")
-    for ci, cap in enumerate(scene.get("captions", [])):
+    captions = [{**cap, "t": when(events, sid, cap)[0]} for cap in scene.get("captions", [])]
+    for ci, cap in enumerate(captions):
         cid = f"{sid}-c{ci}"
         cls = " ".join(["cap"] + cap.get("place", []))
         sub = f'<div class="cap-sub">{esc(cap["sub"])}</div>' if cap.get("sub") else ""
@@ -70,7 +117,8 @@ def demo_scene(scene, scale):
         )
         tl.append(f'tl.fromTo("#{cid}-card", {{ opacity: 0, y: 30 }}, {{ opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }}, {cap["t"]});')
         track += 1
-    return finish(out, tl, sid)
+    ends = [layer["start"] + layer["dur"] for layer in scene["layers"]] + [cap["t"] + cap["d"] for cap in captions]
+    return finish(out, tl, sid), round(max(ends), 2)
 
 
 def finish(out, tl, sid):
@@ -78,12 +126,6 @@ def finish(out, tl, sid):
     out += ["    " + line for line in tl]
     out.append(f'    window.__timelines["{sid}"] = tl;\n  </script>\n</template>\n')
     return "\n".join(out)
-
-
-def scene_length(scene):
-    ends = [layer["start"] + layer["dur"] for layer in scene["layers"]]
-    ends += [cap["t"] + cap["d"] for cap in scene.get("captions", [])]
-    return round(max(ends), 2)
 
 
 def side_scene(sid, body, media, length, shot_from):
@@ -176,6 +218,7 @@ def build(spec_path, project):
     with open(spec_path) as f:
         spec = json.load(f)
     scale = 1728 / spec["viewport"][0]
+    base = os.path.dirname(os.path.abspath(spec_path))
     comps = os.path.join(project, "compositions")
     os.makedirs(comps, exist_ok=True)
     os.makedirs(os.path.join(project, "assets"), exist_ok=True)
@@ -183,8 +226,7 @@ def build(spec_path, project):
     files = {"intro": intro_scene(spec)}
     lengths = {"intro": INTRO}
     for scene in spec["scenes"]:
-        files[scene["id"]] = demo_scene(scene, scale)
-        lengths[scene["id"]] = scene_length(scene)
+        files[scene["id"]], lengths[scene["id"]] = demo_scene(scene, scale, base)
     order = ["intro"] + [scene["id"] for scene in spec["scenes"]]
     for i, note in enumerate(spec.get("notes", [])):
         files[f"note{i}"], lengths[f"note{i}"] = note_scene(i, note), note["dur"]
