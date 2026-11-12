@@ -34,7 +34,7 @@ class PinnedCliTests(unittest.TestCase):
         self.root = pathlib.Path(tempfile.mkdtemp())
         self.repo = self.root / "repo"
         (self.repo / "upstream").mkdir(parents=True)
-        (self.repo / "upstream/tools.json").write_text(json.dumps({"npm": {"agent-browser": "0.41.0"}}))
+        (self.repo / "upstream/tools.json").write_text(json.dumps({"npm": {"agent-browser": "0.42.0"}}))
         self.global_root = self.root / "global"
         self.global_root.mkdir()
         fake_bin = self.root / "bin"
@@ -63,15 +63,15 @@ class PinnedCliTests(unittest.TestCase):
 
     def test_missing_cli_names_the_pin_and_the_fix(self):
         self.assertEqual(third_party.npm_tool_problems(self.repo),
-                         ["agent-browser is not installed, pinned at 0.41.0 in upstream/tools.json; run kolin-skills upstream"])
+                         ["agent-browser is not installed, pinned at 0.42.0 in upstream/tools.json; run kolin-skills upstream"])
 
     def test_other_version_is_a_problem(self):
         self.install("0.40.0")
         self.assertEqual(third_party.npm_tool_problems(self.repo),
-                         ["agent-browser is 0.40.0 installed, pinned at 0.41.0 in upstream/tools.json; run kolin-skills upstream"])
+                         ["agent-browser is 0.40.0 installed, pinned at 0.42.0 in upstream/tools.json; run kolin-skills upstream"])
 
     def test_pinned_version_passes(self):
-        self.install("0.41.0")
+        self.install("0.42.0")
         self.assertEqual(third_party.npm_tool_problems(self.repo), [])
 
     def installs(self):
@@ -84,14 +84,14 @@ class PinnedCliTests(unittest.TestCase):
                          ["pinned CLIs in upstream/tools.json not checked: npm root --global failed (exit 2): npm ERR! prefix broken"])
 
     def test_install_skips_a_cli_at_its_pin(self):
-        self.install("0.41.0")
+        self.install("0.42.0")
         self.assertEqual(third_party.install_npm_tools(self.repo), [])
         self.assertEqual(self.installs(), [])
 
     def test_install_moves_a_cli_to_its_pin_with_its_script_allowed(self):
         self.install("0.40.0")
         self.assertEqual(third_party.install_npm_tools(self.repo), [])
-        self.assertEqual(self.installs(), ["install --global --allow-scripts=agent-browser agent-browser@0.41.0"])
+        self.assertEqual(self.installs(), ["install --global --allow-scripts=agent-browser agent-browser@0.42.0"])
 
     def test_failed_install_is_reported(self):
         self.install_exit.touch()

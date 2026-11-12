@@ -43,7 +43,7 @@ It is built on [pstack](https://github.com/cursor/plugins), Lauren Tan's method 
 | 🤖 **Subagents** | `agents/` | Helper agents the main agent can start: a builder, a judge and a reviewer |
 | 🛡️ **Hooks** | `hooks/` | Small scripts that run around each agent action. They block risky actions and lint changed code |
 | ⚙️ **Tool settings** | `claude/`, `codex/`, `cursor/` | Each tool's managed settings, hook wiring, status line and reply style |
-| 📦 **Third-party pins** | `upstream/` | The exact versions of pstack, other skill packs and CLIs to install. They are installed, never copied in |
+| 📦 **Third-party pins** | `upstream/` | Git pins in `upstream/vendor.json` and CLIs in `upstream/tools.json` at exact versions. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. They are installed, never copied in |
 | 🧪 **Gate** | `bin/`, `tests/`, `.githooks/` | The `kolin-skills` CLI, small helper CLIs, and the tests that must pass before a push |
 | 📚 **Docs** | `docs/` | How to keep a machine on `main`, and how to check other repos for drift |
 
@@ -58,7 +58,7 @@ python3 ~/Kolin-Skills/bin/kolin-skills install
 
 What `install` does:
 
-1. Installs pstack, the other third-party skills and the CLIs at their pinned versions.
+1. Installs pstack at its git pin and the CLIs at their pinned versions. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest.
 2. Links the repo into each tool's home folder.
 3. Puts `kolin-skills` and the helper CLIs in `~/.local/bin`.
 4. Runs `kolin-skills check` to prove the setup works.
@@ -168,7 +168,7 @@ A skill starts in one of three ways:
 <details>
 <summary><b>Third-party skills that <code>install</code> adds</b></summary>
 
-These are pinned in `upstream/` and installed by `kolin-skills upstream`. They are never copied into this repo.
+Git pins live in `upstream/vendor.json` and CLIs in `upstream/tools.json`. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. `kolin-skills upstream` installs them. They are never copied into this repo.
 
 | Source | Skills | When they start |
 |---|---|---|
@@ -254,7 +254,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `kolin-skills install` | First run on a machine: `upstream`, then `apply`, then `check` |
 | `kolin-skills apply` | Links the repo into home. `--check` only reports drift. `--adopt` moves home to this checkout. `--if-wired` runs only when home already points here |
 | `kolin-skills pull` | Fast-forwards to `origin/main` when it safely can, then applies. Runs at Claude Code and Codex session start |
-| `kolin-skills upstream` | Installs third-party skills and CLIs at their pins. `--bump` moves the git pins. Edit `upstream/tools.json` to move a CLI |
+| `kolin-skills upstream` | Installs git pins and CLIs at their pins. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. `--bump` moves the git pins. Edit `upstream/tools.json` to move a CLI |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into this repo |
 | `kolin-skills stacks` | Lists running local Supabase stacks. `--stop` stops the idle ones |
 | `kolin-skills check` | The gate: drift, stray files, pins, spend caps, file length, tools, tests and comments. `--quick` checks only home, in seconds. `--files` checks only file length. In a worktree it skips home drift. In CI it skips home and vendored skills |
