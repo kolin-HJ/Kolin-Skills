@@ -17,7 +17,7 @@ These need my yes, prepared so yes is the last step:
 - A merge, and any change to `main`, `master`, `staging` or `sandbox`. These change only through a PR.
 - Deploys, releases and production workflow runs.
 - A multi-phase plan, before its build starts, and the first exemplar feature, before builders copy it.
-- A new or changed data structure (type, table, schema, payload) or system flow: show me the shapes and the flow before you build. A migration also needs a backup step.
+- A new or changed data structure (type, table, schema, payload) or system flow: show me the shapes and the flow before you build. A flow with a lock, claim, key or queue, or a retried outside write, lists its event orders first. A migration also needs a backup step.
 - Money, secrets and credentials, store submissions, and messages to people or other external writes.
 
 ## Code

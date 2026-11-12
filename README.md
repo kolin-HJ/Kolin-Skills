@@ -152,7 +152,7 @@ A skill starts in one of three ways:
 | `local-supabase` | 💬 "start a local database" | Runs a local Supabase or Postgres for each checkout, never in Docker |
 | `user-notes` | 💬 "release notes for PR 42" | Asks which format I want (text, graphic or video), then writes short release notes for users |
 | `explainer` | 💬 "explain this PR visually" | Builds a one-page HTML explainer, only when asked |
-| `council` | 💬 "council" | Gets a review from four model families at once (Claude, GPT, Muse and Grok) and loops until they agree. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
+| `council` | 💬 "council" | Gets a review from four model families at once (Claude, GPT, Muse and Grok), with one re-review after fixes. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
 | `hydrojug-untangle` | ⌨️ `/hydrojug-untangle` | Untangles only the files I name or the current diff, never the whole repo. Inspired by [caldoai `untangle-codebase`](https://github.com/caldoai/skills/blob/main/skills/untangle-codebase/SKILL.md) (MIT) |
 
 **The method** comes from pstack. `poteto-mode` (📜) holds the playbooks for a feature, a bug fix, a refactor, a review and shipping. The policy sends any code work bigger than a one-line change to it.
@@ -261,7 +261,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `kolin-skills check-drift <path>` | Fails when another repo's copy of pstack or `senior-reviewer` differs from this repo, or its policy still demands a reviewer on every PR. See [`docs/consumer-drift.md`](docs/consumer-drift.md) |
 | `pr-body <base> --feature NAME=PATHS` | Prints a PR body skeleton with a line per feature, the diff size, Cleanup & simplify, and Verification |
 | `diff-audit <base>` | Flags reward hacks and slop in a diff: skipped tests, edited assertions, comments, new dependencies, growth in `AGENTS.md` |
-| `feature-budget` | Counts files and lines under `features/<name>/` against the plan's budget. Report only |
+| `feature-budget` | Counts each feature's files and lines against the plan's budget. A feature is a `features/<name>/` folder or a plan entry with `paths`. Report only, except `--base <ref>`, which fails when a feature over twice its budget grew since that ref |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions` and `--window` report tokens and list price (by model id, with Haiku 5.5's above-100K tier) per session and role, hook blocks and failing tools, and count a message copied into a side chat once |
 | `disk-cleanup` | Dry run by default. Reports, and with `--apply` removes, merged git worktrees (`git worktree remove`, never forced), unmerged ones idle over 7 days (the branch stays), orphaned local Supabase stacks, and npm, pnpm, turbo and Docker caches. `--scan DIR` adds repos, `--json` prints rows. Writes `~/.kolin-skills/disk-cleanup.json` |
 | `pglite-replay [root]` | Replays `supabase/migrations`, then `supabase/tests`, into an in-memory PGlite database |
