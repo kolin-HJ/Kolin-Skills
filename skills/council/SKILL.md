@@ -70,9 +70,10 @@ If a seat was skipped, leave its row out and name it under the table.
 If the PR is open, edit the description. Do not post a comment for this.
 If there is no PR, put the same results in the final reply only.
 
-If you agree with their recommendations, make the changes and request a fresh
-review after. Continue this process until every seated delegate is satisfied with the
-outcome.
+If you agree with their recommendations, make the changes and request one fresh
+review after. Stop after round two. If round two brings a new high finding, the
+design is unsettled. Report the finding to Kolin and do not patch it. A third
+round runs only when Kolin asks for it.
 
 Do not let repeated reviews result in scope creep. It is your job to fight to
 keep scope limited.

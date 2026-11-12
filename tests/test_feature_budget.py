@@ -28,9 +28,17 @@ class FeatureBudgetTests(unittest.TestCase):
             n += 1
         self.write(relative, "\n".join(rows[:lines]) + "\n")
 
-    def run_cli(self):
-        return subprocess.run([sys.executable, str(CLI), str(self.root)],
+    def run_cli(self, *args):
+        return subprocess.run([sys.executable, str(CLI), str(self.root), *args],
                               text=True, capture_output=True, timeout=20)
+
+    def git(self, *args):
+        subprocess.run(["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@example.com",
+                        "-c", "commit.gpgsign=false", *args], check=True, capture_output=True)
+
+    def commit_all(self, message):
+        self.git("add", "-A")
+        self.git("commit", "-q", "--no-verify", "-m", message)
 
     def test_counts_source_files_and_lines_and_skips_tests(self):
         for name in ("a", "b", "c"):
@@ -54,10 +62,10 @@ class FeatureBudgetTests(unittest.TestCase):
         self.assertIn("huge  files=11 lines=11 budget=5/800 (read)  2x — wave stops until Kolin approves a new budget (repo-standard, Layout)", result.stdout)
 
     def test_reads_budgets_from_the_plan_and_falls_back_to_kind_defaults(self):
-        self.write(".pstack/feature-budgets.json", json.dumps({
+        self.write(".pstack/feature-budgets.json", json.dumps({"features": {
             "custom": {"files": 2, "lines": 40},
             "form": {"kind": "edit"},
-        }))
+        }}))
         for n in range(3):
             self.source(f"src/features/custom/{n}.ts", 1)
         for n in range(7):
@@ -83,6 +91,60 @@ class FeatureBudgetTests(unittest.TestCase):
         self.assertIn("fragment: src/features/otif/tiny.ts 12 lines, 1 importer", result.stdout)
         self.assertNotIn("fragment: src/features/otif/stripe.ts", result.stdout)
         self.assertNotIn("fragment: src/features/otif/page.ts", result.stdout)
+
+    def test_a_plan_entry_with_paths_counts_a_feature_outside_a_features_folder(self):
+        self.write(".pstack/feature-budgets.json", json.dumps({"features": {
+            "reporting/items": {"kind": "edit", "paths": ["app/(app)/reporting/items", "lib/items"]},
+        }}))
+        self.source("app/(app)/reporting/items/page.tsx", 10)
+        self.source("lib/items/store.ts", 20)
+        self.source("lib/items/store.test.ts", 300)
+        self.source("lib/other.ts", 50)
+        result = self.run_cli()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("1 features", result.stdout)
+        self.assertIn("reporting/items  files=2 lines=30 budget=7/1200 (edit)  ok", result.stdout)
+
+    def test_base_fails_when_a_feature_over_twice_its_budget_grows_and_passes_when_it_shrinks(self):
+        self.git("init", "-q", "-b", "main")
+        for n in range(11):
+            self.source(f"src/features/huge/{n}.ts", 4)
+        self.source("src/features/small/a.ts", 4)
+        self.commit_all("base")
+        self.git("checkout", "-q", "-b", "work")
+        self.source("src/features/huge/0.ts", 9)
+        self.source("src/features/huge/huge.test.ts", 500)
+        self.source("src/features/small/a.ts", 60)
+        self.commit_all("grow")
+        grown = self.run_cli("--base", "main")
+        self.assertEqual(grown.returncode, 1, grown.stdout)
+        self.assertIn("FAIL: huge is over twice its budget and this change adds 5 lines against main", grown.stderr)
+        self.assertNotIn("small", grown.stderr)
+        self.assertEqual(self.run_cli().returncode, 0)
+        (self.root / "src/features/huge/1.ts").unlink()
+        (self.root / "src/features/huge/2.ts").unlink()
+        self.commit_all("cut back")
+        cut = self.run_cli("--base", "main")
+        self.assertEqual(cut.returncode, 0, cut.stderr)
+
+    def test_a_raised_budget_in_the_plan_lets_the_feature_grow(self):
+        self.git("init", "-q", "-b", "main")
+        for n in range(11):
+            self.source(f"src/features/huge/{n}.ts", 4)
+        self.commit_all("base")
+        self.git("checkout", "-q", "-b", "work")
+        self.source("src/features/huge/0.ts", 9)
+        self.write(".pstack/feature-budgets.json", json.dumps({"features": {"huge": {"files": 12, "lines": 2500}}}))
+        self.commit_all("grow with an approved budget")
+        result = self.run_cli("--base", "main")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_a_broken_plan_fails_instead_of_falling_back_to_defaults(self):
+        self.write(".pstack/feature-budgets.json", "{not json")
+        self.source("src/features/otif/a.ts", 1)
+        result = self.run_cli()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("is not valid JSON", result.stderr)
 
 
 if __name__ == "__main__":

@@ -34,7 +34,7 @@ interrogate reviewers: opus, opus, sonnet
 fork: inherits the session's model and the parent's whole context; use it when that context is the point
 ```
 
-Builders start on Sonnet. Pass `model: "opus"` when the job is hard enough to need it, even with a clear spec: a migration or a performance fix can be well specified and still hard. An Opus judgment role runs as `judge`, or `senior-reviewer` for a diff; a Sonnet seat passes `model: "sonnet"`. Never use `Plan` for judgment, because `Plan` and `Explore` start without `CLAUDE.md` or `AGENTS.md`. The judgment roles are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
+Builders start on Sonnet. Pass `model: "opus"` when the job is hard enough to need it, even with a clear spec: a migration or a performance fix can be well specified and still hard. A feature that leads the repo's fix count (`repo-standard`, Audit, Outcomes) is hard too: its builder runs on Opus. Every other feature stays on the default. An Opus judgment role runs as `judge`, or `senior-reviewer` for a diff; a Sonnet seat passes `model: "sonnet"`. Never use `Plan` for judgment, because `Plan` and `Explore` start without `CLAUDE.md` or `AGENTS.md`. The judgment roles are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
 
 ## When a seat falls short
 
@@ -71,7 +71,7 @@ Plan, build and review are separate roles:
 | Builder | `poteto-agent`, or the repo's implementer | Sonnet, high | One unit per brief, runs the gate, reports once. `poteto-agent` has no MCP, web or Agent tools: put that data in the brief |
 | Searcher | `Explore` | Sonnet. Pass `model: "opus"` when the search needs judgment. Keep the main seat's context for decisions: the bigger its model, the more a searcher saves | Wide read-only search, including the reading a brief needs; returns `file:line` facts, not file dumps |
 | Judge | `judge` | Opus, no edit tools. Pass `model: "fable"` for an architecture plan of a major refactor or migration | One design or judgment call, with the policy and the repo's `AGENTS.md` loaded |
-| Reviewer | `senior-reviewer` | Opus, high, read-only | Do not spawn by default. Prefer tests, the verify skill, UI proof and harnesses. Spawn only for high-risk work or when Kolin or the CEO asks; never the builder. If spawned: a re-check limited to a small fix delta is that Lite re-review on sonnet, unless the delta touches auth, money or data deletion (then Opus). If a reviewer returns without a verdict, resume or message that same subagent once before spawning another. |
+| Reviewer | `senior-reviewer` | Opus, high, read-only | Do not spawn by default. Prefer tests, the verify skill, UI proof and harnesses. Spawn only for high-risk work or when Kolin or the CEO asks; never the builder. If spawned: one review per change, then one re-check of the fix delta, and no third pass without Kolin's ask (`pstack-local`, Review rounds). A re-check limited to a small fix delta is that Lite re-review on sonnet, unless the delta touches auth, money or data deletion (then Opus). If a reviewer returns without a verdict, resume or message that same subagent once before spawning another. |
 | Comment sweep | `comment-sicko` (pstack) | Sonnet | Deletes comments before review |
 
 ## Size
