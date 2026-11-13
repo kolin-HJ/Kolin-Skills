@@ -7,30 +7,23 @@ import os
 import pathlib
 import sys
 
-GITHUB_BODY_LIMIT = 65_536
-FILLED_TEXT_RESERVE = 8_000
 KINDS = ("code", "tests", "docs")
 OTHER = "Other"
 
 HEAD = (
-    "**What:** <one sentence: what changes for the person who uses it>\n"
-    "**Why:** <one sentence: the problem, in their words>\n"
-    "**Risk:** <Low, medium or high. Name any migration, config or deploy order, and how to revert.>\n\n"
-    "<A mermaid flowchart with real module names if the PR changes a flow. "
-    "Before and after screenshots if it changes UI. Else delete this line.>\n\n"
+    "<What changes for the person who uses it, and why. Two sentences at most.>\n\n"
+    "**Risk:** <Low. Or what could break, any deploy order, and how to undo it.>\n\n"
     "## Changes\n\n"
 )
 TAIL = (
-    "## Cleanup & simplify\n\n"
-    "- Size: <is the net growth earned, and what drives it>\n"
-    "- `<file:line>`: <the simpler shape. Made here, or left and why it waits>\n\n"
     "## Check these\n\n"
-    "- [ ] `<file:line>`: <a question the reviewer should answer>\n\n"
+    "- [ ] `<file:line>`: <a question only a person can answer. Delete the section if none.>\n\n"
+    "## Cleanup\n\n"
+    "- `<file:line>`: <what you simplified, or what you left and why. Delete the section if none.>\n\n"
     "## Verification\n\n"
-    "- Ran: `<command>`, <result>\n"
+    "- Ran: `<command>`, <result in a few words>\n"
     "- Not run: <check>, because <why>\n"
 )
-DIFF_HEADING = "## Diff\n\n"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -133,40 +126,17 @@ def stats(files):
     return " · ".join(parts)
 
 
-def file_line(f, feature_name):
-    lines = "binary" if f.binary else f"+{f.added} -{f.removed}" + (", lockfile" if f.lock else "")
-    return f"- `{f.path}` {lines}" + (f" · {feature_name}" if feature_name else "")
-
-
 def render(features):
+    files = [f for feature in features for f in feature.files]
+    total = f"`{files_label(len(files))} · {delta(files)}{test_ratio(files)}`\n\n"
     summary = "".join(f"- **{feature.name}:** <what now behaves differently> `{stats(feature.files)}`\n"
                       for feature in features)
-    files = sorted((f for feature in features for f in feature.files), key=lambda f: f.path)
-    tags = {f.path: feature.name for feature in features for f in feature.files} if len(features) > 1 else {}
-    groups = {kind: [f for f in files if f.kind == kind] for kind in KINDS}
-    groups = {kind: group for kind, group in groups.items() if group}
-    headers = {kind: f"**{kind.capitalize()}** · {files_label(len(group))} · {delta(group)}"
-               for kind, group in groups.items()}
-    total = f"**{files_label(len(files))} touched · {delta(files)}**{test_ratio(files)}\n\n"
-    kept = {kind: [file_line(f, tags.get(f.path)) for f in group] for kind, group in groups.items()}
-    not_shown_room = len(f"- Not shown: {files_label(GITHUB_BODY_LIMIT)}, see Files changed\n")
-    size = (len(HEAD) + len(summary) + len(TAIL) + len(DIFF_HEADING) + len(total)
-            + sum(len(headers[kind]) + 2 + not_shown_room + sum(len(row) + 1 for row in rows)
-                  for kind, rows in kept.items()))
-    while size > GITHUB_BODY_LIMIT - FILLED_TEXT_RESERVE:
-        size -= len(max(kept.values(), key=len).pop()) + 1
-    blocks = []
-    for kind, group in groups.items():
-        rows = kept[kind]
-        hidden = len(group) - len(rows)
-        rows = [headers[kind], *rows] + ([f"- Not shown: {files_label(hidden)}, see Files changed"] if hidden else [])
-        blocks.append("\n".join(rows) + "\n")
-    return HEAD + summary + "\n" + DIFF_HEADING + total + "\n".join(blocks) + "\n" + TAIL
+    return HEAD + total + summary + "\n" + TAIL
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Print a PR body skeleton with the diff size and the files touched, grouped by code, tests and docs.")
+        description="Print a short PR body skeleton with one line per feature and the diff size.")
     parser.add_argument("base", nargs="?", default="origin/HEAD")
     parser.add_argument("--feature", action="append", required=True, type=feature_arg, metavar="NAME=PATH[,PATH...]",
                         help="Name a feature and its files, once per feature. A PATH ending in / takes the whole folder. "
