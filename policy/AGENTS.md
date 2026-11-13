@@ -29,7 +29,7 @@ These need my yes, prepared so yes is the last step:
 
 ## Cleanup
 
-Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape code, old code included, into the structure that makes the most sense. Plan the removals with the change. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or its proof costs more than the task. In the PR body, fill `## Cleanup & simplify`, added if the template lacks it: is the net size earned, every change you made, small ones too, and each cleanup left, with `file:line` and why.
+Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape code, old code included, into the structure that makes the most sense. Plan the removals with the change. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or its proof costs more than the task. In the PR body, fill `## Cleanup`, added if the template lacks it: each cleanup made or left, with `file:line`, and why a left one waits.
 
 ## Security
 
@@ -43,7 +43,7 @@ Test what a caller relies on, and a bug before its fix. A new test needs one rea
 
 ## Pull requests
 
-Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. Before the PR opens, prove the change in this same session: the repo's gate, tests, and the verify skill or UI proof the repo requires. Spawn `senior-reviewer` or `interrogate`, or read `thermo-nuclear-code-quality-review`, `statechart` or formal verification, only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. Start the body from the repo's template, else `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`.
+Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. Before the PR opens, prove the change in this same session: the repo's gate, tests, and the verify skill or UI proof the repo requires. Spawn `senior-reviewer` or `interrogate`, or read `thermo-nuclear-code-quality-review`, `statechart` or formal verification, only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. Start the body from the repo's template, else `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`. Keep the body to one screen, so a reviewer gets it in a minute. Write one line per feature, no file list (GitHub shows it), no pasted output and no section the template lacks. Put a needed schema, flow or table in a `<details>` block.
 
 ## Writing
 
