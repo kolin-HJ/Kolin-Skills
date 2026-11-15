@@ -35,7 +35,7 @@ At the current head:
 - `diff-audit <base>` shows no block, or the PR body gives each one a reason.
 - The PR title and body match the final diff.
 - Review bots have finished, and every finding is fixed or answered.
-- Every required check is green. A skipped required check counts as failed. With no required checks, every check that ran is green and none is pending.
+- Every required check is green. A pending or skipped required check is not green. With no required checks, every check that ran is green and none is pending.
 - `gh pr view <N> --json mergeable,mergeStateStatus` shows `MERGEABLE` and `CLEAN` (`watch_pull_request` does not report BEHIND).
 Then, in T3 Code, call `unwatch_pull_request`, and report. Take the merge method from the repo settings or recent merged PRs.
 ## Stop rules

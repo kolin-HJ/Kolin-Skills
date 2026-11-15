@@ -15,6 +15,12 @@ HEAD = (
     "**Risk:** <Low. Or what could break, any deploy order, and how to undo it.>\n\n"
     "## Changes\n\n"
 )
+VISUAL = (
+    "## Visual proof\n\n"
+    "- Before: <screenshot, or delete this section if no UI>\n"
+    "- After: <screenshot>\n"
+    "- Interaction: <short video, or delete this line if none>\n\n"
+)
 TAIL = (
     "## Check these\n\n"
     "- [ ] `<file:line>`: <a question only a person can answer. Delete the section if none.>\n\n"
@@ -126,12 +132,12 @@ def stats(files):
     return " · ".join(parts)
 
 
-def render(features):
+def render(features, ui=False):
     files = [f for feature in features for f in feature.files]
     total = f"`{files_label(len(files))} · {delta(files)}{test_ratio(files)}`\n\n"
     summary = "".join(f"- **{feature.name}:** <what now behaves differently> `{stats(feature.files)}`\n"
                       for feature in features)
-    return HEAD + total + summary + "\n" + TAIL
+    return HEAD + total + summary + "\n" + ((VISUAL + TAIL) if ui else TAIL)
 
 
 def main():
@@ -148,7 +154,8 @@ def main():
     files = changes(base, audit)
     if not files:
         parser.error(f"no changes between {args.base} and HEAD")
-    sys.stdout.write(render(assign(files, args.feature, parser.error)))
+    assigned = assign(files, args.feature, parser.error)
+    sys.stdout.write(render(assigned, any(audit.UI.search(f.path) for f in files)))
     return 0
 
 

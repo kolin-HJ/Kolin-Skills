@@ -73,6 +73,23 @@ class PrBodyTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("src/price.ts", result.stderr)
 
+    def test_visual_proof_is_included_only_when_the_diff_touches_ui_files(self):
+        self.write("src/Price.tsx", "export const Price = () => null;\n")
+        body = self.body("Pricing=src/Price.tsx")
+        self.assertIn(
+            "## Visual proof\n\n"
+            "- Before: <screenshot, or delete this section if no UI>\n"
+            "- After: <screenshot>\n"
+            "- Interaction: <short video, or delete this line if none>\n\n"
+            "## Check these\n", body)
+        self.assertLess(len(body.splitlines()), 30)
+
+    def test_visual_proof_is_omitted_when_the_diff_has_no_ui(self):
+        self.write("src/price.ts", "export const price = 2;\n")
+        body = self.body("Pricing=src/price.ts")
+        self.assertNotIn("## Visual proof", body)
+        self.assertIn("## Check these\n", body)
+
     def test_many_files_still_fit_on_one_screen(self):
         for n in range(2_500):
             self.write(f"src/f{n:04}.ts", f"export const a{n} = 1;\n")

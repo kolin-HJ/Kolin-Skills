@@ -14,11 +14,12 @@ Reversible work proceeds without asking: reads, edits, local runs, gates, review
 
 These need my yes, prepared so yes is the last step:
 
-- A merge, and any change to `main`, `master`, `staging` or `sandbox`. These change only through a PR.
+- A merge, and any change to `main`, `master`, `staging` or `sandbox`. These change only through a PR. Do not merge until every required check is green; pending or skipped is not green.
 - Deploys, releases and production workflow runs.
 - A multi-phase plan, before its build starts, and the first exemplar feature, before builders copy it.
 - A new or changed data structure (type, table, schema, payload) or system flow: show me the shapes and the flow before you build. A flow with a lock, claim, key or queue, or a retried outside write, lists its event orders first. A migration also needs a backup step.
 - Money, secrets and credentials, store submissions, and messages to people or other external writes.
+- A production error from a health pulse or nightly quality pass: write a repro-only brief (steps, exact logs with timestamps and links, suspected file:line, a failing test if possible) and stop until I say yes.
 
 ## Code
 
@@ -43,7 +44,7 @@ Test what a caller relies on, and a bug before its fix. A new test needs one rea
 
 ## Pull requests
 
-Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. Before the PR opens, prove the change in this same session: the repo's gate, tests, and the verify skill or UI proof the repo requires. Spawn `senior-reviewer` or `interrogate`, or read `thermo-nuclear-code-quality-review`, `statechart` or formal verification, only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. Start the body from the repo's template, else `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`. Keep the body to one screen, so a reviewer gets it in a minute. Write one line per feature, no file list (GitHub shows it), no pasted output and no section the template lacks. Put a needed schema, flow or table in a `<details>` block.
+Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. Before the PR opens, prove the change in this same session: the repo's gate, tests, and the verify skill or UI proof the repo requires. A UI change puts before and after screenshots in the body, plus a short video for an interaction. Spawn `senior-reviewer` or `interrogate`, or read `thermo-nuclear-code-quality-review`, `statechart` or formal verification, only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. Start the body from the repo's template, else `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`. Keep the body to one screen, so a reviewer gets it in a minute. Write one line per feature, no file list (GitHub shows it), no pasted output and no section the template lacks. Put a needed schema, flow or table in a `<details>` block.
 
 ## Writing
 
@@ -51,4 +52,4 @@ Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code 
 
 ## Adding rules
 
-Add a rule, hook or skill only after the same mistake costs real time twice, or once for security, data loss or an irreversible action. Remove one when it blocks more good work than bad.
+Add a rule, hook or skill only after the same mistake costs real time twice, or once for security, data loss or an irreversible action. A review finding seen twice in a repo (nightly quality pass, PR quality gate, or thermos review) becomes a lint rule, a CI check, or a type or architecture constraint there, not more review prose. Remove one when it blocks more good work than bad.

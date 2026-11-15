@@ -40,7 +40,7 @@ src/
 
 ## Guardrails
 
-- A new rule (policy, Adding rules) becomes a lint rule, test or check where it can. A ratchet starts at today's count and goes to zero. The rule message names the fix.
+- A new rule (policy, Adding rules), including a review finding seen twice, becomes a lint rule, test or check where it can. A ratchet starts at today's count and goes to zero. The rule message names the fix.
 - **Ratchet counts.** One baseline file counts `any`, `@ts-ignore` / `@ts-expect-error`, `eslint-disable` without a `-- <reason>`, and files over 1,000 lines. CI compares the PR's counts to the base branch's and fails on a rise, so a count only falls. `check-baseline-ratchet.mjs` in hj-supply-chain is the exemplar to copy.
 - Every gate names the bug it prevents. Gate tooling stays under about a quarter of the app's lines.
 - Metric gates report and never block an edit, commit or push, because agents pass a blocking metric by cutting code into fragments. Metric gates are cyclomatic and cognitive complexity, CRAP, mutation score, `max-depth`, `max-lines-per-function`, `max-statements`, `max-params` and `max-nested-callbacks`. The two blocking size rules are the policy's 1,000-line limit, at pre-commit or pre-push, and growth of a feature already over twice its budget (Layout). Turning off a blocking metric gate is its own PR with Kolin's yes.
@@ -49,13 +49,25 @@ src/
 - Gates run locally: pre-commit (about 10 s), pre-push (a few minutes) and a `verify` command. Where a repo has CI, each CI job's command also runs in the local check, so CI never finds a new failure.
 - A rebuild, port or migration of a live feature starts with `.pstack/parity.md` before any builder runs: one row per behavior a user relies on (`behavior | live file:line | smoke step | status`). Each brief carries its rows, and a cutover waits until every row passes or carries Kolin's approved cut.
 
+## Production error brief
+
+A health pulse or nightly quality pass that finds a production error writes this brief and stops. Do not fix until Kolin says yes (policy, Approvals).
+
+```
+Repro:
+1. <step>
+Logs: <exact error; timestamp; link>
+Suspected: <file:line>
+Failing test: <path, or none>
+```
+
 ## UI bar
 
 Desktop and phone both clean and professional, tables become cards on phones, tokens only, Kolin's library picks and inspiration: `references/ui-bar.md`.
 
 ## PR Verification
 
-Policy (Pull requests) owns the rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the `Ran:` / `Not run:` lines into an existing template. `pr-body` already prints this shape. CI body-lint is the ratchet when recent PRs skip that shape: copy `assets/check-pr-proof.mjs` to `scripts/` and `assets/pr-proof.yml` to `.github/workflows/`, then set `RUNNABLE_SOURCE`, `APP_PROOF_COMMAND` and `branches` for the repo.
+Policy (Pull requests) owns the rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the Visual proof and `Ran:` / `Not run:` lines into an existing template. `pr-body` prints Visual proof when the diff has a `.tsx` or `.jsx` file. CI body-lint is the ratchet when recent PRs skip that shape: copy `assets/check-pr-proof.mjs` to `scripts/` and `assets/pr-proof.yml` to `.github/workflows/`, then set `RUNNABLE_SOURCE`, `APP_PROOF_COMMAND` and `branches` for the repo.
 
 ## Audit a repo
 
@@ -74,13 +86,13 @@ Read only. Measure, do not guess, and record each row's command and count.
 | Write flows | Each flow that takes a lock, claim, key or queue, or retries an outside write: its event orders are written down, or a model skill covers its files (`model-*`, `covers` in `runs.json`). Count the flows with neither, and the `fix` subjects in Outcomes that name a claim, lock, key, queue or retry |
 | Tests | A test for each behavior a caller relies on (policy, Done), not one per entry point; tests of a constant, config, prose or file existence, and tests with none of the policy's reasons, to delete; the test-to-code ratio from `pr-body`, reported, never a limit; recorded contract fixtures for external APIs; slow or sleeping tests; surviving mutants in tested code (Stryker for TypeScript), reported, not ratcheted; without the tool, mark it missing and propose it. For hj-plm and hj-supply-chain, propose changed-file Stryker (or the repo's equivalent) as a report-only `Ran:` line in the PR body; never a blocking score |
 | Boundaries | Import rules, one home per concept, parked or out-of-scope code |
-| Guardrails | Agent hooks that block gate skips and protected pushes; secrets out of the tree; on GitHub, `delete_branch_on_merge` on (a stacked PR merged into its already-merged base is lost) and the CI jobs required on the integration branch; third-party GitHub Actions pinned to a full commit SHA (count unpinned `uses:`); flag `pull_request_target` workflows that check out PR head code; CI-installed tool versions, pinned |
+| Guardrails | Agent hooks that block gate skips and protected pushes; secrets out of the tree; on GitHub, `delete_branch_on_merge` on (a stacked PR merged into its already-merged base is lost) and the CI jobs required on staging and on the default branch (pending or skipped is not green); third-party GitHub Actions pinned to a full commit SHA (count unpinned `uses:`); flag `pull_request_target` workflows that check out PR head code; CI-installed tool versions, pinned |
 | Approval text | Repo instruction text (`AGENTS.md`, repo skills) that requires an ask before a reversible step on a work branch (commit, push, opening a PR) conflicts with the global policy's Approvals. Flag it with `file:line` and rewrite it to match. |
 | Agent roles | A repo agent that shares a global agent's name (`senior-reviewer`, `poteto-agent`) and pins a lower model than `skills/pstack-local/models.md` gives that role. Flag it |
 | Review rule | `kolin-skills check-drift <repo>`. Repo text that requires a reviewer on every PR or every staging merge, or a repo `senior-reviewer` that differs from the global one, conflicts with the policy (Done, Pull requests). Flag it with `file:line` |
 | Verification | A verification skill with a CLI and feature maps; parity against staging or the base |
-| PR Verification | Template `.github/PULL_REQUEST_TEMPLATE.md` (or GitHub's other template paths) has `## Verification` with `Ran:` / `Not run: <check>, because <why>`. No template is met if `pr-body` emits that shape. Measure the template with `rg`; count recent `gh pr list --json body` that miss it. CI body-lint (`check-pr-proof.mjs` or equivalent) is the ratchet when they miss; a template without lint is enough when they match |
-| UI (if any) | Raw tables, raw hex colors, screens without 390 and 1440 px checks, tap targets |
+| PR Verification | Template `.github/PULL_REQUEST_TEMPLATE.md` (or GitHub's other template paths) has `## Visual proof` and `## Verification` with `Ran:` / `Not run: <check>, because <why>`. No template is met if `pr-body` emits that shape. Measure the template with `rg`; count recent `gh pr list --json body` that miss it. CI body-lint (`check-pr-proof.mjs` or equivalent) is the ratchet when they miss; a template without lint is enough when they match |
+| UI (if any) | Raw tables, raw hex colors, screens without 390 and 1440 px checks, tap targets, UI PRs without before and after screenshots in the body |
 | Runtime | One pinned version everywhere |
 
 Write `.pstack/gap-report.md`, or the path Kolin names: a score per area (met, partial or missing, with the count), the gaps ranked by risk times reach (data loss, security and money first, then gates, then readability; inside a tier, the scope with the most fixes in Outcomes first), one step per gap with **Done when**, and the decisions Kolin owns in one bundled ask, recommended option first. Stop at the report unless Kolin asked you to close the gaps.
