@@ -49,6 +49,18 @@ src/
 - Gates run locally: pre-commit (about 10 s), pre-push (a few minutes) and a `verify` command. Where a repo has CI, each CI job's command also runs in the local check, so CI never finds a new failure.
 - A rebuild, port or migration of a live feature starts with `.pstack/parity.md` before any builder runs: one row per behavior a user relies on (`behavior | live file:line | smoke step | status`). Each brief carries its rows, and a cutover waits until every row passes or carries Kolin's approved cut.
 
+## Production error brief
+
+A health pulse or nightly quality pass that finds a production error writes this brief and stops. Do not fix until Kolin says yes (policy, Approvals).
+
+```
+Repro:
+1. <step>
+Logs: <exact error; timestamp; link>
+Suspected: <file:line>
+Failing test: <path, or none>
+```
+
 ## UI bar
 
 Desktop and phone both clean and professional, tables become cards on phones, tokens only, Kolin's library picks and inspiration: `references/ui-bar.md`.

@@ -19,6 +19,7 @@ These need my yes, prepared so yes is the last step:
 - A multi-phase plan, before its build starts, and the first exemplar feature, before builders copy it.
 - A new or changed data structure (type, table, schema, payload) or system flow: show me the shapes and the flow before you build. A flow with a lock, claim, key or queue, or a retried outside write, lists its event orders first. A migration also needs a backup step.
 - Money, secrets and credentials, store submissions, and messages to people or other external writes.
+- A production error from a health pulse or nightly quality pass: write a repro-only brief (steps, exact logs with timestamps and links, suspected file:line, a failing test if possible) and stop until I say yes.
 
 ## Code
 
