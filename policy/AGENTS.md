@@ -14,7 +14,7 @@ Reversible work proceeds without asking: reads, edits, local runs, gates, review
 
 These need my yes, prepared so yes is the last step:
 
-- A merge, and any change to `main`, `master`, `staging` or `sandbox`. These change only through a PR.
+- A merge, and any change to `main`, `master`, `staging` or `sandbox`. These change only through a PR. Do not merge until every required check is green; pending or skipped is not green.
 - Deploys, releases and production workflow runs.
 - A multi-phase plan, before its build starts, and the first exemplar feature, before builders copy it.
 - A new or changed data structure (type, table, schema, payload) or system flow: show me the shapes and the flow before you build. A flow with a lock, claim, key or queue, or a retried outside write, lists its event orders first. A migration also needs a backup step.
