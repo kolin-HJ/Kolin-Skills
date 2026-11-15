@@ -51,4 +51,4 @@ Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code 
 
 ## Adding rules
 
-Add a rule, hook or skill only after the same mistake costs real time twice, or once for security, data loss or an irreversible action. Remove one when it blocks more good work than bad.
+Add a rule, hook or skill only after the same mistake costs real time twice, or once for security, data loss or an irreversible action. A review finding seen twice in a repo (nightly quality pass, PR quality gate, or thermos review) becomes a lint rule, a CI check, or a type or architecture constraint there, not more review prose. Remove one when it blocks more good work than bad.

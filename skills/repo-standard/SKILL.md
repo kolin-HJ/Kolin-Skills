@@ -40,7 +40,7 @@ src/
 
 ## Guardrails
 
-- A new rule (policy, Adding rules) becomes a lint rule, test or check where it can. A ratchet starts at today's count and goes to zero. The rule message names the fix.
+- A new rule (policy, Adding rules), including a review finding seen twice, becomes a lint rule, test or check where it can. A ratchet starts at today's count and goes to zero. The rule message names the fix.
 - **Ratchet counts.** One baseline file counts `any`, `@ts-ignore` / `@ts-expect-error`, `eslint-disable` without a `-- <reason>`, and files over 1,000 lines. CI compares the PR's counts to the base branch's and fails on a rise, so a count only falls. `check-baseline-ratchet.mjs` in hj-supply-chain is the exemplar to copy.
 - Every gate names the bug it prevents. Gate tooling stays under about a quarter of the app's lines.
 - Metric gates report and never block an edit, commit or push, because agents pass a blocking metric by cutting code into fragments. Metric gates are cyclomatic and cognitive complexity, CRAP, mutation score, `max-depth`, `max-lines-per-function`, `max-statements`, `max-params` and `max-nested-callbacks`. The two blocking size rules are the policy's 1,000-line limit, at pre-commit or pre-push, and growth of a feature already over twice its budget (Layout). Turning off a blocking metric gate is its own PR with Kolin's yes.
