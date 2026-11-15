@@ -16,6 +16,10 @@ HEAD = (
     "## Changes\n\n"
 )
 TAIL = (
+    "## Visual proof\n\n"
+    "- Before: <screenshot, or delete this section if no UI>\n"
+    "- After: <screenshot>\n"
+    "- Interaction: <short video, or delete this line if none>\n\n"
     "## Check these\n\n"
     "- [ ] `<file:line>`: <a question only a person can answer. Delete the section if none.>\n\n"
     "## Cleanup\n\n"

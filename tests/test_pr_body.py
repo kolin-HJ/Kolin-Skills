@@ -51,7 +51,7 @@ class PrBodyTests(unittest.TestCase):
             "`6 files · +4 -1 · 1.0 test lines per code line`\n\n"
             "- **Pricing:** <what now behaves differently> `3 files · code +1 -1 · tests +1 -0 · docs +1 -0`\n"
             "- **Other:** <what now behaves differently> `3 files · docs +1 -0`\n\n"
-            "## Check these\n", body)
+            "## Visual proof\n", body)
         self.assertNotIn("src/price.ts", body)
         self.assertNotIn("README.md", body)
 
@@ -72,6 +72,17 @@ class PrBodyTests(unittest.TestCase):
         result = self.run_pr_body("Pricing=src/", "Checkout=src/price.ts")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("src/price.ts", result.stderr)
+
+    def test_the_template_includes_visual_proof_and_still_fits_on_one_screen(self):
+        self.write("src/price.ts", "export const price = 2;\n")
+        body = self.body("Pricing=src/price.ts")
+        self.assertIn(
+            "## Visual proof\n\n"
+            "- Before: <screenshot, or delete this section if no UI>\n"
+            "- After: <screenshot>\n"
+            "- Interaction: <short video, or delete this line if none>\n\n"
+            "## Check these\n", body)
+        self.assertLess(len(body.splitlines()), 30)
 
     def test_many_files_still_fit_on_one_screen(self):
         for n in range(2_500):

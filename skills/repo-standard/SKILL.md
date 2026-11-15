@@ -55,7 +55,7 @@ Desktop and phone both clean and professional, tables become cards on phones, to
 
 ## PR Verification
 
-Policy (Pull requests) owns the rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the `Ran:` / `Not run:` lines into an existing template. `pr-body` already prints this shape. CI body-lint is the ratchet when recent PRs skip that shape: copy `assets/check-pr-proof.mjs` to `scripts/` and `assets/pr-proof.yml` to `.github/workflows/`, then set `RUNNABLE_SOURCE`, `APP_PROOF_COMMAND` and `branches` for the repo.
+Policy (Pull requests) owns the rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the Visual proof and `Ran:` / `Not run:` lines into an existing template. `pr-body` already prints this shape. CI body-lint is the ratchet when recent PRs skip that shape: copy `assets/check-pr-proof.mjs` to `scripts/` and `assets/pr-proof.yml` to `.github/workflows/`, then set `RUNNABLE_SOURCE`, `APP_PROOF_COMMAND` and `branches` for the repo.
 
 ## Audit a repo
 
@@ -79,8 +79,8 @@ Read only. Measure, do not guess, and record each row's command and count.
 | Agent roles | A repo agent that shares a global agent's name (`senior-reviewer`, `poteto-agent`) and pins a lower model than `skills/pstack-local/models.md` gives that role. Flag it |
 | Review rule | `kolin-skills check-drift <repo>`. Repo text that requires a reviewer on every PR or every staging merge, or a repo `senior-reviewer` that differs from the global one, conflicts with the policy (Done, Pull requests). Flag it with `file:line` |
 | Verification | A verification skill with a CLI and feature maps; parity against staging or the base |
-| PR Verification | Template `.github/PULL_REQUEST_TEMPLATE.md` (or GitHub's other template paths) has `## Verification` with `Ran:` / `Not run: <check>, because <why>`. No template is met if `pr-body` emits that shape. Measure the template with `rg`; count recent `gh pr list --json body` that miss it. CI body-lint (`check-pr-proof.mjs` or equivalent) is the ratchet when they miss; a template without lint is enough when they match |
-| UI (if any) | Raw tables, raw hex colors, screens without 390 and 1440 px checks, tap targets |
+| PR Verification | Template `.github/PULL_REQUEST_TEMPLATE.md` (or GitHub's other template paths) has `## Visual proof` and `## Verification` with `Ran:` / `Not run: <check>, because <why>`. No template is met if `pr-body` emits that shape. Measure the template with `rg`; count recent `gh pr list --json body` that miss it. CI body-lint (`check-pr-proof.mjs` or equivalent) is the ratchet when they miss; a template without lint is enough when they match |
+| UI (if any) | Raw tables, raw hex colors, screens without 390 and 1440 px checks, tap targets, UI PRs without before and after screenshots in the body |
 | Runtime | One pinned version everywhere |
 
 Write `.pstack/gap-report.md`, or the path Kolin names: a score per area (met, partial or missing, with the count), the gaps ranked by risk times reach (data loss, security and money first, then gates, then readability; inside a tier, the scope with the most fixes in Outcomes first), one step per gap with **Done when**, and the decisions Kolin owns in one bundled ask, recommended option first. Stop at the report unless Kolin asked you to close the gaps.

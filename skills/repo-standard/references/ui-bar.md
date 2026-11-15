@@ -2,7 +2,7 @@
 
 Part of `repo-standard`. Applies to every repo with a UI.
 
-- Desktop and phone both look clean and professional. Prove it with screenshots at 390 px and 1440 px, no horizontal scroll, and tap targets of at least 44 x 44 px.
+- Desktop and phone both look clean and professional. Prove it with screenshots at 390 px and 1440 px, no horizontal scroll, and tap targets of at least 44 x 44 px. A PR that changes UI puts those before and after screenshots in the PR body, plus a short video for an interaction.
 - A screen's primary action (checkout, add to bag, save, submit) stays visible and reachable on a short phone, with the keyboard open, with the browser toolbars shown and inside the safe areas, and every modal or slide-out panel keeps a reachable close button. A change that can hide it blocks, and a change to a sticky bar or checkout needs a real iPhone Safari check.
 - A data table never shrinks onto a phone: below 768 px it renders designed cards from the same row type and column definitions. Charts get a simple form on phones.
 - Colors come from design tokens only. A lint rule bans raw hex and rgb values in components. Every library is themed to the tokens.
