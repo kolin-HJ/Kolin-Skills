@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import time
+import typing
 
 HOME = pathlib.Path.home()
 ACTIVE = pathlib.Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude"))
@@ -42,6 +43,10 @@ LIST_PRICE_PER_MTOK = {
     "claude-fable-5-1": {"input": 10, "output": 50, "cache_read": 0.25, "cache_write_5m": 12.5, "cache_write_1h": 20},
 }
 LONG_RUN_CALLS = 200
+PROJECT_FOLDER = re.compile(r"(?:worktrees|Github)-(.+?)(?:-[0-9a-f]{16})?$")
+CHECKOUTS = HOME / "Documents/Github"
+COST_KINDS = ("input", "output", "cache read", "cache write")
+CONTEXT_BANDS = ((100_000, "up to 100k"), (200_000, "100k to 200k"), (300_000, "200k to 300k"), (float("inf"), "over 300k"))
 HOOK_BLOCK = re.compile(r"hook error: \[[^\]]*?([^/\s']+?)'?\]: (.{0,50})", re.S)
 SKILL_PATH = re.compile(r"skills/([A-Za-z0-9:_-]+)/SKILL\.md")
 COMMAND = re.compile(r"<command-name>/?([^<]+)</command-name>")
@@ -71,19 +76,30 @@ def model_price(model):
     return LIST_PRICE_PER_MTOK[max(matches, key=len)] if matches else None
 
 
-def list_price(model, usage):
+def cost_parts(model, usage):
     price = model_price(model)
     if not price:
         if context_tokens(usage) or usage.get("output_tokens", 0):
             sys.exit(f"context-audit: no list price for model {model!r}; add it to LIST_PRICE_PER_MTOK from ~/.t3/userdata/usage-model-rates.json")
-        return 0.0
+        return {kind: 0.0 for kind in COST_KINDS}
     if context_tokens(usage) > 100_000:
         price = price.get("above_100k", price)
     written = usage.get("cache_creation_input_tokens", 0)
     hour = (usage.get("cache_creation") or {}).get("ephemeral_1h_input_tokens", 0)
-    return (usage.get("input_tokens", 0) * price["input"] + usage.get("output_tokens", 0) * price["output"]
-            + usage.get("cache_read_input_tokens", 0) * price["cache_read"]
-            + (written - hour) * price["cache_write_5m"] + hour * price["cache_write_1h"]) / 1e6
+    return {
+        "input": usage.get("input_tokens", 0) * price["input"] / 1e6,
+        "output": usage.get("output_tokens", 0) * price["output"] / 1e6,
+        "cache read": usage.get("cache_read_input_tokens", 0) * price["cache_read"] / 1e6,
+        "cache write": ((written - hour) * price["cache_write_5m"] + hour * price["cache_write_1h"]) / 1e6,
+    }
+
+
+def list_price(model, usage):
+    return sum(cost_parts(model, usage).values())
+
+
+def context_band(tokens):
+    return next((label for limit, label in CONTEXT_BANDS if tokens <= limit), CONTEXT_BANDS[-1][1])
 
 
 def records(path):
@@ -257,6 +273,15 @@ def result_text(content):
     return "\n".join(block.get("text", "") for block in content if isinstance(block, dict))
 
 
+class Call(typing.NamedTuple):
+    model: str
+    context: int
+    output: int
+    cost: float
+    kinds: dict
+    effort: str
+
+
 def session_stats(path, counted):
     messages, calls, outcomes, spawns, audits = {}, {}, {}, {}, False
     hooks, urls, compactions, first = collections.Counter(), set(), 0, None
@@ -273,7 +298,8 @@ def session_stats(path, counted):
             identifier = message.get("id") or record.get("uuid")
             if identifier in counted and identifier not in messages:
                 continue
-            messages[identifier] = (message.get("model"), context_tokens(usage), usage.get("output_tokens", 0), list_price(message.get("model"), usage))
+            kinds = cost_parts(message.get("model"), usage)
+            messages[identifier] = Call(message.get("model"), context_tokens(usage), usage.get("output_tokens", 0), sum(kinds.values()), kinds, record.get("effort") or "unknown")
             for block in message["content"] if isinstance(message.get("content"), list) else []:
                 if block.get("type") == "tool_use":
                     calls[block["id"]] = block["name"]
@@ -289,13 +315,14 @@ def session_stats(path, counted):
                 blocked = HOOK_BLOCK.search(result_text(block.get("content", ""))) if failed else None
                 if blocked:
                     hooks[(blocked.group(1), " ".join(blocked.group(2).split()))] += 1
-    models = collections.Counter(model for model, _, _, _ in messages.values())
+    models = collections.Counter(call.model for call in messages.values())
     return {
         "model": models.most_common(1)[0][0] if models else "unknown",
         "messages": set(messages),
-        "tokens": sum(context + output for _, context, output, _ in messages.values()),
-        "cost": sum(cost for _, _, _, cost in messages.values()),
-        "peak": max((context for _, context, _, _ in messages.values()), default=0),
+        "turns": list(messages.values()),
+        "tokens": sum(call.context + call.output for call in messages.values()),
+        "cost": sum(call.cost for call in messages.values()),
+        "peak": max((call.context for call in messages.values()), default=0),
         "calls": len(calls), "compactions": compactions, "hooks": hooks, "urls": urls, "first": first, "spawns": spawns, "audits": audits,
         "tools": [(name, outcomes.get(tool_id) is False) for tool_id, name in calls.items()],
     }
@@ -413,6 +440,7 @@ class WindowSession:
     subagent_cost: float
     roles: collections.Counter
     long_builders: int
+    turns: list
 
     @property
     def tokens(self):
@@ -441,6 +469,7 @@ def window_sessions(start, end):
         roles = collections.Counter()
         subagent_tokens = long_builders = 0
         subagent_cost = 0.0
+        turns = list(main["turns"])
         for agent in largest_first((path.parent / path.stem / "subagents").glob("agent-*.jsonl")):
             role = agent_meta(agent).get("agentType", "unknown")
             stats = session_stats(agent, counted)
@@ -448,8 +477,9 @@ def window_sessions(start, end):
             roles[role] += 1
             subagent_tokens += stats["tokens"]
             subagent_cost += stats["cost"]
+            turns += stats["turns"]
             long_builders += role == "poteto-agent" and stats["calls"] > LONG_RUN_CALLS
-        sessions.append(WindowSession(path.parent.name, path.stem, timestamp, main, subagent_tokens, subagent_cost, roles, long_builders))
+        sessions.append(WindowSession(path.parent.name, path.stem, timestamp, main, subagent_tokens, subagent_cost, roles, long_builders, turns))
     return sessions
 
 
@@ -468,6 +498,50 @@ def print_window(start, end, top):
     for session in sorted(sessions, key=lambda item: -item.cost)[:top]:
         roles = ", ".join(f"{role}={count}" for role, count in sorted(session.roles.items())) or "-"
         print(f"  {session.project} {session.session} {session.start.isoformat()} ${session.cost:,.2f} {session.tokens:,} {session.main['tokens']:,} {session.subagent_tokens:,} {session.main['calls']} {session.main['peak']:,} {session.main['compactions']} {roles}")
+    print_spend_split(sessions)
+
+
+def repo_of(project):
+    if "-scratch-" in project:
+        return "scratch"
+    found = PROJECT_FOLDER.search(project)
+    if not found:
+        return project
+    folder = found.group(1)
+    known = sorted((path.name for path in CHECKOUTS.glob("*") if folder == path.name or folder.startswith(path.name + "-")), key=len)
+    return known[-1] if known else folder.split("-t3-")[0]
+
+
+def print_spend_split(sessions):
+    by_repo, by_kind, by_effort = collections.Counter(), collections.Counter(), collections.Counter()
+    by_band, band_turns = collections.Counter(), collections.Counter()
+    for session in sessions:
+        by_repo[repo_of(session.project)] += session.cost
+        for turn in session.turns:
+            by_band[context_band(turn.context)] += turn.cost
+            band_turns[context_band(turn.context)] += 1
+            for kind, cost in turn.kinds.items():
+                by_kind[kind] += cost
+        for turn in session.main["turns"]:
+            by_effort[(turn.effort, family(turn.model) or turn.model)] += turn.cost
+    total = sum(by_repo.values()) or 1
+    print("\nBy repo: list price, share, sessions")
+    repo_sessions = collections.Counter(repo_of(session.project) for session in sessions)
+    for repo, cost in by_repo.most_common():
+        print(f"  {repo:<28} ${cost:>9,.2f} {100 * cost / total:>5.1f}% {repo_sessions[repo]:>4}")
+    print("\nBy cost kind: list price, share")
+    for kind in COST_KINDS:
+        print(f"  {kind:<12} ${by_kind[kind]:>9,.2f} {100 * by_kind[kind] / total:>5.1f}%")
+    print("\nBy context size of the turn: turns, list price, share, price per turn")
+    for _, label in CONTEXT_BANDS:
+        print(f"  {label:<14} {band_turns[label]:>7,} ${by_band[label]:>9,.2f} {100 * by_band[label] / total:>5.1f}% ${by_band[label] / max(band_turns[label], 1):.3f}")
+    print("\nMain sessions by effort and model family: list price")
+    for (effort, model), cost in by_effort.most_common():
+        print(f"  {effort:<8} {model:<8} ${cost:>9,.2f}")
+    roles = collections.Counter()
+    for session in sessions:
+        roles += session.roles
+    print(f"\nReview against proof: senior-reviewer runs {roles['senior-reviewer']}, verifier runs {roles['verifier']}")
 
 
 def calendar_date(value):

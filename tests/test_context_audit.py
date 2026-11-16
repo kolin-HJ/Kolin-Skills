@@ -175,6 +175,28 @@ class ContextAuditTests(unittest.TestCase):
         self.assertNotEqual(unpriced.returncode, 0)
         self.assertIn("no list price for model 'claude-opus-4-1'", unpriced.stderr)
 
+    def test_window_splits_spend_by_repo_kind_context_size_and_effort(self):
+        def message(identifier, usage, effort):
+            return {"type": "assistant", "timestamp": "2026-11-05T09:00:00Z", "effort": effort,
+                    "message": {"id": identifier, "model": "claude-opus-5-5", "usage": usage, "content": []}}
+
+        folder = "-Users-k--t3-worktrees-hj-plm-t3-0123abcd-0123456789abcdef"
+        transcript(self.home / f".claude/projects/{folder}/s.jsonl",
+                   message("a", {"input_tokens": 1_000_000}, "high"), message("b", {"output_tokens": 1_000_000}, "medium"))
+        reviewer = self.home / f".claude/projects/{folder}/s/subagents/agent-r"
+        transcript(reviewer.with_suffix(".jsonl"), message("c", {"cache_read_input_tokens": 150_000}, "high"))
+        reviewer.with_suffix(".meta.json").write_text(json.dumps({"agentType": "senior-reviewer"}))
+        out = self.run_cli("--window", "2026-11-05", "2026-11-05").stdout
+        self.assertRegex(out, r"hj-plm +\$ +24\.03 +100\.0%")
+        self.assertRegex(out, r"input +\$ +4\.00")
+        self.assertRegex(out, r"output +\$ +20\.00")
+        self.assertRegex(out, r"cache read +\$ +0\.03")
+        self.assertRegex(out, r"over 300k +1 +\$ +4\.00")
+        self.assertRegex(out, r"100k to 200k +1 +\$ +0\.03")
+        self.assertRegex(out, r"high +opus +\$ +4\.00")
+        self.assertRegex(out, r"medium +opus +\$ +20\.00")
+        self.assertIn("senior-reviewer runs 1, verifier runs 0", out)
+
     def spawn_fixture(self, requested):
         def assistant(identifier, model, *content):
             return {"type": "assistant", "timestamp": "2026-10-20T10:00:00Z", "message": {"id": identifier, "model": model, "usage": {"input_tokens": 1}, "content": list(content)}}

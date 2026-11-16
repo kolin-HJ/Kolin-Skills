@@ -30,7 +30,7 @@ These need my yes, prepared so yes is the last step:
 
 ## Cleanup
 
-Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape code, old code included, into the structure that makes the most sense. Plan the removals with the change. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or its proof costs more than the task. In the PR body, fill `## Cleanup`, added if the template lacks it: each cleanup made or left, with `file:line`, and why a left one waits.
+Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape old code into the structure that makes the most sense. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or costs more to prove than the task. In the PR body, fill `## Cleanup`, added if the template lacks it: each cleanup made or left, with `file:line`, and why a left one waits.
 
 ## Security
 
@@ -52,4 +52,4 @@ Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code 
 
 ## Adding rules
 
-Add a rule, hook or skill only after the same mistake costs real time twice, or once for security, data loss or an irreversible action. A review finding seen twice in a repo (nightly quality pass, PR quality gate, or thermos review) becomes a lint rule, a CI check, or a type or architecture constraint there, not more review prose. Remove one when it blocks more good work than bad.
+Add a rule, hook or skill only after the same mistake costs real time twice, or once for security, data loss or an irreversible action. When I correct you, first make the mistake impossible in code: a type, a lint rule whose message names the fix, or a folder boundary. Prose comes last. A review finding seen twice in a repo (nightly pass, PR gate or thermos review) becomes such a check there. An API that needs nuance and that agents keep misusing (React `useEffect`, raw timers) is banned in product code, and its old uses are cleaned up, because agents copy what they find. Remove a rule when it blocks more good work than bad.
