@@ -3,6 +3,7 @@ import json
 import os
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -233,6 +234,26 @@ def self_invoking_skill_problems():
     return problems
 
 
+def hook_command_problems(root=REPO):
+    problems = []
+    for template in ("claude/settings.json", "codex/hooks.json"):
+        path = root / template
+        groups = json.loads(path.read_text()).get("hooks", {}) if path.is_file() else {}
+        for event, entries in groups.items():
+            for entry in entries:
+                for hook in entry.get("hooks", []):
+                    command = hook.get("command", "").replace("{{REPO}}", str(root)).replace("{{HOME}}", str(HOME))
+                    words = shlex.split(command)
+                    script = next((word for word in words if word.startswith("/")), None)
+                    if script is None:
+                        continue
+                    if not os.path.isfile(script):
+                        problems.append(f"{template} {event} hook runs {script}, which does not exist")
+                    elif words[0] == script and not os.access(script, os.X_OK):
+                        problems.append(f"{template} {event} hook runs {script} directly but it is not executable, so the harness reports no answer and skips the guard; run it as `bash {script}` or chmod +x it")
+    return problems
+
+
 def check_quick():
     started = time.monotonic()
     owner = wired_repo()
@@ -258,7 +279,7 @@ def check_quick():
 def check(files_only=False):
     failures = [f"{entry}, over the {MAX_FILE_LINES}-line limit; split it in its own change"
                 for entry in overlong_files()]
-    failures += unloadable_skill_problems()
+    failures += unloadable_skill_problems() + hook_command_problems()
     if files_only:
         for failure in failures:
             print(f"FAIL: {failure}", file=sys.stderr)
