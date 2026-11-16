@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "'{{REPO}}/hooks/gate/block-forbidden-git.sh'"
+            "command": "bash '{{REPO}}/hooks/gate/block-forbidden-git.sh'"
           }
         ]
       },
