@@ -18,23 +18,14 @@ fix round (named review findings): default
 perf-issue: default
 hillclimb: default
 judgment and prose: opus
-hardest tasks: opus at high, then fable at medium
-how explorer: default
-how explainer: default
-why investigators: default
-why synthesizer: opus
-reflect tooling: default
-reflect judgment, divergent, synthesizer: opus
 arena runners: sonnet, sonnet, sonnet
 arena cross-judge pool: opus, sonnet
 swarm workers: default
-mechanical lane worker (recipe given): default
-architect runners: opus, opus, sonnet (major refactor or migration: fable, opus, sonnet)
 interrogate reviewers: opus, opus, sonnet
 fork: inherits the session's model and the parent's whole context; use it when that context is the point
 ```
 
-Builders start on Sonnet. Size each unit to finish in about 60 tool calls, and give a fix round to a fresh builder with the findings in its brief. Pass `model: "opus"` when the job is hard enough to need it, even with a clear spec: a migration or a performance fix can be well specified and still hard. A feature that leads the repo's fix count (`repo-standard`, Audit, Outcomes) is hard too: its builder runs on Opus. Every other feature stays on the default. An Opus judgment role runs as `judge`, or `senior-reviewer` for a diff; a Sonnet seat passes `model: "sonnet"`. Never use `Plan` for judgment, because `Plan` and `Explore` start without `CLAUDE.md` or `AGENTS.md`. The judgment roles are architect runners, the why synthesizer, reflect judgment, arena cross-judges, interrogate reviewers and "hardest tasks". Arena runners write code, so they run Sonnet.
+Builders start on Sonnet. Size each unit to finish in about 60 tool calls, and give a fix round to a fresh builder with the findings in its brief. Pass `model: "opus"` when the job is hard enough to need it, even with a clear spec: a migration or a performance fix can be well specified and still hard. A feature that leads the repo's fix count (`repo-standard`, Audit, Outcomes) is hard too: its builder runs on Opus. Every other feature stays on the default. An Opus judgment role runs as `judge`, or `senior-reviewer` for a diff; a Sonnet seat passes `model: "sonnet"`. Never use `Plan` for judgment, because `Plan` and `Explore` start without `CLAUDE.md` or `AGENTS.md`. The judgment roles are arena cross-judges and interrogate reviewers. Arena runners write code, so they run Sonnet.
 
 ## When a seat falls short
 
@@ -49,7 +40,7 @@ Sonnet moves up to Opus, and Opus moves up to Fable 5.2. Fable 5.2 starts at `me
 Start a seat on Fable 5.2, without the steps above, only for these jobs:
 
 - A major refactor or migration, or its architecture plan.
-- Leading many subagents, as in Orchestrate or a large swarm.
+- Leading many subagents, as in a large swarm.
 - A long unattended run.
 - Deep research, or scientific or quantitative analysis.
 
@@ -77,4 +68,4 @@ Plan, build and review are separate roles:
 
 ## Size
 
-For one owner and about 10 files or fewer, skip `how`, `architect` and the throughput checkpoint, and build it yourself. The proof stays.
+For one owner and about 10 files or fewer, skip `how` and `architect`, and build it yourself. The proof stays.
