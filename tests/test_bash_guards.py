@@ -1,6 +1,8 @@
 import json
+import os
 import pathlib
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -152,6 +154,117 @@ class HeavyJobsGuardTests(unittest.TestCase):
         self.assertIn("carry on with the task", blocked.stderr)
         self.assertIn("pglite-replay", blocked.stderr)
         self.assertIn("never in Docker", blocked.stderr)
+
+
+FAKE_GH = """#!/bin/sh
+echo "$@" >> "$GH_CALLS"
+if [ "$2" = "checks" ]; then
+  [ -n "$GH_CHECKS_ERR" ] && echo "$GH_CHECKS_ERR" >&2
+  [ -f "$GH_CHECKS_OUT" ] && cat "$GH_CHECKS_OUT"
+  exit "${GH_CHECKS_EXIT:-0}"
+fi
+exit 0
+"""
+
+
+class MergeChecksGuardTests(unittest.TestCase):
+    def run_merge(self, command, stdout="", exit_code=0, stderr=""):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            gh = bin_dir / "gh"
+            gh.write_text(FAKE_GH)
+            gh.chmod(gh.stat().st_mode | stat.S_IEXEC)
+            calls = root / "calls.txt"
+            out = root / "checks.json"
+            out.write_text(stdout)
+            env = {
+                **os.environ,
+                "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+                "GH_CALLS": str(calls),
+                "GH_CHECKS_OUT": str(out),
+                "GH_CHECKS_EXIT": str(exit_code),
+                "GH_CHECKS_ERR": stderr,
+            }
+            result = subprocess.run(
+                [sys.executable, str(BASH_GUARD)],
+                input=json.dumps({"tool_input": {"command": command}, "cwd": directory}),
+                text=True,
+                capture_output=True,
+                cwd=directory,
+                timeout=10,
+                env=env,
+            )
+            result.gh_calls = calls.read_text() if calls.exists() else ""
+            return result
+
+    def assert_blocked(self, result, pr="12"):
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn(f"gh pr checks {pr} --watch --required --fail-fast", result.stderr)
+        self.assertIn("then fix any red check", result.stderr)
+
+    def test_merge_allows_when_every_required_check_passed(self):
+        result = self.run_merge(
+            "gh pr merge 12 --squash",
+            stdout='[{"name":"ci","bucket":"pass"}]\n',
+        )
+        self.assertEqual((result.returncode, result.stderr), (0, ""), result.stderr)
+        self.assertIn("pr checks 12 --required", result.gh_calls)
+        repo = self.run_merge(
+            "gh pr merge -R acme/app 12 --squash",
+            stdout='[{"name":"ci","bucket":"pass"}]\n',
+        )
+        self.assertEqual((repo.returncode, repo.stderr), (0, ""), repo.stderr)
+        self.assertIn("pr checks 12 --required", repo.gh_calls)
+        self.assertRegex(repo.gh_calls, r"--repo acme/app|-R acme/app")
+
+    def test_merge_blocks_while_required_checks_are_pending(self):
+        for bucket, code in (("pending", 8), ("skipping", 0)):
+            with self.subTest(bucket=bucket):
+                result = self.run_merge(
+                    "gh pr merge 12 --squash",
+                    stdout=f'[{{"name":"ci","bucket":"{bucket}"}}]\n',
+                    exit_code=code,
+                )
+                self.assert_blocked(result)
+                self.assertIn("pr checks 12 --required", result.gh_calls)
+
+    def test_merge_blocks_when_a_required_check_failed(self):
+        result = self.run_merge(
+            "gh pr merge 12 --squash",
+            stdout='[{"name":"ci","bucket":"fail"}]\n',
+            exit_code=1,
+        )
+        self.assert_blocked(result)
+
+    def test_merge_blocks_when_no_required_checks_are_found(self):
+        result = self.run_merge("gh pr merge 12 --squash", stdout="[]\n")
+        self.assert_blocked(result)
+        self.assertIn("no checks", result.stderr.lower())
+
+    def test_merge_allows_auto_without_reading_checks(self):
+        result = self.run_merge(
+            "gh pr merge 12 --auto --squash",
+            stdout="[]\n",
+            exit_code=1,
+            stderr="should not run",
+        )
+        self.assertEqual((result.returncode, result.stderr), (0, ""), result.stderr)
+        self.assertNotIn("checks", result.gh_calls)
+        flagged = self.run_merge("gh pr merge --auto 12", stdout="[]\n", exit_code=1)
+        self.assertEqual((flagged.returncode, flagged.stderr), (0, ""), flagged.stderr)
+        self.assertNotIn("checks", flagged.gh_calls)
+
+    def test_merge_blocks_and_names_a_gh_error(self):
+        result = self.run_merge(
+            "gh pr merge 12 --squash",
+            stdout="",
+            exit_code=1,
+            stderr="HTTP 401: Bad credentials",
+        )
+        self.assert_blocked(result)
+        self.assertIn("HTTP 401: Bad credentials", result.stderr)
 
 
 class EnvGuardEmbeddedPathTests(unittest.TestCase):

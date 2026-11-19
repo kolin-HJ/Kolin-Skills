@@ -3,6 +3,7 @@ import json
 import pathlib
 import re
 import shlex
+import subprocess
 import sys
 import uuid
 
@@ -49,6 +50,41 @@ DOCKER_DB_MESSAGE = (
     "carry on with the task. Elsewhere, run `supabase start --runtime native --output-format json`, "
     "connect with its env.DB_URL, and carry on with the task."
 )
+MERGE = re.compile(COMMAND_START + r"gh\s+pr\s+merge\b([^;&|)\n]*)")
+REPO_FLAG = re.compile(r"(?:--repo[=\s]|-R\s*)(\S+)")
+AUTO_FLAG = re.compile(r"(?:^|\s)--auto(?:\s|=|$)")
+WATCH = "Run `gh pr checks {pr} --watch --required --fail-fast`, then fix any red check."
+
+
+def run_gh(cwd, args):
+    try:
+        return subprocess.run(["gh", *args], cwd=cwd, capture_output=True, text=True, errors="replace", timeout=3)
+    except (subprocess.TimeoutExpired, OSError) as error:
+        return subprocess.CompletedProcess(["gh", *args], 1, "", str(error))
+
+
+def merge_block(rest, cwd):
+    if AUTO_FLAG.search(rest):
+        return None
+    repo = REPO_FLAG.search(rest)
+    repo_args = ["--repo", repo.group(1)] if repo else []
+    words = [word for word in REPO_FLAG.sub(" ", rest).split() if not word.startswith("-") and ">" not in word]
+    pr = words[0] if words else None
+    shown = pr or "<pr>"
+    fix = WATCH.format(pr=shown)
+    result = run_gh(cwd, ["pr", "checks", *([pr] if pr else []), "--required", "--json", "name,bucket", *repo_args])
+    detail = (result.stderr or result.stdout).strip()[-200:]
+    if result.returncode and not result.stdout.strip():
+        return f"Blocked: gh pr checks failed: {detail or 'no output'}. {fix}"
+    try:
+        rows = json.loads(result.stdout)
+    except ValueError:
+        return f"Blocked: gh pr checks failed: {detail or 'no output'}. {fix}"
+    if not isinstance(rows, list) or not rows:
+        return f"Blocked: required checks are not all green (no checks found). {fix}"
+    if any(str(row.get("bucket") or "").lower() != "pass" for row in rows):
+        return f"Blocked: required checks are not all green. {fix}"
+    return None
 
 
 def quote_globs(command: str) -> str:
@@ -94,6 +130,12 @@ def main() -> int:
     if DOCKER_DB.search(code):
         print(DOCKER_DB_MESSAGE, file=sys.stderr)
         return 2
+    merge = MERGE.search(code)
+    if merge:
+        blocked = merge_block(merge.group(1), payload.get("cwd") or ".")
+        if blocked:
+            print(blocked, file=sys.stderr)
+            return 2
 
     heavy = HEAVY.search(code) and not LONG_LIVED.search(code)
     command, gate_logs = drop_gate_filters(command)

@@ -181,6 +181,8 @@ class CheckDriftTests(unittest.TestCase):
             "pass for high-risk diffs. Thermo review is ask-only.\n",
             "Each PR body lists `Ran: pnpm check` or `Not run: <check>, because <why>`.\n",
             "A reviewer reads the diff on demand. Every PR still carries same-session proof.\n",
+            "Before a PR is marked ready or reported ready to merge, spawn a read-only "
+            "`senior-reviewer` or `judge` in a new context with only the diff, the task and the repo.\n",
         )
         for text in passing:
             with self.subTest(text=text):
