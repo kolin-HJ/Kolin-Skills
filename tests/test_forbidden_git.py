@@ -261,8 +261,8 @@ class ForbiddenGitHookTests(unittest.TestCase):
                                 "commit", "-q", "--allow-empty", "-m", "x"], check=True)
                 self.assertEqual(run_hook(GIT + " push", directory).returncode, expected)
 
-    def test_merging_a_pr_into_main_master_or_sandbox_is_blocked_and_staging_is_allowed(self):
-        for base, expected in [("main", 2), ("master", 2), ("sandbox", 2), ("staging", 0), ("feature", 0)]:
+    def test_merging_a_pr_into_a_protected_branch_is_blocked(self):
+        for base, expected in [("main", 2), ("master", 2), ("staging", 2), ("sandbox", 2), ("feature", 0)]:
             with self.subTest(base=base), tempfile.TemporaryDirectory() as directory:
                 fake = pathlib.Path(directory, GH)
                 fake.write_text("#!/bin/sh\necho " + base + "\n")
