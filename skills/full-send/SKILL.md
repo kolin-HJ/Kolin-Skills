@@ -26,7 +26,7 @@ You may not:
 The method is pstack's `poteto-mode`, read through `pstack-local`.
 1. **Build.** Run the playbook that matches the task (Bug fix, Feature, Refactoring and the rest) on a work branch off the base the policy names (`staging` when it exists). When you take over someone's PR, keep their commits or credit them with `Co-authored-by:`. Run the repo's gate and prove the behavior on the real artifact.
 2. **Polish.** Read the full `git diff <base>...HEAD` as a reviewer would. Cut what is outside the task, comments, dead code and slop. Delete and refactor per the policy's Cleanup rule. Run `diff-audit <base>` and clear each block, or keep its reason for the PR body. Run the gate again.
-3. **Prove.** Loop in this session until green: the repo's gate, tests, and the verify skill or UI proof the repo requires. Do not spawn `senior-reviewer` unless the change is high-risk (auth, money, data deletion) or Kolin asked. Answer each finding by the scope rule, then run the gate again. Under that line, the gate and your evidence are the review; say so under `Decisions:`.
+3. **Prove.** Loop in this session until green: the repo's gate, tests, and the verify skill or UI proof the repo requires. Do not spawn `interrogate` unless the change is high-risk (auth, money, data deletion) or Kolin asked. The merge-ready `senior-reviewer` or `judge` pass is a Ready check.
 4. **Open the PR.** Follow **Opening a PR**, with the body from the repo's template or `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`.
 5. **Drive to green.** Run **Babysit** in `drive` mode until the watcher reports `READY`. Invoking full send is the babysit ask. Fix failing checks and answer review-bot findings by the scope rule. When the base moves or conflicts, merge it in (never rebase), rerun the proof and push; this wins over Babysit's no-rebase and conflict rules. In T3 Code, the watcher is `watch_pull_request` in the thread that owns the PR; end the turn after you arm it. If you end a turn with nothing set to wake you, the work stops.
 ## Ready checks
@@ -35,7 +35,8 @@ At the current head:
 - `diff-audit <base>` shows no block, or the PR body gives each one a reason.
 - The PR title and body match the final diff.
 - Review bots have finished, and every finding is fixed or answered.
-- Every required check is green. A pending or skipped required check is not green. With no required checks, every check that ran is green and none is pending.
+- Every required check is green. A pending or skipped required check is not green. With no required checks, every check that ran is green and none is pending. Do not call the PR merge-ready until `gh pr checks --watch` ends with every required check green.
+- A fresh-context read-only `senior-reviewer` or `judge` has read the full PR diff; each finding is fixed or listed in the body.
 - `gh pr view <N> --json mergeable,mergeStateStatus` shows `MERGEABLE` and `CLEAN` (`watch_pull_request` does not report BEHIND).
 Then, in T3 Code, call `unwatch_pull_request`, and report. Take the merge method from the repo settings or recent merged PRs.
 ## Stop rules
@@ -47,7 +48,7 @@ PR: <url> (head <sha>, base <base>)
 Status: Ready for Kolin to merge: gh pr merge <N> --<squash|merge|rebase> | Blocked: <reason>
 Evidence: <command> -> <result>, one line each
 Checks: <name>: <state>, one line each
-Review: same-session proof; senior-reviewer <not spawned / ran n times: reason>; bots <done/pending>; findings <fixed n / declined n with reasons>; changes requested: <none/who>
+Review: fresh-context senior-reviewer or judge; findings <fixed n / listed n>; bots <done/pending>; changes requested: <none/who>
 Decisions: <each choice you made for Kolin, one line each>
 Follow-ups: <declined nits and out-of-scope findings, or none>
 Residual risks: <list, or none known>

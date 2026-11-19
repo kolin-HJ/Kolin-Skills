@@ -96,7 +96,7 @@
           {
             "type": "command",
             "command": "python3 '{{REPO}}/hooks/bash-guard.py'",
-            "timeout": 5
+            "timeout": 45
           }
         ]
       },
