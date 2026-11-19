@@ -53,14 +53,48 @@ DOCKER_DB_MESSAGE = (
 MERGE = re.compile(COMMAND_START + r"gh\s+pr\s+merge\b([^;&|)\n]*)")
 REPO_FLAG = re.compile(r"(?:--repo[=\s]|-R\s*)(\S+)")
 AUTO_FLAG = re.compile(r"(?:^|\s)--auto(?:\s|=|$)")
-WATCH = "Run `gh pr checks {pr} --watch --required --fail-fast`, then fix any red check."
+NO_CHECKS = re.compile(r"no required checks|no checks reported", re.I)
+GH_TIMEOUT = 20
 
 
 def run_gh(cwd, args):
     try:
-        return subprocess.run(["gh", *args], cwd=cwd, capture_output=True, text=True, errors="replace", timeout=3)
+        return subprocess.run(
+            ["gh", *args], cwd=cwd, capture_output=True, text=True, errors="replace", timeout=GH_TIMEOUT,
+        )
     except (subprocess.TimeoutExpired, OSError) as error:
         return subprocess.CompletedProcess(["gh", *args], 1, "", str(error))
+
+
+def parse_checks(result):
+    detail = (result.stderr or result.stdout).strip()[-200:]
+    text = f"{result.stdout}\n{result.stderr}"
+    parsed = None
+    if result.stdout.strip():
+        try:
+            parsed = json.loads(result.stdout)
+        except ValueError:
+            parsed = ()
+        if isinstance(parsed, list):
+            return parsed, None
+        if NO_CHECKS.search(text):
+            return [], None
+        return None, detail or "no output"
+    if NO_CHECKS.search(text):
+        return [], None
+    if result.returncode:
+        return None, detail or "no output"
+    return [], None
+
+
+def not_green(rows, required):
+    ok = {"pass"} if required else {"pass", "skipping"}
+    return any(str(row.get("bucket") or "").lower() not in ok for row in rows)
+
+
+def watch_fix(pr, required=True):
+    flag = " --required" if required else ""
+    return f"Run `gh pr checks {pr} --watch{flag} --fail-fast`, then fix any red check."
 
 
 def merge_block(rest, cwd):
@@ -71,19 +105,25 @@ def merge_block(rest, cwd):
     words = [word for word in REPO_FLAG.sub(" ", rest).split() if not word.startswith("-") and ">" not in word]
     pr = words[0] if words else None
     shown = pr or "<pr>"
-    fix = WATCH.format(pr=shown)
-    result = run_gh(cwd, ["pr", "checks", *([pr] if pr else []), "--required", "--json", "name,bucket", *repo_args])
-    detail = (result.stderr or result.stdout).strip()[-200:]
-    if result.returncode and not result.stdout.strip():
-        return f"Blocked: gh pr checks failed: {detail or 'no output'}. {fix}"
-    try:
-        rows = json.loads(result.stdout)
-    except ValueError:
-        return f"Blocked: gh pr checks failed: {detail or 'no output'}. {fix}"
-    if not isinstance(rows, list) or not rows:
-        return f"Blocked: required checks are not all green (no checks found). {fix}"
-    if any(str(row.get("bucket") or "").lower() != "pass" for row in rows):
-        return f"Blocked: required checks are not all green. {fix}"
+    selector = [pr] if pr else []
+    required, err = parse_checks(
+        run_gh(cwd, ["pr", "checks", *selector, "--required", "--json", "name,bucket", *repo_args]),
+    )
+    if err:
+        return f"Blocked: gh pr checks failed: {err}. {watch_fix(shown)}"
+    if required:
+        if not_green(required, True):
+            return f"Blocked: required checks are not all green. {watch_fix(shown)}"
+        return None
+    all_rows, err = parse_checks(
+        run_gh(cwd, ["pr", "checks", *selector, "--json", "name,bucket", *repo_args]),
+    )
+    if err:
+        return f"Blocked: gh pr checks failed: {err}. {watch_fix(shown, False)}"
+    if not all_rows:
+        return f"Blocked: required checks are not all green (no checks found). {watch_fix(shown, False)}"
+    if not_green(all_rows, False):
+        return f"Blocked: required checks are not all green. {watch_fix(shown, False)}"
     return None
 
 

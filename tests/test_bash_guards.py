@@ -159,6 +159,15 @@ class HeavyJobsGuardTests(unittest.TestCase):
 FAKE_GH = """#!/bin/sh
 echo "$@" >> "$GH_CALLS"
 if [ "$2" = "checks" ]; then
+  case " $* " in
+    *" --required "*)
+      [ -n "$GH_REQUIRED_ERR" ] && echo "$GH_REQUIRED_ERR" >&2
+      if [ -f "$GH_REQUIRED_OUT" ]; then
+        cat "$GH_REQUIRED_OUT"
+        exit "${GH_REQUIRED_EXIT:-0}"
+      fi
+      ;;
+  esac
   [ -n "$GH_CHECKS_ERR" ] && echo "$GH_CHECKS_ERR" >&2
   [ -f "$GH_CHECKS_OUT" ] && cat "$GH_CHECKS_OUT"
   exit "${GH_CHECKS_EXIT:-0}"
@@ -168,7 +177,7 @@ exit 0
 
 
 class MergeChecksGuardTests(unittest.TestCase):
-    def run_merge(self, command, stdout="", exit_code=0, stderr=""):
+    def run_merge(self, command, stdout="", exit_code=0, stderr="", required_stdout=None, required_exit=0):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             bin_dir = root / "bin"
@@ -187,6 +196,11 @@ class MergeChecksGuardTests(unittest.TestCase):
                 "GH_CHECKS_EXIT": str(exit_code),
                 "GH_CHECKS_ERR": stderr,
             }
+            if required_stdout is not None:
+                required = root / "required.json"
+                required.write_text(required_stdout)
+                env["GH_REQUIRED_OUT"] = str(required)
+                env["GH_REQUIRED_EXIT"] = str(required_exit)
             result = subprocess.run(
                 [sys.executable, str(BASH_GUARD)],
                 input=json.dumps({"tool_input": {"command": command}, "cwd": directory}),
@@ -240,8 +254,35 @@ class MergeChecksGuardTests(unittest.TestCase):
 
     def test_merge_blocks_when_no_required_checks_are_found(self):
         result = self.run_merge("gh pr merge 12 --squash", stdout="[]\n")
-        self.assert_blocked(result)
+        self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn("no checks", result.stderr.lower())
+        self.assertIn("gh pr checks 12 --watch --fail-fast", result.stderr)
+        self.assertIn("then fix any red check", result.stderr)
+
+    def test_merge_allows_when_no_required_checks_and_every_ran_check_passed(self):
+        result = self.run_merge(
+            "gh pr merge 12 --squash",
+            stdout='[{"name":"ci","bucket":"pass"}]\n',
+            required_stdout="[]\n",
+        )
+        self.assertEqual((result.returncode, result.stderr), (0, ""), result.stderr)
+        required = [line for line in result.gh_calls.splitlines() if "pr checks" in line and "--required" in line]
+        optional = [line for line in result.gh_calls.splitlines() if "pr checks" in line and "--required" not in line]
+        self.assertGreater(len(required), 0, result.gh_calls)
+        self.assertGreater(len(optional), 0, result.gh_calls)
+
+    def test_merge_blocks_when_no_required_checks_and_one_is_pending(self):
+        result = self.run_merge(
+            "gh pr merge 12 --squash",
+            stdout='[{"name":"ci","bucket":"pending"}]\n',
+            exit_code=8,
+            required_stdout="[]\n",
+        )
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("gh pr checks 12 --watch --fail-fast", result.stderr)
+        self.assertIn("then fix any red check", result.stderr)
+        self.assertNotIn("no checks found", result.stderr)
+        self.assertGreaterEqual(result.gh_calls.count("pr checks"), 2)
 
     def test_merge_allows_auto_without_reading_checks(self):
         result = self.run_merge(
