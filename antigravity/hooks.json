@@ -1,0 +1,32 @@
+{
+  "kolin-skills": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "python3 '{{REPO}}/bin/kolin-skills' pull --quiet --emit antigravity",
+        "timeout": 15
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "run_command|write_file|edit_file|write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '{{REPO}}/hooks/gate/block-forbidden-git.sh' --emit antigravity"
+          }
+        ]
+      },
+      {
+        "matcher": "run_command|read_file|view_file|grep_search|find_by_name",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/block-env-reads.py' --emit antigravity",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -322,6 +322,29 @@ class NativeHookPayloadTests(unittest.TestCase):
                 with self.subTest(tool_input=tool_input):
                     self.assertEqual(invoke(ENV_HOOK, {"tool_input": tool_input}, directory).returncode, 0)
 
+    def test_env_guard_emits_antigravity_decisions_for_tool_call_args(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for args in [{"CommandLine": "cat .env.production"}, {"Path": f"{directory}/.env.local"}]:
+                with self.subTest(blocked=args):
+                    result = subprocess.run(
+                        [sys.executable, str(ENV_HOOK), "--emit", "antigravity"],
+                        input=json.dumps({"toolCall": {"name": "run_command", "args": args}, "cwd": directory}),
+                        text=True, capture_output=True, cwd=directory, timeout=10,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    decision = json.loads(result.stdout)
+                    self.assertEqual(decision["decision"], "deny")
+                    self.assertIn(".env", decision["reason"])
+            for args in [{"CommandLine": "cat README.md"}, {"Path": f"{directory}/.env.example"}]:
+                with self.subTest(allowed=args):
+                    result = subprocess.run(
+                        [sys.executable, str(ENV_HOOK), "--emit", "antigravity"],
+                        input=json.dumps({"toolCall": {"name": "read_file", "args": args}, "cwd": directory}),
+                        text=True, capture_output=True, cwd=directory, timeout=10,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(json.loads(result.stdout), {"decision": "allow"})
+
     def test_bash_guard_blocks_a_database_run_in_docker(self):
         with tempfile.TemporaryDirectory() as directory:
             cases = [
