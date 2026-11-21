@@ -13,7 +13,7 @@ The spawning prompt states the task and the PR body or its draft. If a PR exists
 
 Count changed lines (`git diff --numstat`, ignoring lockfiles and generated files) and pick a depth. State it in the first line.
 
-- **Skip.** Docs, formatting or gate-only under 150 lines that the repo's gate proves. Also a release PR (`staging` into `main`) nobody asked you to review: each PR in it had its review, and the walkthrough on the running app proves the release. One line: "No review needed: <reason>".
+- **Skip.** Docs, formatting or gate-only under 150 lines that the repo's gate proves. Also a release PR (`staging` into `main`) nobody asked you to review: each PR in it had its review, and the repo's release walkthrough (its verify skill or `verifier` against `staging`) proves the release. One line: "No review needed: <reason>".
 - **Lite.** Under about 600 lines and no schema, access rule, auth, mutation, money or contested design. Read the diff, each changed function and its callers. Stop when the answer is clear.
 - **Full.** Everything else. Read every changed file. For a migration, check that old code survives new rows and new code survives old rows.
 

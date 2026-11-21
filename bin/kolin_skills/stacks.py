@@ -31,8 +31,8 @@ def running_stacks():
         state = json.loads((directory / "state.json").read_text())
         if state.get("runtime") != "native":
             continue
-        started = json.loads((directory / "owner.json").read_text())["startedAt"]
-        stacks_found.append({"id": directory.name, "pid": json.loads((directory / "owner.json").read_text())["pid"], "root": state["identity"]["projectRoot"], "started": datetime.datetime.fromisoformat(started.replace("Z", "+00:00"))})
+        owner = json.loads((directory / "owner.json").read_text())
+        stacks_found.append({"id": directory.name, "pid": owner["pid"], "root": state["identity"]["projectRoot"], "started": datetime.datetime.fromisoformat(owner["startedAt"].replace("Z", "+00:00"))})
     return stacks_found
 
 
