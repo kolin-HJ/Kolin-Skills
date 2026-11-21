@@ -258,7 +258,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `kolin-skills pull` | Fast-forwards to `origin/main` when it safely can, then applies. Runs at Claude Code and Codex session start |
 | `kolin-skills upstream` | Installs git pins and CLIs at their pins. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. `--bump` moves the git pins. Edit `upstream/tools.json` to move a CLI |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into this repo |
-| `kolin-skills stacks` | Lists running local Supabase stacks. `--stop` stops the idle ones |
+| `kolin-skills stacks` | Lists running local Supabase stacks. `--stop` stops the idle ones, and each Claude session start runs it with `--idle-hours 2` |
 | `kolin-skills check` | The gate: drift, stray files, pins, spend caps, file length, tools, tests and comments. `--quick` checks only home, in seconds. `--files` checks only file length. In a worktree it skips home drift. In CI it skips home and vendored skills |
 | `kolin-skills check-drift <path>` | Fails when another repo's copy of pstack or `senior-reviewer` differs from this repo, or its policy keeps stale every-PR reviewer or `interrogate` mandates. See [`docs/consumer-drift.md`](docs/consumer-drift.md) |
 | `pr-body <base> --feature NAME=PATHS` | Prints a one-screen PR body skeleton: a line per feature with its size, Check these, Cleanup and Verification |

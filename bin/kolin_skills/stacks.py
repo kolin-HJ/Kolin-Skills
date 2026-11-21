@@ -12,7 +12,6 @@ from kolin_skills.helpers import HOME
 STACKS_DIR = HOME / ".supabase/stacks"
 FRESH_TRANSCRIPT_HOURS = 2
 STOP_WAIT_SECONDS = 15
-STACK_NOTICE_AT = 24
 
 
 def process_commands(*selector):
@@ -32,8 +31,8 @@ def running_stacks():
         state = json.loads((directory / "state.json").read_text())
         if state.get("runtime") != "native":
             continue
-        started = json.loads((directory / "owner.json").read_text())["startedAt"]
-        stacks_found.append({"id": directory.name, "pid": json.loads((directory / "owner.json").read_text())["pid"], "root": state["identity"]["projectRoot"], "started": datetime.datetime.fromisoformat(started.replace("Z", "+00:00"))})
+        owner = json.loads((directory / "owner.json").read_text())
+        stacks_found.append({"id": directory.name, "pid": owner["pid"], "root": state["identity"]["projectRoot"], "started": datetime.datetime.fromisoformat(owner["startedAt"].replace("Z", "+00:00"))})
     return stacks_found
 
 
@@ -81,17 +80,12 @@ def busy_roots(roots):
     return busy
 
 
-def stacks(stop, idle_hours, notice):
+def stacks(stop, idle_hours):
     found = running_stacks()
     for stack in found:
         stack["transcript_hours"] = hours_since_transcript(stack["root"])
         stack["idle"] = is_idle(stack, idle_hours)
     idle = [stack for stack in found if stack["idle"]]
-    if notice:
-        if idle and len(found) >= STACK_NOTICE_AT:
-            message = f"{len(idle)} idle local Supabase stacks hold shared-memory segments (macOS allows 32). Run: kolin-skills stacks --stop"
-            print(json.dumps({"systemMessage": message}))
-        return 0
     busy = busy_roots({stack["root"] for stack in idle}) if stop and idle else set()
     for stack in found:
         transcript = "none" if stack["transcript_hours"] is None else f"{stack['transcript_hours']:.1f}h ago"
