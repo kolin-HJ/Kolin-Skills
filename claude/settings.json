@@ -54,8 +54,8 @@
           },
           {
             "type": "command",
-            "command": "python3 '{{REPO}}/bin/kolin-skills' stacks --notice",
-            "timeout": 5
+            "command": "python3 '{{REPO}}/bin/kolin-skills' stacks --stop --idle-hours 2 1>&2",
+            "timeout": 30
           }
         ]
       }
