@@ -8,7 +8,7 @@ This repo is the source of truth for Kolin's agent setup on every machine: the g
 - Work in a worktree: the wired checkout is live for every session, and a branch switch there applies that branch to home.
 - Edit files here, never the copy in home. A file in home that `kolin-skills apply` links or renders is replaced on the next apply. A replaced real file goes to `~/.kolin-skills/backup/`.
 - One CLI owns the wiring: `bin/kolin-skills`, with modules in `bin/kolin_skills/`. A new harness path goes into `LINKS`, `MERGED_JSON` or `RENDERED` in `bin/kolin_skills/helpers.py`, not into a new script. A new harness folder for skills, agents, commands or rules goes into `WATCHED_HOMES`. A tool that installs into a watched folder by itself goes into `OTHER_INSTALLERS`.
-- Hook commands and machine paths use `{{HOME}}` and `{{REPO}}` in the templates under `claude/`, `codex/` and `cursor/`. Never commit a literal home path.
+- Hook commands and machine paths use `{{HOME}}` and `{{REPO}}` in the templates under `claude/`, `codex/`, `cursor/` and `antigravity/`. Never commit a literal home path.
 - A hook entry is managed when its command names a path in this repo. `apply` replaces managed entries and keeps every other entry, such as herdr's.
 - `claude/settings.json` holds only the keys this repo manages. Machine-specific keys (`permissions`, `autoMode`) stay in `~/.claude/settings.json`.
 - Third-party skills and agents are not copied here. pstack and cursor-team-kit are listed in `upstream/vendor.json`, and `npx skills` packages in `upstream/skills.json`, and global npm CLIs at exact versions in `upstream/tools.json`. `kolin-skills upstream` installs them.

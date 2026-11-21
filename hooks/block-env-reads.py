@@ -39,28 +39,51 @@ def operands(command: str):
             yield token.strip("`'\"")
 
 
+def parse_emit(argv):
+    if "--emit" in argv:
+        index = argv.index("--emit")
+        if index + 1 < len(argv):
+            return argv[index + 1]
+    return "claude"
+
+
 def main() -> int:
+    emit = parse_emit(sys.argv[1:])
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
+        if emit == "antigravity":
+            print(json.dumps({"decision": "allow"}))
         return 0
-    tool_input = payload.get("tool_input") or payload.get("toolInput") or {}
-    paths = [tool_input.get(key) or "" for key in ("file_path", "path")]
-    glob = (tool_input.get("glob") or "").replace("*", "").replace("?", "")
-    tokens = [*operands(tool_input.get("command") or ""), *paths, glob]
+    if not isinstance(payload, dict):
+        if emit == "antigravity":
+            print(json.dumps({"decision": "allow"}))
+        return 0
+    tool_call = payload.get("toolCall") if isinstance(payload.get("toolCall"), dict) else {}
+    raw_input = payload.get("tool_input") or payload.get("toolInput") or tool_call.get("args") or {}
+    tool_input = raw_input if isinstance(raw_input, dict) else {}
+    paths = [tool_input.get(key) or "" for key in ("file_path", "path", "Path", "AbsolutePath", "TargetFile", "SearchPath", "SearchDirectory")]
+    globs = [(tool_input.get(key) or "").replace("*", "").replace("?", "") for key in ("glob", "Pattern")]
+    command = tool_input.get("command") or tool_input.get("CommandLine") or ""
+    tokens = [*operands(command), *paths, *globs]
 
     for token in tokens:
         name = token.split("=")[-1] if token.startswith("-") else token
         embedded = [path for path in EMBEDDED.findall(token) if not SAFE_SUFFIX.search(path)]
         if (not OPERAND.match(name) or SAFE_SUFFIX.search(name)) and not embedded:
             continue
-        print(
+        message = (
             f"Blocked: `{token}` is a .env file, and agents do not read secrets. "
             "For local database values run `supabase status -o env`; "
-            "for a variable name read `.env.example` or ask Kolin.",
-            file=sys.stderr,
+            "for a variable name read `.env.example` or ask Kolin."
         )
+        if emit == "antigravity":
+            print(json.dumps({"decision": "deny", "reason": message}))
+            return 0
+        print(message, file=sys.stderr)
         return 2
+    if emit == "antigravity":
+        print(json.dumps({"decision": "allow"}))
     return 0
 
 

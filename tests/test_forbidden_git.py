@@ -287,6 +287,31 @@ class ForbiddenGitHookTests(unittest.TestCase):
                                     capture_output=True, cwd=directory, timeout=20)
             self.assertEqual(result.returncode, 2)
 
+    def test_antigravity_emit_returns_json_decisions_for_commands_and_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            blocked_cmd = subprocess.run(
+                ["bash", str(HOOK), "--emit", "antigravity"],
+                input=json.dumps({"toolCall": {"name": "run_command", "args": {"CommandLine": GIT + " push origin main"}}, "cwd": directory}),
+                text=True, capture_output=True, cwd=directory, timeout=20,
+            )
+            self.assertEqual(blocked_cmd.returncode, 0, blocked_cmd.stderr)
+            self.assertEqual(json.loads(blocked_cmd.stdout)["decision"], "deny")
+            allowed_cmd = subprocess.run(
+                ["bash", str(HOOK), "--emit", "antigravity"],
+                input=json.dumps({"toolCall": {"name": "run_command", "args": {"CommandLine": GIT + " status"}}, "cwd": directory}),
+                text=True, capture_output=True, cwd=directory, timeout=20,
+            )
+            self.assertEqual(allowed_cmd.returncode, 0, allowed_cmd.stderr)
+            self.assertEqual(json.loads(allowed_cmd.stdout), {"decision": "allow"})
+            for key in ("Path", "AbsolutePath"):
+                blocked_file = subprocess.run(
+                    ["bash", str(HOOK), "--emit", "antigravity"],
+                    input=json.dumps({"toolCall": {"name": "edit_file", "args": {key: f"{directory}/.githooks/pre-commit"}}, "cwd": directory}),
+                    text=True, capture_output=True, cwd=directory, timeout=20,
+                )
+                self.assertEqual(blocked_file.returncode, 0, blocked_file.stderr)
+                self.assertEqual(json.loads(blocked_file.stdout)["decision"], "deny")
+
     def test_api_writes_to_a_protected_ref_are_blocked(self):
         self.check(REF_API_BLOCKED, 2)
 
