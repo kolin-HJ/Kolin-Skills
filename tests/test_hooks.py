@@ -263,6 +263,44 @@ class NativeHookPayloadTests(unittest.TestCase):
                 result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": {"subagent_type": "senior-reviewer"}}, directory)
                 self.assertEqual((result.returncode, result.stdout), (0, ""))
 
+    def test_agent_model_blocks_plan_and_redirects_interrogate_off_general_purpose(self):
+        with tempfile.TemporaryDirectory() as directory:
+            blocked = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": {"subagent_type": "Plan", "description": "Plan refactor"}}, directory)
+            self.assertEqual(blocked.returncode, 2)
+            self.assertIn("judge", blocked.stderr)
+            cases = [
+                ({"subagent_type": "general-purpose", "description": "Interrogate: correctness lens"}, "senior-reviewer", "opus"),
+                ({"description": "Interrogate: correctness lens"}, "senior-reviewer", "opus"),
+                ({"subagent_type": "general-purpose", "model": "sonnet", "description": "Interrogate: operations lens"}, "senior-reviewer", "sonnet"),
+                ({"subagent_type": "general-purpose", "model": "opus", "prompt": "Run interrogate security lens on this diff"}, "senior-reviewer", "opus"),
+            ]
+            for tool_input, expected_type, expected_model in cases:
+                with self.subTest(tool_input=tool_input):
+                    result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": tool_input}, directory)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    updated = json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"]
+                    self.assertEqual(updated["subagent_type"], expected_type)
+                    self.assertEqual(updated["model"], expected_model)
+            unrelated = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": {"subagent_type": "general-purpose", "description": "Update interrogate drift tests"}}, directory)
+            self.assertEqual((unrelated.returncode, unrelated.stdout), (0, ""))
+
+    def test_agent_model_warns_after_four_prior_review_spawns_in_one_session(self):
+        with tempfile.TemporaryDirectory() as directory:
+            transcript = pathlib.Path(directory) / "session.jsonl"
+            calls = [
+                {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": f"toolu_{n}", "name": "Agent", "input": {"subagent_type": "senior-reviewer"}}]}}
+                for n in range(4)
+            ]
+            transcript.write_text("".join(json.dumps(call) + "\n" for call in calls))
+            self_excluded = invoke(MODEL_HOOK, {"cwd": directory, "transcript_path": str(transcript), "tool_use_id": "toolu_3", "tool_input": {"subagent_type": "senior-reviewer", "model": "opus"}}, directory)
+            self.assertEqual((self_excluded.returncode, self_excluded.stdout), (0, ""))
+            warned = invoke(MODEL_HOOK, {"cwd": directory, "transcript_path": str(transcript), "tool_use_id": "toolu_4", "tool_input": {"subagent_type": "senior-reviewer", "model": "opus"}}, directory)
+            self.assertEqual(warned.returncode, 0, warned.stderr)
+            context = json.loads(warned.stdout)["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("4 review subagents", context)
+            quiet = invoke(MODEL_HOOK, {"cwd": directory, "transcript_path": str(transcript), "tool_input": {"subagent_type": "poteto-agent"}}, directory)
+            self.assertEqual((quiet.returncode, quiet.stdout), (0, ""))
+
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
         with tempfile.TemporaryDirectory() as directory:
             for key in ["tool_input", "toolInput"]:
@@ -302,6 +340,8 @@ class NativeHookPayloadTests(unittest.TestCase):
                     self.assertEqual(result.returncode, code, result.stderr)
             blocked = invoke(BASH_GUARD, {"tool_input": {"command": cases[0][0]}}, directory)
             self.assertIn("local-supabase", blocked.stderr)
+            codex = invoke(BASH_GUARD, {"toolInput": {"command": cases[0][0]}}, directory)
+            self.assertEqual(codex.returncode, 2)
 
     def test_bash_guard_queues_gate_commands_behind_a_slot(self):
         with tempfile.TemporaryDirectory() as directory:

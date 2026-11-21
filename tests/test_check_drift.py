@@ -183,6 +183,8 @@ class CheckDriftTests(unittest.TestCase):
             "A reviewer reads the diff on demand. Every PR still carries same-session proof.\n",
             "Before a PR is marked ready or reported ready to merge, spawn a read-only "
             "`senior-reviewer` or `judge` in a new context with only the diff, the task and the repo.\n",
+            "Before every PR is marked ready to merge, run one fresh-context read-only "
+            "`senior-reviewer` or `judge` pass. `interrogate` stays high-risk-only.\n",
         )
         for text in passing:
             with self.subTest(text=text):

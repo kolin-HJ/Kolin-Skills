@@ -162,7 +162,7 @@ def main() -> int:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         return 0
-    tool_input = payload.get("tool_input") or {}
+    tool_input = payload.get("tool_input") or payload.get("toolInput") or {}
     command = tool_input.get("command") or ""
     background = bool(tool_input.get("run_in_background"))
     code = QUOTED.sub(" ", HEREDOC.sub(" ", command))

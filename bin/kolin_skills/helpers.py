@@ -30,8 +30,7 @@ VENDOR_SKILL_DIRS = {
     "cursor-plugins/cursor-team-kit/skills": None,
 }
 VENDOR_SKIP = {"setup-pstack"}
-SELF_INVOKING_SKILLS = {"poteto-mode", "how", "architect", "tdd", "interrogate", "correct"}
-SELF_INVOKING_PREFIXES = ("principle-",)
+SELF_INVOKING_SKILLS = {"poteto-mode", "how", "architect", "tdd", "interrogate", "correct", "principle-model-the-domain", "principle-laziness-protocol", "principle-subtract-before-you-add", "principle-type-system-discipline", "principle-minimize-reader-load", "principle-boundary-discipline"}
 MODEL_LOCK_KEY = "disable-model-invocation"
 QUICK_CHECK_SECONDS = 30
 VENDOR_AGENTS = ["cursor-plugins/pstack/agents/comment-sicko.md"]
@@ -79,7 +78,7 @@ READ_ONLY_EXECUTABLES = {"bin/agent-browser-guard": ".local/bin/agent-browser-gu
 LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in paths if path.endswith((".py", ".sh"))]
 LEGACY_HOOK_PATHS.append("pstack-local/scripts/mode-reminder")
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
-SPEND_CAPS = {"subagent_model": "sonnet", "max_compact_window": 400_000}
+SPEND_CAPS = {"subagent_model": "sonnet", "max_compact_window": 250_000}
 TRUNK = "main"
 REQUIRED_TOOLS = {
     "jq": "hooks/gate/block-forbidden-git.sh reads the tool call with it, and without it blocks every shell command",
@@ -234,7 +233,7 @@ def vendor_skills():
 
 
 def self_invoking(name):
-    return name in SELF_INVOKING_SKILLS or name.startswith(SELF_INVOKING_PREFIXES)
+    return name in SELF_INVOKING_SKILLS
 
 
 def without_model_lock(text):

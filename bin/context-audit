@@ -60,7 +60,7 @@ KEPT = {
 
 
 def config_dirs():
-    dirs = [ACTIVE, HOME / ".claude"]
+    dirs = [ACTIVE, HOME / ".claude", HOME / ".claude_personal"]
     unique = {}
     for path in dirs:
         unique.setdefault(path.resolve(), path)
@@ -440,6 +440,7 @@ class WindowSession:
     subagent_cost: float
     roles: collections.Counter
     long_builders: int
+    interrogate_runs: int
     turns: list
 
     @property
@@ -453,8 +454,7 @@ class WindowSession:
 
 def window_sessions(start, end):
     sessions, counted = [], set()
-    roots = (HOME / ".claude_personal/projects", HOME / ".claude/projects")
-    for path in largest_first(path for root in roots for path in root.glob("*/*.jsonl")):
+    for path in largest_first(path for root in config_dirs() for path in root.glob("*/*.jsonl")):
         first = next((record.get("timestamp") for record in records(path) if record.get("timestamp")), None)
         if not first:
             continue
@@ -467,19 +467,26 @@ def window_sessions(start, end):
         main = session_stats(path, counted)
         counted |= main["messages"]
         roles = collections.Counter()
-        subagent_tokens = long_builders = 0
+        subagent_tokens = long_builders = interrogate_runs = 0
         subagent_cost = 0.0
         turns = list(main["turns"])
         for agent in largest_first((path.parent / path.stem / "subagents").glob("agent-*.jsonl")):
-            role = agent_meta(agent).get("agentType", "unknown")
+            meta = agent_meta(agent)
+            role = meta.get("agentType", "unknown")
             stats = session_stats(agent, counted)
             counted |= stats["messages"]
-            roles[role] += 1
+            is_interrogate = "interrogate" in str(meta.get("description") or "").lower()
+            if is_interrogate:
+                interrogate_runs += 1
+                if role != "senior-reviewer":
+                    roles[role] += 1
+            else:
+                roles[role] += 1
             subagent_tokens += stats["tokens"]
             subagent_cost += stats["cost"]
             turns += stats["turns"]
             long_builders += role == "poteto-agent" and stats["calls"] > LONG_RUN_CALLS
-        sessions.append(WindowSession(path.parent.name, path.stem, timestamp, main, subagent_tokens, subagent_cost, roles, long_builders, turns))
+        sessions.append(WindowSession(path.parent.name, path.stem, timestamp, main, subagent_tokens, subagent_cost, roles, long_builders, interrogate_runs, turns))
     return sessions
 
 
@@ -539,9 +546,13 @@ def print_spend_split(sessions):
     for (effort, model), cost in by_effort.most_common():
         print(f"  {effort:<8} {model:<8} ${cost:>9,.2f}")
     roles = collections.Counter()
+    interrogate = 0
     for session in sessions:
         roles += session.roles
-    print(f"\nReview against proof: senior-reviewer runs {roles['senior-reviewer']}, verifier runs {roles['verifier']}")
+        interrogate += session.interrogate_runs
+    other_reviews = sum(count for role, count in roles.items() if role != "senior-reviewer" and role.endswith("reviewer"))
+    extra = f", other reviewers {other_reviews}, interrogate {interrogate}" if (other_reviews or interrogate) else ""
+    print(f"\nReview against proof: senior-reviewer runs {roles['senior-reviewer']}, verifier runs {roles['verifier']}{extra}")
 
 
 def calendar_date(value):

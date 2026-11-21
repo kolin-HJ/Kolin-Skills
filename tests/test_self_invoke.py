@@ -12,8 +12,12 @@ import unittest
 REPO = pathlib.Path(__file__).resolve().parent.parent
 PSTACK_SKILLS = "cursor-plugins/pstack/skills"
 LOCKED_FRONTMATTER = "---\nname: {name}\ndescription: test {name}\ndisable-model-invocation: true\nicon: crown\n---\n\n# {name}\n"
-SELF_INVOKING = ["poteto-mode", "how", "architect", "tdd", "interrogate", "correct", "principle-fix-root-causes", "principle-prove-it-works"]
-USER_ONLY = ["swarm", "reflect"]
+SELF_INVOKING = [
+    "poteto-mode", "how", "architect", "tdd", "interrogate", "correct",
+    "principle-model-the-domain", "principle-laziness-protocol", "principle-subtract-before-you-add",
+    "principle-type-system-discipline", "principle-minimize-reader-load", "principle-boundary-discipline",
+]
+USER_ONLY = ["swarm", "reflect", "principle-build-the-lever"]
 OWN_USER_ONLY_SKILLS = ["full-send", "hydrojug-untangle"]
 
 
