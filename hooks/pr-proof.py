@@ -12,8 +12,13 @@ PR_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/pull/\d+")
 HTML_COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][\w]*)\1.*?^\s*\2\s*$", re.DOTALL | re.MULTILINE)
 QUOTED = re.compile(r"\"(?:\\.|[^\"\\])*\"|'[^']*'")
-VERIFICATION = re.compile(r"^##[ \t]+Verification[ \t]*$(.*?)(?=^##[ \t]|\Z)", re.MULTILINE | re.DOTALL)
-UNFILLED = re.compile(r"<(?:command|result|check|why|kind|who and where)>|\b(?:TODO|TBD)\b")
+VERIFICATION = re.compile(r"^##[ \t]+Verification[ \t]*$(.*?)(?=^##[ \t]|\Z)", re.MULTILINE | re.DOTALL | re.IGNORECASE)
+VISUAL_PROOF = re.compile(r"^##[ \t]+Visual[ \t]+proof[ \t]*$(.*?)(?=^##[ \t]|\Z)", re.MULTILINE | re.DOTALL | re.IGNORECASE)
+VISUAL_EVIDENCE = re.compile(r"!\[[^\]]*\]\([^)]+\)|<img\b|<video\b|https?://\S+|\.(?:png|jpe?g|webp|gif|mp4|mov|webm)\b", re.IGNORECASE)
+VISUAL_WAIVED = re.compile(r"^[ \t]*(?:[-*][ \t]*)?Not run:[ \t]*[^\n]*\b(?:visual|screenshots?|ui|videos?)\b[^\n]*\bbecause\b.*\S", re.MULTILINE | re.IGNORECASE)
+UI_FILE = re.compile(r"\.(?:tsx|jsx)$")
+TEST_FILE = re.compile(r"(?:\.test\.|\.spec\.|(^|/)(?:__tests__|tests?)/)")
+UNFILLED = re.compile(r"<(?:command|result|check|why|kind|who and where|screenshot[^>]*)>|\b(?:TODO|TBD)\b")
 LINE_START = r"^[ \t]*(?:[-*][ \t]*)?"
 RAN_LINE = re.compile(LINE_START + r"Ran:[ \t]*\S", re.MULTILINE)
 RAN_COMMAND = re.compile(LINE_START + r"Ran:[ \t]*`([^`]+)`", re.MULTILINE)
@@ -85,6 +90,13 @@ def unseen_ran_lines(section, uses):
     return [ran for ran in RAN_COMMAND.findall(section) if not any(without_quoted_text(ran) in command for command in commands)] if commands else []
 
 
+def ui_changed_files(base, cwd):
+    listed = run(cwd, "git", "diff", "--name-only", f"{base}...HEAD")
+    if listed.returncode:
+        return []
+    return [path for path in listed.stdout.splitlines() if UI_FILE.search(path) and not TEST_FILE.search(path)]
+
+
 def check(pr, payload, cwd):
     visible = HTML_COMMENT.sub("", pr["body"] or "")
     body = "\n".join(line for line in visible.splitlines() if not UNFILLED.search(line))
@@ -101,6 +113,14 @@ def check(pr, payload, cwd):
     if run(cwd, "git", "rev-parse", "HEAD").stdout.strip() != pr["headRefOid"]:
         notes.append("This checkout's HEAD is not the PR's head, so pr-proof did not check the diff. Push your commits, or check the PR from its own branch.")
         return problems, notes
+    ui_files = ui_changed_files(base, cwd)
+    visual = VISUAL_PROOF.search(body)
+    visual_section = visual.group(1) if visual else ""
+    if ui_files and not VISUAL_EVIDENCE.search(visual_section) and not VISUAL_WAIVED.search(body):
+        problems.append(
+            f"The diff changes UI files ({', '.join(ui_files[:3])}) with no filled-in `## Visual proof` screenshots "
+            "(or `- Not run: visual proof, because <why>`)."
+        )
     if not AUDIT_WAIVED.search(section):
         problems += audit_problems(base, body, cwd)
     uses = session_tool_uses(payload.get("transcript_path") or "")
@@ -119,7 +139,7 @@ def main():
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         return 0
-    command = str((payload.get("tool_input") or {}).get("command") or "")
+    command = str((payload.get("tool_input") or payload.get("toolInput") or {}).get("command") or "")
     trigger = TRIGGER.search(without_quoted_text(command))
     if not trigger:
         return 0

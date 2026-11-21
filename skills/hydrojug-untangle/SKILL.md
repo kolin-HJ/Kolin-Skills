@@ -11,7 +11,7 @@ Kolin invoked `/hydrojug-untangle`. If Kolin did not, stop.
 
 Inspired by [caldoai/skills `untangle-codebase`](https://github.com/caldoai/skills/blob/main/skills/untangle-codebase/SKILL.md) (MIT). Not pinned. Not a whole-repo rewrite.
 
-This skill does not grant `full-send` powers. Ask before commit, push or merge.
+This skill does not grant `full-send` powers. Merging still needs Kolin's yes; reversible work on a work branch follows global Approvals.
 
 ## Scope
 

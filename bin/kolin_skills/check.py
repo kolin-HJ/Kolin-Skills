@@ -39,8 +39,16 @@ PRE_PR_LINE_GATE = re.compile(
     r"(?i)before\s+the\s+pr\s+opens.{0,160}150\s+lines|150\s+lines.{0,160}(?:interrogate|senior-reviewer)"
 )
 ASK_ONLY_REVIEW = re.compile(
-    r"(?i)only on high-risk|high-risk or ask|ask-only|on demand|when kolin|when the ceo|"
+    r"(?i)only on high-risk|high-risk-only|high-risk or ask|ask-only|on demand|when kolin|when the ceo|"
     r"not a quality gate|do not spawn|never spawn|proof of behavior"
+)
+MERGE_READY_PASS = re.compile(
+    r"(?i)(?:before\s+(?:a|every|each)\s+(?:pr|pull\s+request)\s+is\s+marked\s+ready|"
+    r"one\s+fresh-context\s+read-only\s+(?:review|senior-reviewer|judge)|"
+    r"merge-ready\s+(?:review|handoff))"
+)
+HEAVY_REVIEW_ACTOR = re.compile(
+    r"(?i)\b(interrogate|thermo(?:-nuclear[\w-]*)?|formal\s+verification|statechart)s?\b"
 )
 
 
@@ -145,8 +153,11 @@ def requires_reviewer_everywhere(chunks):
         window = " ".join(chunks[max(0, index - REVIEWER_WINDOW + 1):index + 1])
         if ASK_ONLY_REVIEW.search(window) or not REVIEWER_ACTOR.search(window):
             continue
-        if (EVERY_REVIEWER_GATE.search(chunk) or REVIEW_RECEIPT_GATE.search(chunk)
-                or PRE_PR_LINE_GATE.search(chunk)):
+        if REVIEW_RECEIPT_GATE.search(chunk) or PRE_PR_LINE_GATE.search(chunk):
+            return True
+        if EVERY_REVIEWER_GATE.search(chunk):
+            if MERGE_READY_PASS.search(chunk) and not HEAVY_REVIEW_ACTOR.search(chunk):
+                continue
             return True
     return False
 
@@ -159,9 +170,9 @@ def reviewer_gate_problems(target):
             continue
         if any(requires_reviewer_everywhere(chunks) for chunks in policy_paragraphs(path.read_text())):
             problems.append(
-                f"{relative} still requires a separate reviewer on every PR or every staging merge; "
-                "same-session proof is the quality gate (Kolin-Skills #90). "
-                "Replace it with high-risk or ask-only language, as in Kolin-Skills policy/AGENTS.md"
+                f"{relative} still requires a separate reviewer or interrogate gate on every PR or every staging merge; "
+                "same-session proof comes first, with one fresh-context merge-ready review (senior-reviewer or judge) "
+                "and interrogate strictly high-risk or ask-only, as in Kolin-Skills policy/AGENTS.md"
             )
     return problems
 
