@@ -14,7 +14,8 @@ import third_party
 from kolin_skills.apply import points_into_managed_tree, run_apply
 from kolin_skills.helpers import (
     DERIVED, HOME, LINKS, MAX_FILE_LINES, MODEL_LOCK_KEY, OWN_SKILL_HOMES, QUICK_CHECK_SECONDS,
-    REPO, REQUIRED_TOOLS, SELF_INVOKING_SKILLS, SKILL_INDEXES, SPEND_CAPS, TEST_FILES_AT_ONCE, TEST_FILE_SECONDS, VENDOR,
+    REPO, REQUIRED_TOOLS, SELF_INVOKING_SKILLS, SKILL_INDEXES, SPEND_CAPS, TEST_FILES_AT_ONCE,
+    TEST_FILE_SECONDS, VENDOR,
     VENDOR_SKILL_HOMES, frontmatter_keys, line_count, model_locked, running_in_ci, self_invoking,
     vendor_skills, wired_repo, without_git_repo_env,
 )
@@ -296,13 +297,12 @@ def python_test_file_failure(test_file, test_env):
     except subprocess.TimeoutExpired:
         return f"{name} timed out after {TEST_FILE_SECONDS}s; run python3 -m unittest {name} to find the hang"
     if tests.returncode:
-        print(tests.stderr, file=sys.stderr)
-        return f"{name} failed"
+        return f"{name} failed\n{tests.stderr}"
     return None
 
 
 def python_test_failures(test_env):
-    test_files = sorted((REPO / "tests").glob("test_*.py"))
+    test_files = sorted((REPO / "tests").rglob("test*.py"))
     with concurrent.futures.ThreadPoolExecutor(max_workers=TEST_FILES_AT_ONCE) as pool:
         results = list(pool.map(lambda test_file: python_test_file_failure(test_file, test_env), test_files))
     failed = [result for result in results if result]
