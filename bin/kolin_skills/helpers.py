@@ -78,7 +78,7 @@ READ_ONLY_EXECUTABLES = {"bin/agent-browser-guard": ".local/bin/agent-browser-gu
 LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in paths if path.endswith((".py", ".sh"))]
 LEGACY_HOOK_PATHS.append("pstack-local/scripts/mode-reminder")
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
-SPEND_CAPS = {"subagent_model": "sonnet", "max_compact_window": 250_000}
+SPEND_CAPS = {"subagent_model": "sonnet", "max_compact_window": 400_000}
 TRUNK = "main"
 REQUIRED_TOOLS = {
     "jq": "hooks/gate/block-forbidden-git.sh reads the tool call with it, and without it blocks every shell command",

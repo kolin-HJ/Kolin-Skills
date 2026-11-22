@@ -18,7 +18,7 @@
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
-  "autoCompactWindow": 240000,
+  "autoCompactWindow": 400000,
   "worktree": {
     "baseRef": "head"
   },
