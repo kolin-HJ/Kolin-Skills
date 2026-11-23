@@ -66,7 +66,7 @@ class StacksTests(unittest.TestCase):
             os.utime(transcript, (when, when))
 
     def backend(self, name, title):
-        self.table_lines.append(f"99{len(self.table_lines)} {self.owners[name].pid} postgres: main: {title}")
+        self.table_lines.append(f"99{len(self.table_lines)} {self.owners[name].pid} postgres: main: {title}          ")
 
     def signalled(self, name):
         try:
