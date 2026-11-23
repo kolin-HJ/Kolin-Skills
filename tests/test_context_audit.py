@@ -127,6 +127,7 @@ class ContextAuditTests(unittest.TestCase):
         transcript(self.home / ".claude/projects/p/a.jsonl", message)
         transcript(self.home / ".claude_personal/projects/p/b.jsonl", message)
         self.assertIn("2 main sessions", self.run_cli("--sessions", config=".claude_personal").stdout)
+        self.assertIn("2 main sessions", self.run_cli("--sessions", config=".claude").stdout)
 
     def test_window_includes_nested_agents_by_parent_start_and_deduplicates_messages(self):
         def message(identifier, timestamp, tokens, calls=0):
@@ -186,6 +187,9 @@ class ContextAuditTests(unittest.TestCase):
         reviewer = self.home / f".claude/projects/{folder}/s/subagents/agent-r"
         transcript(reviewer.with_suffix(".jsonl"), message("c", {"cache_read_input_tokens": 150_000}, "high"))
         reviewer.with_suffix(".meta.json").write_text(json.dumps({"agentType": "senior-reviewer"}))
+        interrogate = self.home / f".claude/projects/{folder}/s/subagents/agent-i"
+        transcript(interrogate.with_suffix(".jsonl"), message("d", {"input_tokens": 0}, "high"))
+        interrogate.with_suffix(".meta.json").write_text(json.dumps({"agentType": "senior-reviewer", "description": "Interrogate: security lens"}))
         out = self.run_cli("--window", "2026-11-05", "2026-11-05").stdout
         self.assertRegex(out, r"hj-plm +\$ +24\.03 +100\.0%")
         self.assertRegex(out, r"input +\$ +4\.00")
@@ -196,6 +200,7 @@ class ContextAuditTests(unittest.TestCase):
         self.assertRegex(out, r"high +opus +\$ +4\.00")
         self.assertRegex(out, r"medium +opus +\$ +20\.00")
         self.assertIn("senior-reviewer runs 1, verifier runs 0", out)
+        self.assertIn("other reviewers 0, interrogate 1", out)
 
     def spawn_fixture(self, requested):
         def assistant(identifier, model, *content):

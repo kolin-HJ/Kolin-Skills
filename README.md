@@ -87,7 +87,7 @@ export PATH="$HOME/.local/bin:$PATH"
 kolin-skills check --quick
 ```
 
-Keep the clone where it is, because the home folders link into it. `check --quick` takes a few seconds. It passes only when every link resolves, the hooks and policy are wired, and the pstack skills that must start on their own (`poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct` and the `principle-*` skills) have no `disable-model-invocation` line. Then start a new session: a running agent keeps the skills and policy it loaded at start.
+Keep the clone where it is, because the home folders link into it. `check --quick` takes a few seconds. It passes only when every link resolves, the hooks and policy are wired, and the pstack skills that must start on their own (`poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct` and the six core `principle-*` skills) have no `disable-model-invocation` line. Then start a new session: a running agent keeps the skills and policy it loaded at start.
 
 ## How work runs
 
@@ -99,7 +99,7 @@ Ask for the outcome in plain words, such as "fix the redirect bug on login". The
 4. It opens a PR with a `## Verification` section that lists what it ran.
 5. I read the PR and merge it.
 
-A reviewer subagent runs only on high-risk work (auth, money, data deletion) or when I ask. Proof that the change works is the quality bar, not a second AI reading the diff.
+Proof on the real running app comes first. Before a PR is marked ready or reported ready to merge, one fresh-context read-only review (`senior-reviewer` or `judge`) checks the diff (with at most one fix-delta re-check). Heavy passes (`interrogate`, `thermo-nuclear-code-quality-review`, `statechart`) stay high-risk-only (auth, money, data deletion) or when I ask.
 
 **What the agent does alone, and what waits for my yes:**
 
@@ -147,12 +147,12 @@ A skill starts in one of three ways:
 | Skill | Starts | What it does |
 |---|---|---|
 | `pstack-local` | 💬 | Adapts pstack to each tool on this machine: tool names, paths, which model does which job, and where my policy wins |
-| `repo-standard` | 💬 | My bar for a finished repo: layout, size budgets, quality bars, gate design, the UI bar, and a checklist to audit a repo |
+| `repo-standard` | ⌨️ | My bar for a finished repo: layout, size budgets, quality bars, gate design, the UI bar, and a checklist to audit a repo |
 | `full-send` | ⌨️ "full send" | Takes a task all the way to a green, proven PR that is ready to merge, then stops. It never merges |
 | `local-supabase` | 💬 "start a local database" | Runs a local Supabase or Postgres for each checkout, never in Docker |
-| `user-notes` | 💬 "release notes for PR 42" | Asks which format I want (text, graphic or video), then writes short release notes for users |
-| `explainer` | 💬 "explain this PR visually" | Builds a one-page HTML explainer, only when asked |
-| `council` | 💬 "council" | Gets a review from four model families at once (Claude, GPT, Muse and Grok), with one re-review after fixes. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
+| `user-notes` | ⌨️ "release notes for PR 42" | Asks which format I want (text, graphic or video), then writes short release notes for users |
+| `explainer` | ⌨️ "explain this PR visually" | Builds a one-page HTML explainer, only when asked |
+| `council` | ⌨️ "council" | Gets a review from four model families at once (Claude, GPT, Muse and Grok), with one re-review after fixes. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
 | `hydrojug-untangle` | ⌨️ `/hydrojug-untangle` | Untangles only the files I name or the current diff, never the whole repo. Inspired by [caldoai `untangle-codebase`](https://github.com/caldoai/skills/blob/main/skills/untangle-codebase/SKILL.md) (MIT) |
 
 **The method** comes from pstack. `poteto-mode` (📜) holds the playbooks for a feature, a bug fix, a refactor, a review and shipping. The policy sends any code work bigger than a one-line change to it.
@@ -163,7 +163,7 @@ A skill starts in one of three ways:
 |---|---|---|
 | `poteto-agent` | Sonnet | Building a large, independent piece of code in parallel with other work |
 | `judge` | Opus, or Fable 5.2 for architecture planning | One design or judgment call. It cannot edit files, and unlike the built-in `Plan` agent, it loads my policy |
-| `senior-reviewer` | Opus | A fresh-eyes diff review, only on high-risk work or when asked |
+| `senior-reviewer` | Opus | One fresh-context read-only diff review before merge-ready, and high-risk work or when asked |
 
 <details>
 <summary><b>Third-party skills that <code>install</code> adds</b></summary>
@@ -194,6 +194,7 @@ Claude Code gets everything. The other tools get what they can support.
 | Subagents | ✅ | ✅ (written as `.toml`) | — | — |
 | `.env` guard | ✅ | ✅ shell commands only | — | — |
 | PR proof check | ✅ | ✅ | — | — |
+| Bash guard (green merge checks, no Docker DB) | ✅ | ✅ | — | — |
 | Lint on changed lines | ✅ | ✅ | ✅ | — |
 | Other hooks, status line, reply style | ✅ | — | — | — |
 | Updates itself at session start | ✅ | ✅ | — | — |
@@ -257,9 +258,9 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `kolin-skills pull` | Fast-forwards to `origin/main` when it safely can, then applies. Runs at Claude Code and Codex session start |
 | `kolin-skills upstream` | Installs git pins and CLIs at their pins. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. `--bump` moves the git pins. Edit `upstream/tools.json` to move a CLI |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into this repo |
-| `kolin-skills stacks` | Lists running local Supabase stacks. `--stop` stops the idle ones |
+| `kolin-skills stacks` | Lists running local Supabase stacks. `--stop` stops the idle ones, and each Claude session start runs it with `--idle-hours 2` |
 | `kolin-skills check` | The gate: drift, stray files, pins, spend caps, file length, tools, tests and comments. `--quick` checks only home, in seconds. `--files` checks only file length. In a worktree it skips home drift. In CI it skips home and vendored skills |
-| `kolin-skills check-drift <path>` | Fails when another repo's copy of pstack or `senior-reviewer` differs from this repo, or its policy still demands a reviewer on every PR. See [`docs/consumer-drift.md`](docs/consumer-drift.md) |
+| `kolin-skills check-drift <path>` | Fails when another repo's copy of pstack or `senior-reviewer` differs from this repo, or its policy keeps stale every-PR reviewer or `interrogate` mandates. See [`docs/consumer-drift.md`](docs/consumer-drift.md) |
 | `pr-body <base> --feature NAME=PATHS` | Prints a one-screen PR body skeleton: a line per feature with its size, Check these, Cleanup and Verification |
 | `diff-audit <base>` | Flags reward hacks and slop in a diff: skipped tests, edited assertions, comments, new dependencies, growth in `AGENTS.md` |
 | `feature-budget` | Counts each feature's files and lines against the plan's budget. A feature is a `features/<name>/` folder or a plan entry with `paths`. Report only, except `--base <ref>`, which fails when a feature over twice its budget grew since that ref |
@@ -277,12 +278,12 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 |---|---|---|
 | `gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks pushes to protected branches, PR merges into `main`, `master` and `sandbox`, force push, `--no-verify`, auto-merge, and edits to hook files |
 | `block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
-| `bash-guard.py` | Claude Code | Blocks Docker databases, keeps gate output unfiltered, and queues heavy jobs into 3 shared slots |
-| `heavy-slot.py` | Claude Code (through `bash-guard`) | Gives each heavy job a slot and keeps the Mac awake while it runs |
-| `pr-proof.py` | Claude Code, Codex | After a PR is opened or marked ready, sends it back to draft if `## Verification` is missing or `diff-audit` finds a block. Release PRs and drafts are skipped |
+| `bash-guard.py` | Claude Code, Codex | Blocks Docker databases, blocks `gh pr merge` until checks are green, keeps gate output unfiltered, and queues heavy jobs into 3 shared slots |
+| `heavy-slot.py` | Claude Code, Codex (through `bash-guard`) | Gives each heavy job a slot and keeps the Mac awake while it runs |
+| `pr-proof.py` | Claude Code, Codex | After a PR is opened or marked ready, sends it back to draft if `## Verification` is missing, UI `.tsx`/`.jsx` changes lack `## Visual proof`, or `diff-audit` finds a block. Release PRs and drafts are skipped |
 | `lint-changed-lines.py` | Claude Code, Codex, Cursor | Lints the JS and TS lines the agent just changed |
 | `compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through context compaction |
-| `agent-default-model.py` | Claude Code | Runs `senior-reviewer` on Opus when a repo copy asks for a smaller model, and leaves an Opus or Fable pin alone, and `Explore` on Sonnet unless the call passes a model or an `Explore.md` exists in the repo's or home's agent folders |
+| `agent-default-model.py` | Claude Code | Blocks `Plan` (starts without policy), redirects `Interrogate` off `general-purpose` to read-only `senior-reviewer`, floors `senior-reviewer` at Opus, runs unpinned `Explore` on Sonnet, and warns past 4 review spawns in one session |
 | `keep-awake.py` | Claude Code | Keeps the Mac awake during each prompt and subagent run |
 
 </details>

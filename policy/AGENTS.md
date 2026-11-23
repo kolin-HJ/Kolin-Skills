@@ -14,7 +14,7 @@ Reversible work proceeds without asking: reads, edits, local runs, gates, review
 
 These need my yes, prepared so yes is the last step:
 
-- A merge, and any change to `main`, `master`, `staging` or `sandbox`. These change only through a PR. Do not merge until every required check is green; pending or skipped is not green.
+- A merge, and any change to `main`, `master`, `staging` or `sandbox`. These change only through a PR. Do not call a PR merge-ready, and do not run `gh pr merge`, until `gh pr checks --watch` ends with every required check green. With no required checks, every check that ran must be green and none may be pending.
 - Deploys, releases and production workflow runs.
 - A multi-phase plan, before its build starts, and the first exemplar feature, before builders copy it.
 - A new or changed data structure (type, table, schema, payload) or system flow: show me the shapes and the flow before you build. A flow with a lock, claim, key or queue, or a retried outside write, lists its event orders first. A migration also needs a backup step.
@@ -30,6 +30,8 @@ These need my yes, prepared so yes is the last step:
 
 ## Cleanup
 
+For code, process and setup alike, prefer deleting over simplifying, simplifying over optimizing, and optimizing over automating. Try each step in that order and stop at the first one that solves the problem. Automate only what is already simple and fast.
+
 Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape old code into the structure that makes the most sense. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or costs more to prove than the task. In the PR body, fill `## Cleanup`, added if the template lacks it: each cleanup made or left, with `file:line`, and why a left one waits.
 
 ## Security
@@ -38,13 +40,13 @@ Check authorization before every write; an auth check that errors denies. Keep s
 
 ## Done
 
-Done means proven on the real artifact. External AI code review is not a quality gate; proof of behavior is. Run the repo's gate (`pnpm check` or its equivalent). If a check did not run, say so in the same sentence as "done". When a gate or hook blocks you, fix the cause or report it. Never work around it.
+Done means proven on the real artifact. An outside review bot is not a quality gate; proof of behavior is. Run the repo's gate (`pnpm check` or its equivalent). If a check did not run, say so in the same sentence as "done". When a gate or hook blocks you, fix the cause or report it. Never work around it.
 
 Test what a caller relies on, and a bug before its fix. A new test needs one reason: access, money, data loss, a past bug or a main flow. Without one, write no test and prove the change by running it. Test each behavior once, at the highest level that proves it. No snapshots, no mocks of your own modules, no tests of copy, styling or config.
 
 ## Pull requests
 
-Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. Before the PR opens, prove the change in this same session: the repo's gate, tests, and the verify skill or UI proof the repo requires. A UI change puts before and after screenshots in the body, plus a short video for an interaction. Spawn `senior-reviewer` or `interrogate`, or read `thermo-nuclear-code-quality-review`, `statechart` or formal verification, only on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. Start the body from the repo's template, else `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`. Keep the body to one screen, so a reviewer gets it in a minute. Write one line per feature, no file list (GitHub shows it), no pasted output and no section the template lacks. Put a needed schema, flow or table in a `<details>` block.
+Base branch: the integration branch the repo names, else `staging` if it exists, else the default branch. Before the PR opens, prove the change in this same session: the repo's gate, tests, and the verify skill or UI proof the repo requires. A UI change puts before and after screenshots in the body, plus a short video for an interaction. Before a PR is marked ready or reported ready to merge, spawn a read-only `senior-reviewer` or `judge` in a new context (diff, task, repo only). It checks fit to intent, missed callers and missing tests. Fix each finding or list it in the body. One review, then one re-check of the fix delta. `interrogate`, `thermo-nuclear-code-quality-review`, `statechart` and formal verification stay high-risk-only (auth, money, data deletion) or when Kolin or the CEO asks. Start the body from the repo's template, else `pr-body <base> --feature <name>=<paths>`. In `## Verification`, write one line per check: `Ran:` or `Not run: <check>, because <why>`. Keep the body to one screen, so a reviewer gets it in a minute. Write one line per feature, no file list (GitHub shows it), no pasted output and no section the template lacks. Put a needed schema, flow or table in a `<details>` block.
 
 ## Writing
 
@@ -52,4 +54,4 @@ Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code 
 
 ## Adding rules
 
-Add a rule, hook or skill only after the same mistake costs real time twice, or once for security, data loss or an irreversible action. When I correct you, first make the mistake impossible in code: a type, a lint rule whose message names the fix, or a folder boundary. Prose comes last. A review finding seen twice in a repo (nightly pass, PR gate or thermos review) becomes such a check there. An API that needs nuance and that agents keep misusing (React `useEffect`, raw timers) is banned in product code, and its old uses are cleaned up, because agents copy what they find. Remove a rule when it blocks more good work than bad.
+Add a rule, hook or skill only after the same mistake costs real time twice, or once for security, data loss or an irreversible action. When I correct you, first remove the cause (the option, step or API). If it must stay, make the mistake impossible in code: a type, a lint rule whose message names the fix, or a folder boundary. Prose comes last. A review finding seen twice in a repo (nightly pass, PR gate or thermos review) becomes such a check there. An API that needs nuance and that agents keep misusing (React `useEffect`, raw timers) is banned in product code, and its old uses are cleaned up, because agents copy what they find. Remove a rule when it blocks more good work than bad.
