@@ -127,14 +127,14 @@ Hooks block an action and tell the agent why and what to do instead. They do not
 
 | 🚫 Blocked | Why |
 |---|---|
-| Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge; API merges | Protected branches change only through a PR. Agents may merge a PR into `staging`. A merge into `main`, `master` or `sandbox` needs me. An agent may create a missing protected branch with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
+| Push to `main`, `master`, `staging`, `sandbox`; force push; `--no-verify`; auto-merge; API merges | Protected branches change only through a PR, and a merge into any of them needs me. An agent may create a missing protected branch with `gh api repos/<owner>/<repo>/git/refs -f ref=refs/heads/staging -f sha=<sha>`; GitHub rejects it if the branch exists. Moving or deleting one through the API is blocked |
 | Reading a `.env` file | Secrets stay out of the agent's context. `.env.example` stays readable |
 | Starting a database in Docker | Agents use the native Supabase CLI instead (see `local-supabase`) |
 | Marking a PR ready with no `## Verification`, or with a reward hack such as a skipped test | The PR goes back to draft, so a PR with no proof does not reach me |
 
 Other hooks help instead of block: they lint the JS and TS lines the agent just changed, keep the branch and changed files through context compaction, keep the Mac awake during long turns, and share heavy jobs across 3 slots so parallel agents do not overload the machine.
 
-**What is not blocked.** Nothing stops an agent from merging a PR into `staging`. GitHub branch protection is still the real lock for `main`. The PR check also catches *missing* proof, not *false* proof, so read the diff on anything that matters.
+**What is not blocked.** GitHub branch protection is still the real lock for `main`. The PR check also catches *missing* proof, not *false* proof, so read the diff on anything that matters.
 
 ## Skills
 
@@ -262,7 +262,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `kolin-skills pull` | Fast-forwards to `origin/main` when it safely can, then applies. Runs at Claude Code and Codex session start |
 | `kolin-skills upstream` | Installs git pins and CLIs at their pins. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. `--bump` moves the git pins. Edit `upstream/tools.json` to move a CLI |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into this repo |
-| `kolin-skills stacks` | Lists running local Supabase stacks. `--stop` stops the idle ones |
+| `kolin-skills stacks` | Lists running local Supabase stacks. `--stop` stops the idle ones, and each Claude session start runs it with `--idle-hours 2` |
 | `kolin-skills check` | The gate: drift, stray files, pins, spend caps, file length, tools, tests and comments. `--quick` checks only home, in seconds. `--files` checks only file length. In a worktree it skips home drift. In CI it skips home and vendored skills |
 | `kolin-skills check-drift <path>` | Fails when another repo's copy of pstack or `senior-reviewer` differs from this repo, or its policy keeps stale every-PR reviewer or `interrogate` mandates. See [`docs/consumer-drift.md`](docs/consumer-drift.md) |
 | `pr-body <base> --feature NAME=PATHS` | Prints a one-screen PR body skeleton: a line per feature with its size, Check these, Cleanup and Verification |

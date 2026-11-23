@@ -36,7 +36,7 @@ At the current head:
 - The PR title and body match the final diff.
 - Review bots have finished, and every finding is fixed or answered.
 - Every required check is green. A pending or skipped required check is not green. With no required checks, every check that ran is green and none is pending. Do not call the PR merge-ready until `gh pr checks --watch` ends with every required check green.
-- A fresh-context read-only `senior-reviewer` or `judge` has read the full PR diff; each finding is fixed or listed in the body.
+- A fresh-context read-only `senior-reviewer` or `judge` has read the full PR diff; each finding is fixed or listed in the body. That is one pass at the final diff and at most one re-check of the fix delta, never a pass per commit.
 - `gh pr view <N> --json mergeable,mergeStateStatus` shows `MERGEABLE` and `CLEAN` (`watch_pull_request` does not report BEHIND).
 Then, in T3 Code, call `unwatch_pull_request`, and report. Take the merge method from the repo settings or recent merged PRs.
 ## Stop rules

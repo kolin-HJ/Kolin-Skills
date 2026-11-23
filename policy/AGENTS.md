@@ -30,6 +30,8 @@ These need my yes, prepared so yes is the last step:
 
 ## Cleanup
 
+For code, process and setup alike, prefer deleting over simplifying, simplifying over optimizing, and optimizing over automating. Try each step in that order and stop at the first one that solves the problem. Automate only what is already simple and fast.
+
 Own the quality of the code you touch, and delete or refactor without fear: git keeps every line, and the gate and your proof catch what breaks. Remove dead and duplicate code, collapse needless layers, and reshape old code into the structure that makes the most sense. Put a large refactor in its own commit or a PR stacked before the feature. A refactor that keeps behavior needs no yes unless it changes a stored or shared shape (table, schema, payload, public API). Leave a cleanup only when it needs that yes or costs more to prove than the task. In the PR body, fill `## Cleanup`, added if the template lacks it: each cleanup made or left, with `file:line`, and why a left one waits.
 
 ## Security
@@ -52,4 +54,4 @@ Prose follows pstack's `unslop`. Write ~80% of the way to ASD-STE100. Keep code 
 
 ## Adding rules
 
-Add a rule, hook or skill only after the same mistake costs real time twice, or once for security, data loss or an irreversible action. When I correct you, first make the mistake impossible in code: a type, a lint rule whose message names the fix, or a folder boundary. Prose comes last. A review finding seen twice in a repo (nightly pass, PR gate or thermos review) becomes such a check there. An API that needs nuance and that agents keep misusing (React `useEffect`, raw timers) is banned in product code, and its old uses are cleaned up, because agents copy what they find. Remove a rule when it blocks more good work than bad.
+Add a rule, hook or skill only after the same mistake costs real time twice, or once for security, data loss or an irreversible action. When I correct you, first remove the cause (the option, step or API). If it must stay, make the mistake impossible in code: a type, a lint rule whose message names the fix, or a folder boundary. Prose comes last. A review finding seen twice in a repo (nightly pass, PR gate or thermos review) becomes such a check there. An API that needs nuance and that agents keep misusing (React `useEffect`, raw timers) is banned in product code, and its old uses are cleaned up, because agents copy what they find. Remove a rule when it blocks more good work than bad.
