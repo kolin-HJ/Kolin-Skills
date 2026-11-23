@@ -480,7 +480,7 @@ class ApplyTests(unittest.TestCase):
         (t3_config / "skills.json").write_text(json.dumps({"entries": [{"path": "~/team-skills"}, {"path": "~/.agents/skills/"}]}))
         (t3_config / "hooks.json").write_text(json.dumps({
             "user-hook": {"Stop": [{"type": "command", "command": "echo hi"}]},
-            "stale-managed": {"Stop": [{"type": "command", "command": f"python3 '{self.repo}/bin/old'"}]},
+            "stale-managed": {"Stop": [{"type": "command", "command": f"python3 '{self.repo.resolve()}/bin/old'"}]},
         }))
         self.assertEqual(self.run_cli("apply").returncode, 0)
         expected_skills_path = str(self.home / ".agents/skills")
