@@ -66,6 +66,7 @@ class HeavyJobsGuardTests(unittest.TestCase):
             ("pnpm vitest run | tail -20", "pnpm vitest run | tail -20", True),
             ("git push origin feature && echo done | tail -1", "git push origin feature && echo done | tail -1", True),
             ("git log | head -5", "git log | head -5", False),
+            ("bun run model-check plan-writes 2>&1 | tail -5", "bun run model-check plan-writes 2>&1 | tail -5", True),
         ]
         stripped = [
             ("(npm run check 2>&1 | tail -25)", "(npm run check 2>&1)"),

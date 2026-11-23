@@ -18,7 +18,7 @@ QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'")
 COMMAND_START = r"(?:^|[;&|(\n])\s*(?:\w+=\S*\s+)*"
 HEAVY = re.compile(
     COMMAND_START + r"(?:"
-    r"(?:pnpm|npm|yarn|bun)\s+(?:run\s+)?(?:check|verify|test|build|typecheck|lint)\b"
+    r"(?:pnpm|npm|yarn|bun)\s+(?:run\s+)?(?:check|verify|test|build|typecheck|lint|model-check)\b"
     r"|(?:npx\s+|bunx\s+|pnpm\s+(?:exec\s+)?)?(?:\S*/)?(?:vitest|tsc|playwright|turbo|next\s+build)\b"
     r"|git\s+(?:-C\s+\S+\s+)?push\b"
     r"|java\b.*\btlc2\.TLC\b"

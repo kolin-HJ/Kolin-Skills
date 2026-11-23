@@ -12,6 +12,7 @@ from kolin_skills.helpers import HOME
 STACKS_DIR = HOME / ".supabase/stacks"
 FRESH_TRANSCRIPT_HOURS = 2
 STOP_WAIT_SECONDS = 15
+ACTIVE_BACKEND = re.compile(r"^postgres: \S+: \S+ \S+ (?:\[local\]|\S+\(\d+\)) (?!idle$)\S")
 
 
 def process_commands(*selector):
@@ -20,6 +21,16 @@ def process_commands(*selector):
 
 def postgres_running(directory):
     return f".postgres-wrapped -D {directory}/" in process_commands()
+
+
+def process_table():
+    rows = [line.split(None, 2) for line in process_commands("-axww", "-o", "pid=,ppid=").splitlines() if line.strip()]
+    return [(int(pid), int(ppid), command) for pid, ppid, command in rows]
+
+
+def serving_query(directory, table):
+    postmasters = {pid for pid, _, command in table if f".postgres-wrapped -D {directory}/" in command}
+    return any(ppid in postmasters and ACTIVE_BACKEND.match(command) for _, ppid, command in table)
 
 
 def running_stacks():
@@ -93,7 +104,11 @@ def stacks(stop, idle_hours):
     print(f"{len(found)} running, {len(idle)} idle")
     if not stop:
         return 0
+    table = process_table() if idle else []
+    querying = {stack["root"] for stack in idle if serving_query(STACKS_DIR / stack["id"], table)}
     for stack in idle:
         if stack["root"] in busy:
             print(f"  skipped: a process works in {stack['root']}")
-    return 0 if stop_stacks([stack for stack in idle if stack["root"] not in busy]) else 1
+        elif stack["root"] in querying:
+            print(f"  skipped: a client is running a query on the database of {stack['root']}")
+    return 0 if stop_stacks([stack for stack in idle if stack["root"] not in busy | querying]) else 1
