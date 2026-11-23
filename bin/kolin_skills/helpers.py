@@ -30,10 +30,11 @@ VENDOR_SKILL_DIRS = {
     "cursor-plugins/cursor-team-kit/skills": None,
 }
 VENDOR_SKIP = {"setup-pstack"}
-SELF_INVOKING_SKILLS = {"poteto-mode", "how", "architect", "tdd", "interrogate", "correct"}
-SELF_INVOKING_PREFIXES = ("principle-",)
+SELF_INVOKING_SKILLS = {"poteto-mode", "how", "architect", "tdd", "interrogate", "correct", "principle-model-the-domain", "principle-laziness-protocol", "principle-subtract-before-you-add", "principle-type-system-discipline", "principle-minimize-reader-load", "principle-boundary-discipline"}
 MODEL_LOCK_KEY = "disable-model-invocation"
 QUICK_CHECK_SECONDS = 30
+TEST_FILES_AT_ONCE = 6
+TEST_FILE_SECONDS = 300
 VENDOR_AGENTS = ["cursor-plugins/pstack/agents/comment-sicko.md"]
 WATCHED_HOMES = [
     ".agents/skills", ".claude/skills", ".cursor/skills", ".codex/skills", ".grok/skills",
@@ -234,7 +235,7 @@ def vendor_skills():
 
 
 def self_invoking(name):
-    return name in SELF_INVOKING_SKILLS or name.startswith(SELF_INVOKING_PREFIXES)
+    return name in SELF_INVOKING_SKILLS
 
 
 def without_model_lock(text):

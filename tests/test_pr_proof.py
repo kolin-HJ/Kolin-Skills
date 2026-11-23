@@ -254,6 +254,26 @@ class PrProofTests(unittest.TestCase):
         self.assert_trusted(result)
         self.assertIn("HEAD", result.stdout)
 
+    def test_a_ui_change_requires_visual_proof_or_an_explicit_not_run_reason(self):
+        self.record("Bash", {"command": "pnpm check"})
+        self.change("src/Button.test.tsx", "export const ok = true;\n")
+        self.open_pr(PROOF)
+        self.assert_trusted(self.run_hook())
+        self.change("src/Button.tsx", "export function Button() { return null; }\n")
+        self.open_pr(PROOF)
+        self.assert_drafted(self.run_hook(), "Visual proof")
+        self.calls.unlink()
+        self.open_pr(PROOF + "- Not run: full test suite, because CI runs it\n")
+        self.assert_drafted(self.run_hook(), "Visual proof")
+        self.calls.unlink()
+        self.open_pr("## Visual proof\n- Before: <screenshot>\n\n" + PROOF)
+        self.assert_drafted(self.run_hook(), "Visual proof")
+        self.calls.unlink()
+        self.open_pr("## Visual Proof\n- Before: ![before](https://example.com/before.png)\n- After: ![after](https://example.com/after.png)\n\n" + PROOF)
+        self.assert_trusted(self.run_hook())
+        self.open_pr(PROOF + "- Not run: visual proof, because only a prop type changed\n")
+        self.assert_trusted(self.run_hook())
+
 
 if __name__ == "__main__":
     unittest.main()

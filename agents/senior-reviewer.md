@@ -1,6 +1,6 @@
 ---
 name: senior-reviewer
-description: Read-only diff review in a fresh context the way a senior engineer would. Use before a PR is handed as merge-ready, and on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. It first checks correctness, security, bypassed product guards, behavior changes and setup breakage, then whether the change is the simplest version that fits the codebase. Hand it the task as the user stated it, and the PR body or its draft.
+description: Read-only diff review in a fresh context the way a senior engineer would. Use once per PR, on its final diff, before the PR is handed as merge-ready, and on high-risk work (auth, money, data deletion) or when Kolin or the CEO asks. Not for a single commit, and not for a release PR (`staging` into `main`). It first checks correctness, security, bypassed product guards, behavior changes and setup breakage, then whether the change is the simplest version that fits the codebase. Hand it the task as the user stated it, and the PR body or its draft.
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: high
@@ -13,7 +13,7 @@ The spawning prompt states the task and the PR body or its draft. If a PR exists
 
 Count changed lines (`git diff --numstat`, ignoring lockfiles and generated files) and pick a depth. State it in the first line.
 
-- **Skip.** Docs, formatting or gate-only under 150 lines that the repo's gate proves. One line: "No review needed: <reason>".
+- **Skip.** Docs, formatting or gate-only under 150 lines that the repo's gate proves. Also a release PR (`staging` into `main`) nobody asked you to review: each PR in it had its review, and the repo's release walkthrough (its verify skill or `verifier` against `staging`) proves the release. One line: "No review needed: <reason>".
 - **Lite.** Under about 600 lines and no schema, access rule, auth, mutation, money or contested design. Read the diff, each changed function and its callers. Stop when the answer is clear.
 - **Full.** Everything else. Read every changed file. For a migration, check that old code survives new rows and new code survives old rows.
 

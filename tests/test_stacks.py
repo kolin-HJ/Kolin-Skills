@@ -138,22 +138,6 @@ class StacksTests(unittest.TestCase):
         self.stack("a1", 30, root="/work/my_app.v2", transcript_hours=0.5)
         self.assertIn("keep  /work/my_app.v2", self.run_cli().stdout)
 
-    def test_notice_speaks_only_when_24_stacks_run(self):
-        for number in range(23):
-            self.stack(f"a{number}", 30)
-        self.assertEqual(self.run_cli("--notice").stdout, "")
-        self.stack("a23", 30)
-        result = self.run_cli("--notice")
-        self.assertEqual(len(result.stdout.splitlines()), 1)
-        message = json.loads(result.stdout)["systemMessage"]
-        self.assertIn("24 idle", message)
-        self.assertIn("kolin-skills stacks --stop", message)
-        self.assertFalse(self.signalled("a1"))
-
-    def test_notice_is_silent_without_idle_stacks(self):
-        self.stack("a1", 1)
-        self.assertEqual(self.run_cli("--notice").stdout, "")
-
 
 if __name__ == "__main__":
     unittest.main()

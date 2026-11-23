@@ -1,3 +1,4 @@
+import concurrent.futures
 import hashlib
 import json
 import os
@@ -13,7 +14,8 @@ import third_party
 from kolin_skills.apply import points_into_managed_tree, run_apply
 from kolin_skills.helpers import (
     DERIVED, HOME, LINKS, MAX_FILE_LINES, MODEL_LOCK_KEY, OWN_SKILL_HOMES, QUICK_CHECK_SECONDS,
-    REPO, REQUIRED_TOOLS, SELF_INVOKING_SKILLS, SKILL_INDEXES, SPEND_CAPS, VENDOR,
+    REPO, REQUIRED_TOOLS, SELF_INVOKING_SKILLS, SKILL_INDEXES, SPEND_CAPS, TEST_FILES_AT_ONCE,
+    TEST_FILE_SECONDS, VENDOR,
     VENDOR_SKILL_HOMES, frontmatter_keys, line_count, model_locked, running_in_ci, self_invoking,
     vendor_skills, wired_repo, without_git_repo_env,
 )
@@ -39,8 +41,16 @@ PRE_PR_LINE_GATE = re.compile(
     r"(?i)before\s+the\s+pr\s+opens.{0,160}150\s+lines|150\s+lines.{0,160}(?:interrogate|senior-reviewer)"
 )
 ASK_ONLY_REVIEW = re.compile(
-    r"(?i)only on high-risk|high-risk or ask|ask-only|on demand|when kolin|when the ceo|"
+    r"(?i)only on high-risk|high-risk-only|high-risk or ask|ask-only|on demand|when kolin|when the ceo|"
     r"not a quality gate|do not spawn|never spawn|proof of behavior"
+)
+MERGE_READY_PASS = re.compile(
+    r"(?i)(?:before\s+(?:a|every|each)\s+(?:pr|pull\s+request)\s+is\s+marked\s+ready|"
+    r"one\s+fresh-context\s+read-only\s+(?:review|senior-reviewer|judge)|"
+    r"merge-ready\s+(?:review|handoff))"
+)
+HEAVY_REVIEW_ACTOR = re.compile(
+    r"(?i)\b(interrogate|thermo(?:-nuclear[\w-]*)?|formal\s+verification|statechart)s?\b"
 )
 
 
@@ -145,8 +155,11 @@ def requires_reviewer_everywhere(chunks):
         window = " ".join(chunks[max(0, index - REVIEWER_WINDOW + 1):index + 1])
         if ASK_ONLY_REVIEW.search(window) or not REVIEWER_ACTOR.search(window):
             continue
-        if (EVERY_REVIEWER_GATE.search(chunk) or REVIEW_RECEIPT_GATE.search(chunk)
-                or PRE_PR_LINE_GATE.search(chunk)):
+        if REVIEW_RECEIPT_GATE.search(chunk) or PRE_PR_LINE_GATE.search(chunk):
+            return True
+        if EVERY_REVIEWER_GATE.search(chunk):
+            if MERGE_READY_PASS.search(chunk) and not HEAVY_REVIEW_ACTOR.search(chunk):
+                continue
             return True
     return False
 
@@ -159,9 +172,9 @@ def reviewer_gate_problems(target):
             continue
         if any(requires_reviewer_everywhere(chunks) for chunks in policy_paragraphs(path.read_text())):
             problems.append(
-                f"{relative} still requires a separate reviewer on every PR or every staging merge; "
-                "same-session proof is the quality gate (Kolin-Skills #90). "
-                "Replace it with high-risk or ask-only language, as in Kolin-Skills policy/AGENTS.md"
+                f"{relative} still requires a separate reviewer or interrogate gate on every PR or every staging merge; "
+                "same-session proof comes first, with one fresh-context merge-ready review (senior-reviewer or judge) "
+                "and interrogate strictly high-risk or ask-only, as in Kolin-Skills policy/AGENTS.md"
             )
     return problems
 
@@ -276,6 +289,27 @@ def check_quick():
     return 0
 
 
+def python_test_file_failure(test_file, test_env):
+    name = test_file.relative_to(REPO)
+    try:
+        tests = subprocess.run([sys.executable, "-m", "unittest", str(name)],
+                               cwd=REPO, env=test_env, text=True, capture_output=True, timeout=TEST_FILE_SECONDS)
+    except subprocess.TimeoutExpired:
+        return f"{name} timed out after {TEST_FILE_SECONDS}s; run python3 -m unittest {name} to find the hang"
+    if tests.returncode:
+        return f"{name} failed\n{tests.stderr}"
+    return None
+
+
+def python_test_failures(test_env):
+    test_files = sorted((REPO / "tests").rglob("test*.py"))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=TEST_FILES_AT_ONCE) as pool:
+        results = list(pool.map(lambda test_file: python_test_file_failure(test_file, test_env), test_files))
+    failed = [result for result in results if result]
+    print(f"Python tests: {len(test_files) - len(failed)} of {len(test_files)} files passed")
+    return failed
+
+
 def check(files_only=False):
     failures = [f"{entry}, over the {MAX_FILE_LINES}-line limit; split it in its own change"
                 for entry in overlong_files()]
@@ -306,17 +340,7 @@ def check(files_only=False):
     for tool, purpose in REQUIRED_TOOLS.items():
         if shutil.which(tool) is None:
             failures.append(f"{tool} is missing from PATH; {purpose}")
-    try:
-        tests = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", str(REPO / "tests")],
-                               cwd=REPO, env=test_env, text=True, capture_output=True, timeout=300)
-        summary = tests.stderr.strip().splitlines()
-        if summary:
-            print(summary[-1])
-        if tests.returncode:
-            print(tests.stderr, file=sys.stderr)
-            failures.append("tests failed")
-    except subprocess.TimeoutExpired:
-        failures.append("python tests timed out after 300s; run python3 -m unittest discover -s tests to find the hang")
+    failures += python_test_failures(test_env)
     try:
         template_tests = subprocess.CompletedProcess([], 0) if shutil.which("node") is None else subprocess.run(["node", "--test", "skills/*/assets/**/*.test.mjs"],
                                         cwd=REPO, env=test_env, text=True, capture_output=True, timeout=300)
