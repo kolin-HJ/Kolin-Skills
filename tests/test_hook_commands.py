@@ -36,6 +36,14 @@ class HookCommandTests(unittest.TestCase):
     def test_the_shipped_hooks_all_run(self):
         self.assertEqual(hook_command_problems(), [])
 
+    def test_antigravity_missing_hook_script_is_reported(self):
+        root = pathlib.Path(tempfile.mkdtemp())
+        (root / "antigravity").mkdir()
+        (root / "antigravity/hooks.json").write_text(json.dumps({
+            "kolin-skills": {"SessionStart": [{"type": "command", "command": "python3 '{{REPO}}/bin/missing'"}]}
+        }))
+        self.assertIn("does not exist", hook_command_problems(root)[0])
+
 
 if __name__ == "__main__":
     unittest.main()

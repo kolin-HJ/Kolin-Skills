@@ -15,9 +15,9 @@ from kolin_skills.apply import points_into_managed_tree, run_apply
 from kolin_skills.helpers import (
     DERIVED, HOME, LINKS, MAX_FILE_LINES, MODEL_LOCK_KEY, OWN_SKILL_HOMES, QUICK_CHECK_SECONDS,
     REPO, REQUIRED_TOOLS, SELF_INVOKING_SKILLS, SKILL_INDEXES, SPEND_CAPS, TEST_FILES_AT_ONCE,
-    TEST_FILE_SECONDS, VENDOR,
-    VENDOR_SKILL_HOMES, frontmatter_keys, line_count, model_locked, running_in_ci, self_invoking,
-    vendor_skills, wired_repo, without_git_repo_env,
+    TEST_FILE_SECONDS, VENDOR, VENDOR_SKILL_HOMES, antigravity_config_dirs, frontmatter_keys,
+    line_count, model_locked, running_in_ci, self_invoking, vendor_skills, wired_repo,
+    without_git_repo_env,
 )
 
 PSTACK_SOURCE = ".agents/PSTACK.SOURCE"
@@ -227,6 +227,7 @@ def unloadable_skill_problems():
 
 def broken_link_problems():
     candidates = [HOME / destination for destinations in LINKS.values() for destination in destinations]
+    candidates += [config_dir / "AGENTS.md" for config_dir in antigravity_config_dirs()]
     for home in [*OWN_SKILL_HOMES, ".claude/agents"]:
         directory = HOME / home
         candidates += sorted(directory.iterdir()) if directory.is_dir() else []
@@ -247,6 +248,21 @@ def self_invoking_skill_problems():
     return problems
 
 
+def command_problems(template, event, handlers, root):
+    problems = []
+    for hook in handlers:
+        command = hook.get("command", "").replace("{{REPO}}", str(root)).replace("{{HOME}}", str(HOME))
+        words = shlex.split(command)
+        script = next((word for word in words if word.startswith("/")), None)
+        if script is None:
+            continue
+        if not os.path.isfile(script):
+            problems.append(f"{template} {event} hook runs {script}, which does not exist")
+        elif words[0] == script and not os.access(script, os.X_OK):
+            problems.append(f"{template} {event} hook runs {script} directly but it is not executable, so the harness reports no answer and skips the guard; run it as `bash {script}` or chmod +x it")
+    return problems
+
+
 def hook_command_problems(root=REPO):
     problems = []
     for template in ("claude/settings.json", "codex/hooks.json"):
@@ -254,16 +270,18 @@ def hook_command_problems(root=REPO):
         groups = json.loads(path.read_text()).get("hooks", {}) if path.is_file() else {}
         for event, entries in groups.items():
             for entry in entries:
-                for hook in entry.get("hooks", []):
-                    command = hook.get("command", "").replace("{{REPO}}", str(root)).replace("{{HOME}}", str(HOME))
-                    words = shlex.split(command)
-                    script = next((word for word in words if word.startswith("/")), None)
-                    if script is None:
-                        continue
-                    if not os.path.isfile(script):
-                        problems.append(f"{template} {event} hook runs {script}, which does not exist")
-                    elif words[0] == script and not os.access(script, os.X_OK):
-                        problems.append(f"{template} {event} hook runs {script} directly but it is not executable, so the harness reports no answer and skips the guard; run it as `bash {script}` or chmod +x it")
+                problems += command_problems(template, event, entry.get("hooks", []), root)
+    ag_path = root / "antigravity/hooks.json"
+    if ag_path.is_file():
+        for group in json.loads(ag_path.read_text()).values():
+            if not isinstance(group, dict):
+                continue
+            for event, entries in group.items():
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    handlers = entry.get("hooks", []) if isinstance(entry, dict) and "hooks" in entry else [entry] if isinstance(entry, dict) else []
+                    problems += command_problems("antigravity/hooks.json", event, handlers, root)
     return problems
 
 

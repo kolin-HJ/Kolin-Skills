@@ -38,7 +38,8 @@ TEST_FILE_SECONDS = 300
 VENDOR_AGENTS = ["cursor-plugins/pstack/agents/comment-sicko.md"]
 WATCHED_HOMES = [
     ".agents/skills", ".claude/skills", ".cursor/skills", ".codex/skills", ".grok/skills",
-    ".claude/agents", ".codex/agents", ".cursor/agents", ".grok/agents",
+    ".gemini/config/skills",
+    ".claude/agents", ".codex/agents", ".cursor/agents", ".grok/agents", ".gemini/config/agents",
     ".claude/commands", ".cursor/commands", ".grok/commands", ".codex/prompts",
     ".claude/rules", ".cursor/rules", ".grok/rules", ".claude/output-styles",
     ".claude/hooks", ".codex/hooks",
@@ -127,6 +128,59 @@ def merge_settings(current, wanted, roots):
             merged[key] = value
     if "skillOverrides" in merged:
         merged["skillOverrides"] = {name: level for name, level in merged["skillOverrides"].items() if name not in DROPPED_SKILLS}
+    return merged
+
+
+def antigravity_config_dirs():
+    candidates = [HOME / ".gemini/config"]
+    t3_providers = HOME / ".t3/userdata/providers/antigravity"
+    if t3_providers.is_dir():
+        for entry in sorted(t3_providers.iterdir()):
+            if entry.is_dir():
+                candidates.append(entry / "config")
+    env_home = os.environ.get("GEMINI_HOME")
+    if env_home:
+        home_resolved = HOME.resolve()
+        candidate = pathlib.Path(env_home).expanduser().resolve()
+        if candidate.is_relative_to(home_resolved):
+            candidates.append(HOME / candidate.relative_to(home_resolved) / "config")
+    unique = []
+    seen = set()
+    for path in candidates:
+        key = str(path.resolve())
+        if key not in seen:
+            seen.add(key)
+            unique.append(path)
+    return unique
+
+
+def expand_skill_path(value):
+    if not isinstance(value, str):
+        return None
+    if value == "~":
+        return os.path.normpath(str(HOME))
+    if value.startswith("~/"):
+        return os.path.normpath(str(HOME / value[2:]))
+    return os.path.normpath(value)
+
+
+def merge_antigravity_skills(current, wanted):
+    merged = dict(current)
+    existing = [entry for entry in current.get("entries", []) if isinstance(entry, dict)]
+    wanted_entries = [entry for entry in wanted.get("entries", []) if isinstance(entry, dict)]
+    wanted_paths = {expanded for entry in wanted_entries if (expanded := expand_skill_path(entry.get("path"))) is not None}
+    kept = [entry for entry in existing if expand_skill_path(entry.get("path")) not in wanted_paths]
+    merged["entries"] = [*kept, *wanted_entries]
+    return merged
+
+
+def merge_antigravity_hooks(current, wanted, roots):
+    merged = {
+        name: value
+        for name, value in current.items()
+        if name not in wanted and not is_managed_hook(value, roots)
+    }
+    merged.update(wanted)
     return merged
 
 

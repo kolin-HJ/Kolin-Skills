@@ -1,6 +1,6 @@
 ---
 name: pstack-local
-description: Use whenever poteto-mode or any other pstack skill (how, why, teach, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, statechart, the principle-* skills) runs, or when the user asks to explain, how something works, or to walk through a change, in Claude Code, Codex, Grok Bot or Cursor. Maps pstack's Cursor tools, model roles and paths onto this machine, and lists where Kolin's AGENTS.md rules override pstack.
+description: Use when running pstack skills (poteto-mode, how, why, teach, architect, arena, swarm, interrogate, no-comments, unslop, blast-radius, tdd, figure-it-out, create-formal-verification-skill, statechart, principle-*) or explaining/walking through changes in Claude Code, Codex, Grok Bot, Cursor or Antigravity. Maps Cursor tools, model roles and paths, and lists Kolin's overrides.
 ---
 
 # pstack on this machine
@@ -9,14 +9,14 @@ pstack ([upstream](https://github.com/cursor/plugins/tree/main/pstack)) is writt
 
 ## Loading a pstack skill
 
-`kolin-skills apply` links skills under `~/.agents/skills`. In Claude Code, use the Skill tool for available skills. In Codex, read the listed skill's `SKILL.md` at its supplied path and follow it; there is no Skill tool. For a skill not listed, read `~/.agents/skills/<name>/SKILL.md` when a playbook requires it. Resolve relative paths from that skill's directory. `apply` removes the invocation lock from `poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct`, and the six core principles (`principle-model-the-domain`, `principle-laziness-protocol`, `principle-subtract-before-you-add`, `principle-type-system-discipline`, `principle-minimize-reader-load`, `principle-boundary-discipline`). Other principles stay locked and are read by path when named.
+`kolin-skills apply` links skills into `~/.agents/skills` (registered in Antigravity's `skills.json`). In Claude Code, use the Skill tool. In Codex and Antigravity (no Skill tool), read `SKILL.md` at its supplied path, or `~/.agents/skills/<name>/SKILL.md` when unlisted; resolve relative paths from that folder. `apply` removes the invocation lock from `poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct`, and the six core principles (`principle-model-the-domain`, `principle-laziness-protocol`, `principle-subtract-before-you-add`, `principle-type-system-discipline`, `principle-minimize-reader-load`, `principle-boundary-discipline`). Other principles stay locked and are read by path when named.
 
 ## Cursor term to local equivalent
 
 | pstack says | Do this |
 |---|---|
-| `Task` with `subagent_type: generalPurpose` | Claude Code: the Agent tool with `general-purpose`. Codex: a spawned agent. |
-| `subagent_type: "poteto-agent"` | Builder: `poteto-agent`. Read-only search: Claude `Explore`, Codex `explorer`. Use a repo's named implementer only in that repo. |
+| `Task` with `subagent_type: generalPurpose` | Claude: Agent (`general-purpose`). Codex: spawned agent. Antigravity: `invoke_subagent` (`self`) or T3 `delegate_task`. |
+| `subagent_type: "poteto-agent"` | Builder: `poteto-agent`. Read-only search: Claude `Explore`, Codex `explorer`, Antigravity `research`. Use a repo's named implementer only in that repo. |
 | `subagent_type: "comment-sicko"` (was `Comment Sicko`) | `comment-sicko`, pstack's own agent, linked by `apply` |
 | `readonly: true`, or any role `models.md` runs on Opus | Claude: `judge` for judgment, `Explore` for search. Codex: `judge` to judge, `senior-reviewer` to review, `explorer` to search. |
 | `environment: "cloud"`, `cloud_base_branch` | T3 Code: `delegate_task` with `isolation: "worktree"`; never create a child checkout in the shell. Else use the harness's worktree support, or `git worktree add <path> -b <branch> <base>`. |

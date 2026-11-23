@@ -1,9 +1,30 @@
 #!/usr/bin/env bash
+emit="claude"
+if [[ "${1:-}" == "--emit" && -n "${2:-}" ]]; then
+  emit="$2"
+fi
 input=$(cat)
-deny() { echo "Blocked: $1" >&2; exit 2; }
+deny() {
+  if [[ "$emit" == "antigravity" ]]; then
+    if command -v jq >/dev/null; then
+      jq -nc --arg reason "Blocked: $1" '{decision:"deny",reason:$reason}'
+    else
+      python3 -c 'import json,sys; print(json.dumps({"decision":"deny","reason":"Blocked: " + sys.argv[1]}))' "$1"
+    fi
+    exit 0
+  fi
+  echo "Blocked: $1" >&2
+  exit 2
+}
+allow() {
+  if [[ "$emit" == "antigravity" ]]; then
+    echo '{"decision":"allow"}'
+  fi
+  exit 0
+}
 command -v jq >/dev/null || deny "jq is missing, so this guard cannot read the command; install jq"
-cmd=$(jq -r '.tool_input.command // .toolInput.command // .command // ""' <<<"$input")
-file=$(jq -r '.tool_input.file_path // .toolInput.file_path // ""' <<<"$input")
+cmd=$(jq -r '.tool_input.command // .toolInput.command // .toolCall.args.CommandLine // .toolCall.args.command // .command // ""' <<<"$input")
+file=$(jq -r '.tool_input.file_path // .toolInput.file_path // .toolCall.args.Path // .toolCall.args.TargetFile // .toolCall.args.AbsolutePath // .toolCall.args.file_path // .toolCall.args.path // ""' <<<"$input")
 cwd=$(jq -r '.cwd // ""' <<<"$input")
 here=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 if [[ -n $file ]]; then
@@ -13,7 +34,7 @@ if [[ -n $file ]]; then
   out=$(python3 "$here/git_guard.py" file-install "$cwd" <<<"$file"); rc=$?
   (( rc == 0 )) && deny "$out"
   (( rc != 3 )) && deny "the install check could not run. Report this to Kolin; do not work around it."
-  exit 0
+  allow
 fi
 guard() { python3 "$here/git_guard.py" "$1" "$cwd" <<<"$cmd"; }
 shopt -s nocasematch
@@ -53,4 +74,4 @@ guard d4; rc=$?
 (( rc != 1 )) && [[ $cmd =~ SKIP_LOCAL_GATE= ]] && deny "agents do not skip the local gate or write hook files. Fix what the gate reports."
 out=$(guard install); rc=$?
 (( rc == 0 )) && deny "$out"
-exit 0
+allow

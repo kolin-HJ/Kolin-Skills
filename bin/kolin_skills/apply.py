@@ -9,8 +9,9 @@ import sys
 from kolin_skills.helpers import (
     DERIVED, DROPPED_SKILLS, GIT, HOME, LINKS, MERGED_JSON, NPX_SKILL_LOCK, OTHER_INSTALLERS,
     OWN_SKILL_HOMES, READ_ONLY_EXECUTABLES, RENDERED, REPO, STATE_DIR, TRUNK,
-    VENDOR, VENDOR_AGENTS, VENDOR_SKILL_HOMES, WATCHED_HOMES, Plan, codex_agent_toml,
-    declared_upstream_skills, git, merge_settings, model_locked, render_template, self_invoking,
+    VENDOR, VENDOR_AGENTS, VENDOR_SKILL_HOMES, WATCHED_HOMES, Plan, antigravity_config_dirs,
+    codex_agent_toml, declared_upstream_skills, git, merge_antigravity_hooks,
+    merge_antigravity_skills, merge_settings, model_locked, render_template, self_invoking,
     state_lock, vendor_pin_problems, vendor_skills, wired_repo, without_model_lock,
 )
 
@@ -125,6 +126,16 @@ def apply(plan, roots):
         path = HOME / destination
         current = json.loads(path.read_text()) if path.is_file() else {}
         plan.write_json(path, merge_settings(current, wanted, roots))
+    wanted_ag_skills = json.loads(render_template((REPO / "antigravity/skills.json").read_text()))
+    wanted_ag_hooks = json.loads(render_template((REPO / "antigravity/hooks.json").read_text()))
+    for config_dir in antigravity_config_dirs():
+        plan.link(REPO / "policy/AGENTS.md", config_dir / "AGENTS.md")
+        skills_path = config_dir / "skills.json"
+        current_skills = json.loads(skills_path.read_text()) if skills_path.is_file() else {}
+        plan.write_json(skills_path, merge_antigravity_skills(current_skills, wanted_ag_skills))
+        hooks_path = config_dir / "hooks.json"
+        current_hooks = json.loads(hooks_path.read_text()) if hooks_path.is_file() else {}
+        plan.write_json(hooks_path, merge_antigravity_hooks(current_hooks, wanted_ag_hooks, roots))
     for source, destination in RENDERED.items():
         plan.write(HOME / destination, render_template((REPO / source).read_text()))
     for source, destination in READ_ONLY_EXECUTABLES.items():
@@ -237,7 +248,7 @@ def fast_forward_to_trunk():
             f"Commit or discard the edits and switch to {TRUNK}, then run kolin-skills pull")
 
 
-def pull(quiet):
+def pull(quiet, emit="claude"):
     chatter = sys.stderr if quiet else sys.stdout
     with contextlib.redirect_stdout(chatter):
         try:
@@ -249,7 +260,13 @@ def pull(quiet):
         if message:
             print(message)
         status = run_apply(check=False, quiet=quiet)
-    if message and quiet:
+    if emit == "antigravity":
+        if quiet:
+            if message:
+                print(json.dumps({"injectSteps": [{"systemMessage": {"systemMessage": message}}]}))
+            else:
+                print("{}")
+    elif message and quiet:
         print(json.dumps({"systemMessage": message,
                           "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": message}}))
     return status

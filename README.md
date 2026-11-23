@@ -4,12 +4,13 @@
 
 **One rule book for every coding agent I use.**
 
-Claude Code, Codex, Cursor and Grok Bot all get the same rules, skills, helpers and safety checks from this one repo.
+Claude Code, Codex, Cursor, Grok Bot and Antigravity all get the same rules, skills, helpers and safety checks from this one repo.
 
 ![Claude Code](https://img.shields.io/badge/Claude_Code-d97757)
 ![Codex](https://img.shields.io/badge/Codex-10a37f)
 ![Cursor](https://img.shields.io/badge/Cursor-000000)
 ![Grok Bot](https://img.shields.io/badge/Grok_Bot-555555)
+![Antigravity](https://img.shields.io/badge/Antigravity-4285f4)
 ![check](https://github.com/kolin-HJ/Kolin-Skills/actions/workflows/check.yml/badge.svg)
 
 [What it is](#what-it-is) · [What's inside](#whats-inside) · [Install](#install) · [How work runs](#how-work-runs) · [Guardrails](#guardrails) · [Skills](#skills) · [Tools](#what-each-tool-gets) · [Change this repo](#change-this-repo) · [Reference](#reference)
@@ -30,6 +31,7 @@ flowchart LR
   repo --> cx["Codex"]
   repo --> cu["Cursor"]
   repo --> gk["Grok Bot"]
+  repo --> ag["Antigravity"]
 ```
 
 It is built on [pstack](https://github.com/cursor/plugins), Lauren Tan's method for agent work. pstack says *how* to plan, build, review and ship. This repo adds only what pstack does not cover: my approval rules, my code preferences, a few skills of my own, and hooks that enforce the rules instead of only asking.
@@ -42,7 +44,7 @@ It is built on [pstack](https://github.com/cursor/plugins), Lauren Tan's method 
 | 🧰 **Skills** | `skills/` | Extra know-how an agent loads when a task needs it, such as running a local database or writing release notes |
 | 🤖 **Subagents** | `agents/` | Helper agents the main agent can start: a builder, a judge and a reviewer |
 | 🛡️ **Hooks** | `hooks/` | Small scripts that run around each agent action. They block risky actions and lint changed code |
-| ⚙️ **Tool settings** | `claude/`, `codex/`, `cursor/` | Each tool's managed settings, hook wiring, status line and reply style |
+| ⚙️ **Tool settings** | `claude/`, `codex/`, `cursor/`, `antigravity/` | Each tool's managed settings, hook wiring, status line and reply style |
 | 📦 **Third-party pins** | `upstream/` | Git pins in `upstream/vendor.json` and CLIs in `upstream/tools.json` at exact versions. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. They are installed, never copied in |
 | 🧪 **Gate** | `bin/`, `tests/`, `.githooks/` | The `kolin-skills` CLI, small helper CLIs, and the tests that must pass before a push |
 | 📚 **Docs** | `docs/` | How to keep a machine on `main`, and how to check other repos for drift |
@@ -180,7 +182,7 @@ Git pins live in `upstream/vendor.json` and CLIs in `upstream/tools.json`. The `
 | `npx skills` | `agent-desktop` | To drive or check a native desktop app. `upstream` also installs its CLI. On macOS, grant Accessibility once with `agent-desktop permissions --guide` |
 | `npx skills` | `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use`, `slideshow`, `reverse-any-video`, `style-sampling` | To make app demo and training videos. Sign in with `hyperframes auth login` for free music, sound effects and stock media |
 | `npx skills` ([benjitaylor/skills](https://github.com/benjitaylor/skills)) | `stageshow` | Records UI mock scenes for `user-notes` videos |
-| `npx skills` ([mattpocock/skills](https://github.com/mattpocock/skills)) | `grill-me`, `grill-with-docs`, `to-spec`, `to-tickets`, `implement`, `implement-spec`, `triage`, `wayfinder`, `retro`, `handoff`, `to-questionnaire`, `wait-what`, `improve-codebase-architecture`, `ask-matt`, `setup-matt-pocock-skills` | ⌨️ Only the ones Matt marks manual-only, so they cost no context until you type them. His auto-start skills are left out: `tdd` and `teach` clash with pstack's. The plugin stays off. Run `/setup-matt-pocock-skills` once per repo before the ticket skills |
+| `npx skills` ([mattpocock/skills](https://github.com/mattpocock/skills)) | `grill-me`, `grill-with-docs`, `to-spec`, `to-tickets`, `implement`, `implement-spec`, `triage`, `wayfinder`, `retro`, `handoff`, `to-questionnaire`, `wait-what`, `improve-codebase-architecture`, `ask-matt`, `setup-matt-pocock-skills`, plus the 6 helper skills they call (`grilling`, `domain-modeling`, `codebase-design`, `code-review`, `prototype`, `research`) | ⌨️ The 15 manual-only skills plus the 6 helpers they delegate to. `tdd` and `teach` stay out because they clash with pstack's, and standalone auto-start skills stay out. The plugin stays off. Run `/setup-matt-pocock-skills` once per repo before the ticket skills |
 
 </details>
 
@@ -188,19 +190,20 @@ Git pins live in `upstream/vendor.json` and CLIs in `upstream/tools.json`. The `
 
 Claude Code gets everything. The other tools get what they can support.
 
-| | Claude Code | Codex | Cursor | Grok Bot |
-|---|---|---|---|---|
-| Policy | ✅ | ✅ | ✅ as an always-on rule | ✅ |
-| Own skills | ✅ | ✅ | ✅ | ✅ |
-| Subagents | ✅ | ✅ (written as `.toml`) | — | — |
-| `.env` guard | ✅ | ✅ shell commands only | — | — |
-| PR proof check | ✅ | ✅ | — | — |
-| Bash guard (green merge checks, no Docker DB) | ✅ | ✅ | — | — |
-| Lint on changed lines | ✅ | ✅ | ✅ | — |
-| Other hooks, status line, reply style | ✅ | — | — | — |
-| Updates itself at session start | ✅ | ✅ | — | — |
+| | Claude Code | Codex | Cursor | Grok Bot | Antigravity |
+|---|---|---|---|---|---|
+| Policy | ✅ | ✅ | ✅ as an always-on rule | ✅ | ✅ |
+| Own skills | ✅ | ✅ | ✅ | ✅ | ✅ via `skills.json` |
+| Subagents | ✅ | ✅ (written as `.toml`) | — | — | — |
+| `.env` guard | ✅ | ✅ shell commands only | — | — | ✅ |
+| Forbidden git guard | ✅ | ✅ | — | — | ✅ |
+| PR proof check | ✅ | ✅ | — | — | — |
+| Bash guard (green merge checks, no Docker DB) | ✅ | ✅ | — | — | — |
+| Lint on changed lines | ✅ | ✅ | ✅ | — | — |
+| Other hooks, status line, reply style | ✅ | — | — | — | — |
+| Updates itself at session start | ✅ | ✅ | — | — | ✅ |
 
-**Staying up to date.** Claude Code and Codex run `kolin-skills pull` when a session starts. It fast-forwards the clone to `origin/main` and re-links home. Cursor and Grok Bot have no session-start hook, so they keep whatever the last `apply` linked. To update any machine by hand, follow [`docs/stay-on-main.md`](docs/stay-on-main.md). When an update moves a third-party pin, run `kolin-skills upstream`.
+**Staying up to date.** Claude Code, Codex and Antigravity run `kolin-skills pull` when a session starts. It fast-forwards the clone to `origin/main` and re-links home. Cursor and Grok Bot have no session-start hook, so they keep whatever the last `apply` linked. To update any machine by hand, follow [`docs/stay-on-main.md`](docs/stay-on-main.md). When an update moves a third-party pin, run `kolin-skills upstream`.
 
 `pull` skips a clone that has local edits or is not on `main`, and prints `kolin-skills: stale setup` so you know.
 
@@ -232,13 +235,14 @@ Rules that keep it working on every machine:
 
 | In this repo | Linked or written to |
 |---|---|
-| `policy/AGENTS.md` | `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.grok/AGENTS.md` |
+| `policy/AGENTS.md` | `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.grok/AGENTS.md`, `~/.gemini/config/AGENTS.md` (plus each T3 Code Antigravity provider's `config/AGENTS.md`) |
 | `policy/compact-instructions.md` | `~/.codex/compact-instructions.md` (what a compaction summary keeps) |
 | `cursor/agent-policy.mdc` | `~/.cursor/rules/agent-policy.mdc` (an always-on rule that points at the policy) |
 | `skills/*` | `~/.agents/skills`, `~/.claude/skills`, `~/.cursor/skills` |
+| `antigravity/skills.json` | Merged into `~/.gemini/config/skills.json` (plus each T3 Code Antigravity provider's `config/skills.json`) so Antigravity loads `~/.agents/skills` |
 | `agents/*` | `~/.claude/agents`, plus a `.toml` copy in `~/.codex/agents` |
 | `claude/settings.json` | Merged into `~/.claude/settings.json`. Only the keys in this file are managed |
-| `codex/hooks.json`, `cursor/hooks.json` | Merged into each tool's `hooks.json` |
+| `codex/hooks.json`, `cursor/hooks.json`, `antigravity/hooks.json` | Merged into each tool's `hooks.json` (including each T3 Code Antigravity provider's `config/hooks.json`) |
 | `codex/rules/agent-tools.rules` | `~/.codex/rules/` (runs `agent-browser-guard` outside the sandbox, asks before each `agent-desktop` call) |
 | `claude/statusline.sh`, `claude/output-styles/` | `~/.claude/` (status line and the STE Visual reply style) |
 | `bin/*` CLIs | `~/.local/bin` |
@@ -277,8 +281,8 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 
 | Hook | Tools | What it does |
 |---|---|---|
-| `gate/block-forbidden-git.sh` | Claude Code, Codex | Blocks pushes to protected branches, PR merges into `main`, `master` and `sandbox`, force push, `--no-verify`, auto-merge, and edits to hook files |
-| `block-env-reads.py` | Claude Code, Codex | Blocks `.env` reads. `.env.example` stays readable |
+| `gate/block-forbidden-git.sh` | Claude Code, Codex, Antigravity | Blocks pushes to protected branches, PR merges into `main`, `master` and `sandbox`, force push, `--no-verify`, auto-merge, and edits to hook files |
+| `block-env-reads.py` | Claude Code, Codex, Antigravity | Blocks `.env` reads. `.env.example` stays readable |
 | `bash-guard.py` | Claude Code, Codex | Blocks Docker databases, blocks `gh pr merge` until checks are green, keeps gate output unfiltered, and queues heavy jobs into 3 shared slots |
 | `heavy-slot.py` | Claude Code, Codex (through `bash-guard`) | Gives each heavy job a slot and keeps the Mac awake while it runs |
 | `pr-proof.py` | Claude Code, Codex | After a PR is opened or marked ready, sends it back to draft if `## Verification` is missing, UI `.tsx`/`.jsx` changes lack `## Visual proof`, or `diff-audit` finds a block. Release PRs and drafts are skipped |

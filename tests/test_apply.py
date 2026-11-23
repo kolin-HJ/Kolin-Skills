@@ -474,6 +474,47 @@ class ApplyTests(unittest.TestCase):
         self.assertIn(".codex/AGENTS.md", result.stdout)
         self.assertFalse((self.home / ".codex").exists())
 
+    def test_apply_wires_antigravity_global_and_t3_provider_configs_and_preserves_foreign_entries(self):
+        t3_config = self.home / ".t3/userdata/providers/antigravity/instance123/config"
+        t3_config.mkdir(parents=True)
+        (t3_config / "skills.json").write_text(json.dumps({"entries": [{"path": "~/team-skills"}, {"path": "~/.agents/skills/"}]}))
+        (t3_config / "hooks.json").write_text(json.dumps({
+            "user-hook": {"Stop": [{"type": "command", "command": "echo hi"}]},
+            "stale-managed": {"Stop": [{"type": "command", "command": f"python3 '{self.repo.resolve()}/bin/old'"}]},
+        }))
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        expected_skills_path = str(self.home / ".agents/skills")
+        for config_dir in (self.home / ".gemini/config", t3_config):
+            with self.subTest(config_dir=config_dir):
+                self.assertEqual((config_dir / "AGENTS.md").resolve(), (self.repo / "policy/AGENTS.md").resolve())
+                skills = json.loads((config_dir / "skills.json").read_text())
+                self.assertIn({"path": expected_skills_path}, skills["entries"])
+                self.assertNotIn({"path": "~/.agents/skills/"}, skills["entries"])
+                hooks = json.loads((config_dir / "hooks.json").read_text())
+                self.assertIn("kolin-skills", hooks)
+                self.assertNotIn("stale-managed", hooks)
+                pre = hooks["kolin-skills"]["PreToolUse"]
+                env_matchers = [entry["matcher"] for entry in pre if "block-env-reads.py" in json.dumps(entry)]
+                git_matchers = [entry["matcher"] for entry in pre if "block-forbidden-git.sh" in json.dumps(entry)]
+                self.assertEqual(env_matchers, ["run_command|read_file|view_file|grep_search|find_by_name"])
+                self.assertEqual(git_matchers, ["run_command|write_file|edit_file|write_to_file|replace_file_content|multi_replace_file_content"])
+        self.assertIn({"path": "~/team-skills"}, json.loads((t3_config / "skills.json").read_text())["entries"])
+        self.assertIn("user-hook", json.loads((t3_config / "hooks.json").read_text()))
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+
+    def test_pull_with_antigravity_emit_prints_valid_session_start_json(self):
+        self.with_remote_one_commit_ahead()
+        clean = self.run_cli("pull", "--quiet", "--emit", "antigravity")
+        self.assertEqual(clean.returncode, 0, clean.stderr)
+        self.assertEqual(json.loads(clean.stdout), {})
+        (self.repo / "dirty.txt").write_text("x\n")
+        self.git(self.home / "other-machine", "commit", "-qm", "more", "--allow-empty")
+        self.git(self.home / "other-machine", "push", "-q", "origin", "main")
+        stale = self.run_cli("pull", "--quiet", "--emit", "antigravity")
+        self.assertEqual(stale.returncode, 0, stale.stderr)
+        payload = json.loads(stale.stdout)
+        self.assertIn("stale setup", payload["injectSteps"][0]["systemMessage"]["systemMessage"])
+
 
 if __name__ == "__main__":
     unittest.main()

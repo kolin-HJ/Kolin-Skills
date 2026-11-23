@@ -17,6 +17,7 @@ def main():
     apply_parser.add_argument("--if-wired", action="store_true", help="do nothing unless home is wired to this checkout")
     pull_parser = commands.add_parser("pull", help="fast-forward the repo from its remote, then apply")
     pull_parser.add_argument("--quiet", action="store_true", help="print only changes")
+    pull_parser.add_argument("--emit", choices=("claude", "antigravity"), default="claude", help="hook output format when --quiet is set")
     import_parser = commands.add_parser("import", help="move a skill or agent made in home into the repo, or list an npx skill in upstream/skills.json, then apply")
     import_parser.add_argument("path")
     upstream_parser = commands.add_parser("upstream", help="check out vendored pstack and cursor-team-kit at their pins, add missing third-party skills, then apply")
@@ -36,7 +37,7 @@ def main():
     if args.command == "apply":
         return run_apply(args.check, args.quiet, args.adopt, args.if_wired)
     if args.command == "pull":
-        return pull(args.quiet)
+        return pull(args.quiet, args.emit)
     if args.command == "import":
         return import_into_repo(args.path)
     if args.command == "upstream":
