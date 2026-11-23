@@ -179,6 +179,7 @@ Git pins live in `upstream/vendor.json` and CLIs in `upstream/tools.json`. The `
 | `npx skills` | `agent-browser` | To drive or check a web app. `upstream` also installs its CLI |
 | `npx skills` | `agent-desktop` | To drive or check a native desktop app. `upstream` also installs its CLI. On macOS, grant Accessibility once with `agent-desktop permissions --guide` |
 | `npx skills` | `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use`, `slideshow`, `reverse-any-video`, `style-sampling` | To make app demo and training videos. Sign in with `hyperframes auth login` for free music, sound effects and stock media |
+| `npx skills` ([benjitaylor/skills](https://github.com/benjitaylor/skills)) | `stageshow` | Records UI mock scenes for `user-notes` videos |
 | `npx skills` ([mattpocock/skills](https://github.com/mattpocock/skills)) | `grill-me`, `grill-with-docs`, `to-spec`, `to-tickets`, `implement`, `implement-spec`, `triage`, `wayfinder`, `retro`, `handoff`, `to-questionnaire`, `wait-what`, `improve-codebase-architecture`, `ask-matt`, `setup-matt-pocock-skills` | ⌨️ Only the ones Matt marks manual-only, so they cost no context until you type them. His auto-start skills are left out: `tdd` and `teach` clash with pstack's. The plugin stays off. Run `/setup-matt-pocock-skills` once per repo before the ticket skills |
 
 </details>

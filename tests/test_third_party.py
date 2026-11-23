@@ -103,6 +103,10 @@ class PinnedCliTests(unittest.TestCase):
         for version in pins.values():
             self.assertRegex(version, r"^\d+\.\d+\.\d+$")
 
+    def test_hyperframes_pin_meets_launcher_security_floor(self):
+        pin = json.loads((REPO / "upstream/tools.json").read_text())["npm"]["hyperframes"]
+        self.assertGreaterEqual(tuple(int(part) for part in pin.split(".")), (0, 9, 64))
+
 
 @unittest.skipIf(shutil.which("codex") is None, "codex is not installed")
 class CodexRuleTests(unittest.TestCase):
