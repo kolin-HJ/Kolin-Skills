@@ -15,6 +15,7 @@ CLI = pathlib.Path(__file__).resolve().parent.parent / "bin/kolin-skills"
 SLEEP = "import time; time.sleep(300)"
 SLOW_EXIT = "import signal, sys, time; signal.signal(signal.SIGTERM, lambda *_: (time.sleep(1.5), sys.exit(0))); time.sleep(300)"
 FAKE_PS = """if [ "$1" = "-p" ]; then exec /bin/ps "$@"; fi
+case "$*" in *ppid=*) cat PS_TABLE; exit 0;; esac
 while IFS=: read -r pid line; do
   kill -0 "$pid" 2>/dev/null && echo "$line"
 done < PS_OUT
@@ -32,6 +33,7 @@ class StacksTests(unittest.TestCase):
         self.checkout = (self.home / "checkout").resolve()
         self.checkout.mkdir()
         self.lsof_out = ""
+        self.table_lines = []
 
     def tearDown(self):
         for owner in self.owners.values():
@@ -55,12 +57,16 @@ class StacksTests(unittest.TestCase):
         (directory / "owner.json").write_text(json.dumps({"startedAt": started.isoformat().replace("+00:00", "Z"), "pid": owner.pid}))
         if running:
             self.ps_lines.append(f"{owner.pid}:/cache/bin/.postgres-wrapped -D {directory}/data/x")
+            self.table_lines.append(f"{owner.pid} 1 /cache/bin/.postgres-wrapped -D {directory}/data/x")
         if transcript_hours is not None:
             transcript = self.home / ".claude_personal/projects" / re.sub(r"[^A-Za-z0-9]", "-", root) / "s.jsonl"
             transcript.parent.mkdir(parents=True, exist_ok=True)
             transcript.write_text("{}")
             when = datetime.datetime.now().timestamp() - transcript_hours * 3600
             os.utime(transcript, (when, when))
+
+    def backend(self, name, title):
+        self.table_lines.append(f"99{len(self.table_lines)} {self.owners[name].pid} postgres: main: {title}          ")
 
     def signalled(self, name):
         try:
@@ -71,7 +77,8 @@ class StacksTests(unittest.TestCase):
 
     def run_cli(self, *args):
         (self.home / "ps.out").write_text("\n".join(self.ps_lines) + "\n")
-        self.executable(self.bin / "ps", FAKE_PS.replace("PS_OUT", str(self.home / "ps.out")))
+        (self.home / "ps.table").write_text("\n".join(self.table_lines) + "\n")
+        self.executable(self.bin / "ps", FAKE_PS.replace("PS_OUT", str(self.home / "ps.out")).replace("PS_TABLE", str(self.home / "ps.table")))
         (self.home / "lsof.out").write_text(self.lsof_out)
         self.executable(self.bin / "lsof", f"cat {self.home / 'lsof.out'}")
         env = {**os.environ, "HOME": str(self.home), "PATH": f"{self.bin}:{os.environ['PATH']}", "CLAUDE_CONFIG_DIR": str(self.home / ".claude")}
@@ -131,6 +138,17 @@ class StacksTests(unittest.TestCase):
         self.lsof_out = f"p10\ncnode\nn{self.checkout}/src\np11\ncsupabase\nn/work/other\n"
         result = self.run_cli("--stop")
         self.assertIn("skipped", result.stdout)
+        self.assertFalse(self.signalled("a1"))
+        self.assertTrue(self.signalled("a2"))
+
+    def test_stack_serving_a_query_is_kept_and_idle_connections_do_not_count(self):
+        self.stack("a1", 30)
+        self.stack("a2", 30, root="/work/other")
+        self.backend("a1", "postgres postgres [local] COPY")
+        self.backend("a2", "postgres postgres [local] idle")
+        self.backend("a2", "autovacuum launcher")
+        result = self.run_cli("--stop")
+        self.assertIn(f"skipped: a client is running a query on the database of {self.checkout}", result.stdout)
         self.assertFalse(self.signalled("a1"))
         self.assertTrue(self.signalled("a2"))
 
