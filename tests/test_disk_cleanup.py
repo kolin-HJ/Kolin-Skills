@@ -179,6 +179,33 @@ class DiskCleanupTests(unittest.TestCase):
         self.assertTrue((stacks / "running").exists())
         self.assertEqual(rows["docker"]["action"], "skipped")
 
+    def test_daily_hook_sweeps_subagent_worktrees_and_their_stacks_but_leaves_t3_to_t3(self):
+        claude_root = self.main / ".claude" / "worktrees"
+        for name, days in (("idle4", 4), ("idle2", 2)):
+            self.git(self.main, "worktree", "add", "-q", str(claude_root / name), "-b", name)
+            self.commit(claude_root / name, f"{name}-change")
+            self.age(name, days)
+        idle4_head = self.git(claude_root / "idle4", "rev-parse", "HEAD")
+        stacks = self.home / ".supabase" / "stacks"
+        (stacks / "idle4-stack").mkdir(parents=True)
+        (stacks / "idle4-stack" / "state.json").write_text(json.dumps({"identity": {"projectRoot": str(claude_root / "idle4")}}))
+
+        hook = json.loads((CLI.parent.parent / "claude" / "settings.json").read_text())
+        command = next(h["command"] for group in hook["hooks"]["SessionStart"] for h in group["hooks"]
+                       if "bin/disk-cleanup" in h["command"])
+        args = command.split("bin/disk-cleanup' ", 1)[1].split(" >", 1)[0].split()
+        args.remove("--once-a-day")
+        rows = self.cleanup(*args)
+
+        self.assertFalse((claude_root / "idle4").exists())
+        self.assertEqual(rows["idle4"]["action"], "archived")
+        self.assertEqual(self.git(self.main, "rev-parse", "refs/heads/idle4"), idle4_head)
+        self.assertFalse((stacks / "idle4-stack").exists())
+        self.assertTrue((claude_root / "idle2").exists())
+        self.assertEqual(rows["idle2"]["reason"], "unmerged, idle less than 3 days")
+        self.assertTrue((self.worktrees / "merged").exists())
+        self.assertNotIn("merged", rows)
+
 
 if __name__ == "__main__":
     unittest.main()
