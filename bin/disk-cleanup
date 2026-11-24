@@ -533,7 +533,7 @@ def parse_args(argv):
     parser.add_argument("--only", choices=list(STEPS), action="append", default=[],
                         help="run only this step (repeatable)")
     parser.add_argument("--once-a-day", action="store_true",
-                        help="exit at once when a --once-a-day run finished in the last 24 hours")
+                        help="exit at once when a --once-a-day run started in the last 24 hours")
     parser.add_argument("--scan", type=scan_dir, action="append", default=[], metavar="DIR",
                         help="also find repos one level under DIR (repeatable)")
     return parser.parse_args(argv)
@@ -548,7 +548,7 @@ def main(argv=None):
     if args.once_a_day:
         if ran_today():
             return 0
-        STATE.mkdir(parents=True, exist_ok=True)
+        DAILY_STAMP.parent.mkdir(parents=True, exist_ok=True)
         DAILY_STAMP.touch()
     located, commons = discover(args.scan)
     ctx = Context(args.apply, Policy(time.time(), args.active_hours, args.stale_days), located, commons)

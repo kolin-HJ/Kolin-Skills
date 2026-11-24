@@ -14,10 +14,10 @@ BASH_GUARD = REPO / "hooks/bash-guard.py"
 ENV_HOOK = REPO / "hooks/block-env-reads.py"
 
 
-def invoke(hook, tool_input, **payload):
+def invoke(hook, tool_input, *args, **payload):
     with tempfile.TemporaryDirectory() as directory:
         return subprocess.run(
-            [sys.executable, str(hook)],
+            [sys.executable, str(hook), *args],
             input=json.dumps({"tool_input": tool_input, **payload}),
             text=True,
             capture_output=True,
@@ -159,7 +159,9 @@ class HeavyJobsGuardTests(unittest.TestCase):
             "sleep 30s && tail /tmp/x.log",
         ]:
             with self.subTest(command=command):
-                self.assertEqual(invoke(BASH_GUARD, {"command": command}).returncode, 2)
+                result = invoke(BASH_GUARD, {"command": command})
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("run_in_background: true", result.stderr)
 
     def test_settle_delays_loops_without_sleep_and_background_jobs_pass(self):
         for tool_input in [
@@ -173,13 +175,14 @@ class HeavyJobsGuardTests(unittest.TestCase):
             with self.subTest(tool_input=tool_input):
                 self.assertEqual(invoke(BASH_GUARD, tool_input).returncode, 0)
 
-    def test_codex_keeps_its_poll_loops(self):
-        result = subprocess.run(
-            [sys.executable, str(BASH_GUARD)],
-            input=json.dumps({"toolInput": {"command": "until grep -q ok x; do sleep 5; done"}}),
-            text=True, capture_output=True, timeout=10,
-        )
-        self.assertEqual(result.returncode, 0)
+    def test_codex_keeps_its_poll_loops_and_heavy_jobs(self):
+        for tool_input in [
+            {"command": "until grep -q ok x; do sleep 5; done"},
+            {"command": "pnpm check", "timeout": 600000},
+        ]:
+            with self.subTest(tool_input=tool_input):
+                result = invoke(BASH_GUARD, tool_input, "--client", "codex", turn_id="t", hook_event_name="PreToolUse")
+                self.assertEqual(result.returncode, 0)
 
     def test_a_heavy_job_with_no_room_to_wait_for_a_slot_is_sent_to_the_background(self):
         self.assertEqual(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 600000}).returncode, 2)
