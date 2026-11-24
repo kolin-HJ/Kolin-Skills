@@ -16,8 +16,8 @@ SELF_INVOKING = [
     "architect", "how", "statechart", "unslop", "deslop", "thermo-nuclear-code-quality-review",
 ]
 USER_ONLY = ["poteto-mode", "swarm", "tdd", "correct"]
-OWN_USER_ONLY_SKILLS = ["full-send", "hydrojug-untangle", "repo-standard", "user-notes", "council"]
-MANUAL_OWN_SKILLS = ["repo-standard", "user-notes", "full-send", "council"]
+OWN_USER_ONLY_SKILLS = ["full-send", "hydrojug-untangle", "repo-standard", "user-notes", "council", "structure-review"]
+MANUAL_OWN_SKILLS = ["repo-standard", "user-notes", "full-send", "council", "structure-review"]
 
 
 def has_model_lock(skill_file):

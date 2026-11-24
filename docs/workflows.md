@@ -4,14 +4,16 @@ Keep each of these short. The policy is the rule. These are the shapes.
 
 ## One-page shape
 
-Kolin approves this before code on non-trivial work.
+Kolin approves this before code on non-trivial work. A build over about 10 files, or one that adds a lifecycle, is this shape as a blueprint. Spawn `structure-review` on the blueprint and first slice. The slice waits for a yes before builders copy.
 
 ```
 Goal:
 Types:
 States (union or state machine):
+Owner file per state/decision:
 Module boundaries:
 Files touched:
+First slice:
 Smallest version:
 Cut list (left out, and why):
 ```

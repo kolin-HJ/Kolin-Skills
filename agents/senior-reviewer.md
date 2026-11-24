@@ -39,6 +39,7 @@ Count changed lines (`git diff --numstat`, ignoring lockfiles, tests and generat
 - Size. Name a version half the size a user could not tell apart, if one exists. Name behavior the task did not ask for.
 - Report net lines (`+added -removed`) and whether that size is earned.
 - Name one thing to delete, with `file:line`.
+- A state or decision written outside the owner file the blueprint names.
 
 If a risky change is the stated purpose and its scope is tight, do not report it.
 

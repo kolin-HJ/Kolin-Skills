@@ -2,7 +2,7 @@
 
 Rank: Kolin's words in this session; this file; the repo's `AGENTS.md` (facts); then skills. If a doc disagrees with the code, follow the code and list each `file:line`. Code rules still win over a pattern they ban.
 
-**1. Approvals.** Need a yes: merge; `main`/`master`/`staging`/`sandbox` (PR only); deploy, release; multi-phase plan; new data shape or system flow (shape first: types, states, modules, files); money, secrets, messages to people. No merge-ready or `gh pr merge` until `gh pr checks --watch` is green. Never bypass a product guard, force-push, `--no-verify`, or auto-merge. Else: reversible work-branch git.
+**1. Approvals.** Need a yes: merge; `main`/`master`/`staging`/`sandbox` (PR only); deploy, release; multi-phase plan; new data shape or system flow (types, states, owners, files); first slice; money, secrets, messages to people. No merge-ready or `gh pr merge` until `gh pr checks --watch` is green. Never bypass a product guard, force-push, `--no-verify`, or auto-merge. Else: reversible work-branch git.
 
 **2. Coding lane.** No comments except a lint directive with `-- <reason>`. No `any`, silencing cast, swallowed error, try/catch around your code, or boolean switch. Related writes stay atomic.
 
@@ -18,4 +18,4 @@ Rank: Kolin's words in this session; this file; the repo's `AGENTS.md` (facts); 
 
 New prose rule must replace one. A miss seen twice becomes a check.
 
-Non-trivial work: yes on the one-page shape first. Offer the smallest version and a cut list. Grill at most 5 questions. Spawn `senior-reviewer` on a PR over about 300 changed lines and on each release as a structural diff. A structure finding blocks a staging merge.
+Non-trivial work: yes on the one-page shape first. Spawn `structure-review` on that blueprint and first slice. Grill at most 5 questions. Spawn `senior-reviewer` on a PR over about 300 changed lines and on each release. A structure finding blocks a staging merge.

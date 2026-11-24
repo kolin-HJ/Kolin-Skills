@@ -30,6 +30,8 @@ Ask once. Do only what Kolin picks. Both stay in scope.
 
 ## 1. List problems. Do not edit yet.
 
+A `structure-review` report on the scoped files is steps 1 and 2 already done. Start at step 3 with its fixes.
+
 Scan scoped files. Ask: should these pieces change together? Write every miss.
 
 Three ways to get it wrong:

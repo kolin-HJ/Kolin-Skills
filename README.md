@@ -101,7 +101,7 @@ Ask for the outcome in plain words, such as "fix the redirect bug on login". The
 4. It opens a PR with a `## Verification` section that lists what it ran.
 5. I read the PR and merge it.
 
-Proof on the real running app comes first. Spawn `senior-reviewer` on a PR over about 300 changed lines and on each release as a structural diff. A structure finding blocks a staging merge. `interrogate` stays high-risk-only (auth, money, data deletion) or when I ask.
+Proof on the real running app comes first. A build over about 10 files, or one that adds a lifecycle, shows a blueprint first; `structure-review` reads it and the first slice, and the slice waits for a yes before builders copy. Spawn `senior-reviewer` on a PR over about 300 changed lines and on each release as a structural diff. A structure finding blocks a staging merge. `interrogate` stays high-risk-only (auth, money, data deletion) or when I ask.
 
 **What the agent does alone, and what waits for my yes:**
 
@@ -109,6 +109,7 @@ Proof on the real running app comes first. Spawn `senior-reviewer` on a PR over 
 |---|---|
 | Read, edit, run, test, review, fix | A plan with more than one phase, before the build |
 | Commit, push and open a PR on a work branch | A new or changed data shape (type, table, schema) or system flow |
+| | The blueprint of a build over about 10 files, or one that adds a lifecycle: states, the one owner file for each, and the modules |
 | Delete or refactor code it touches | A merge, a deploy, a release or a migration |
 | | Money, secrets, and messages to people |
 
@@ -155,6 +156,7 @@ A skill starts in one of three ways:
 | `user-notes` | ⌨️ "release notes for PR 42" | Asks which format I want (text, graphic or video), then writes short release notes for users |
 | `explainer` | ⌨️ "explain this PR visually" | Builds a one-page HTML explainer, only when asked |
 | `council` | ⌨️ "council" | Gets a review from four model families at once (Claude, GPT, Muse and Grok), with one re-review after fixes. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
+| `structure-review` | ⌨️ / 📜 | Read-only structure review of a blueprint, first slice, diff or folder. Policy sends a blueprint build here |
 | `hydrojug-untangle` | ⌨️ `/hydrojug-untangle` | Untangles only the files I name or the current diff, never the whole repo. Inspired by [caldoai `untangle-codebase`](https://github.com/caldoai/skills/blob/main/skills/untangle-codebase/SKILL.md) (MIT) |
 
 **The method** is the global policy. pstack stays vendored. `apply` auto-starts only `architect`, `how`, `statechart`, `unslop`, `deslop` and `thermo-nuclear-code-quality-review`. Other pstack skills stay in `~/.agents/vendor/cursor-plugins/pstack/skills/` and are read by path.
@@ -174,7 +176,7 @@ Git pins live in `upstream/vendor.json` and CLIs in `upstream/tools.json`. The `
 | Source | Skills | When they start |
 |---|---|---|
 | [pstack](https://github.com/cursor/plugins) | Auto: `architect`, `how`, `statechart`, `unslop`. The rest stay in the vendor tree and are read by path | Auto skills start on match. Others: `~/.agents/vendor/cursor-plugins/pstack/skills/<name>/SKILL.md` |
-| cursor-team-kit | Auto: `deslop`, `thermo-nuclear-code-quality-review`. `control-ui` and `control-cli` stay in the vendor tree | Auto skills start on match |
+| cursor-team-kit | Auto: `deslop`, `thermo-nuclear-code-quality-review`. `control-ui` and `control-cli` stay in the vendor tree | Auto skills start on match. `control-ui` / `control-cli` are read by path |
 | `npx skills` | `find-skills` | ⌨️ |
 | `npx skills` | `agent-browser` | To drive or check a web app. `upstream` also installs its CLI |
 | `npx skills` | `agent-desktop` | To drive or check a native desktop app. `upstream` also installs its CLI. On macOS, grant Accessibility once with `agent-desktop permissions --guide` |
@@ -267,7 +269,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `diff-audit <base>` | Flags reward hacks and slop in a diff: skipped tests, edited assertions, comments, new dependencies, growth in `AGENTS.md` |
 | `feature-budget` | Counts each feature's files and lines against the plan's budget. A feature is a `features/<name>/` folder or a plan entry with `paths`. Report only, except `--base <ref>`, which fails when a feature over twice its budget grew since that ref |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions` and `--window` report tokens and list price (by model id, with Haiku 5.5's above-100K tier) per session and role, hook blocks and failing tools, and count a message copied into a side chat once |
-| `disk-cleanup` | Dry run by default. Reports, and with `--apply` removes, merged git worktrees (`git worktree remove`, never forced), unmerged ones idle over 7 days (the branch stays), orphaned local Supabase stacks, `.next` build caches in worktrees idle over 24 hours, and npm, pnpm, turbo and Docker caches. `--only <step>` runs one step, and `--once-a-day` skips a run when one finished in the last 24 hours; SessionStart runs `--only build-caches --apply --once-a-day` in the background. `--scan DIR` adds repos, `--json` prints rows. Writes `~/.kolin-skills/disk-cleanup.json` |
+| `disk-cleanup` | Dry run by default. Reports, and with `--apply` removes, merged git worktrees (`git worktree remove`, never forced), unmerged ones idle over 7 days (the branch stays), orphaned local Supabase stacks, `.next` build caches in worktrees idle over 24 hours, and npm, pnpm, turbo and Docker caches. `--only <step>` runs one step, `--worktree-owner t3|codex|claude` limits which agent worktrees it may remove, and `--once-a-day` skips a run when one finished in the last 24 hours. SessionStart runs it once a day in the background (see `claude/settings.json`); it removes only Claude subagent worktrees and leaves T3 and Codex worktrees to those apps, which know when a thread is closed. `--scan DIR` adds repos, `--json` prints rows. Writes `~/.kolin-skills/disk-cleanup.json` |
 | `pglite-replay [root]` | Replays `supabase/migrations`, then `supabase/tests`, into an in-memory PGlite database |
 | `agent-browser-guard <args>` | Runs `agent-browser` for Codex outside its sandbox, with a fixed list of safe commands |
 

@@ -5,7 +5,7 @@ description: Map pstack Cursor tool names to Claude Code, Codex, Cursor, Grok Bo
 
 # pstack tools on this machine
 
-Vendor: `~/.agents/vendor/cursor-plugins/`. Auto: architect, how, statechart, unslop, deslop, thermo-nuclear-code-quality-review. Other pstack skills: read `pstack/skills/<name>/SKILL.md` in that tree.
+Vendor: `~/.agents/vendor/cursor-plugins/`. Auto: architect, how, statechart, unslop, deslop, thermo-nuclear-code-quality-review. Other pstack skills: read `pstack/skills/<name>/SKILL.md` in that tree. `structure-review` is the blueprint/slice structure read.
 
 | pstack | Here |
 |---|---|
