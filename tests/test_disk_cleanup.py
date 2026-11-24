@@ -124,6 +124,26 @@ class DiskCleanupTests(unittest.TestCase):
             self.assertTrue((self.worktrees / name).exists(), name)
         self.assertTrue((stacks / "gone").exists())
 
+    def test_build_caches_go_only_from_idle_worktrees_and_once_a_day(self):
+        caches = {name: self.worktrees / name / "apps" / "web" / ".next" for name in ("dirty", "inuse", "recent")}
+        stale = time.time() - 2 * DAY
+        for cache in caches.values():
+            cache.mkdir(parents=True)
+            os.utime(cache, (stale, stale))
+        self.cleanup("--only", "build-caches", "--apply", "--once-a-day")
+        self.assertFalse(caches["dirty"].exists())
+        self.assertTrue((self.worktrees / "dirty" / "base").exists())
+        self.assertTrue(caches["inuse"].exists())
+        self.assertTrue(caches["recent"].exists())
+        caches["dirty"].mkdir()
+        self.cleanup("--only", "build-caches", "--apply")
+        self.assertTrue(caches["dirty"].exists())
+        os.utime(caches["dirty"], (stale, stale))
+        self.cleanup("--only", "build-caches", "--apply", "--once-a-day")
+        self.assertTrue(caches["dirty"].exists())
+        self.cleanup("--only", "build-caches", "--apply")
+        self.assertFalse(caches["dirty"].exists())
+
     def test_apply_removes_only_what_is_safe(self):
         stacks = self.build_stacks()
         rows = self.cleanup("--apply")

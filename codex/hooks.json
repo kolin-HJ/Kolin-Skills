@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 '{{REPO}}/hooks/bash-guard.py'",
+            "command": "python3 '{{REPO}}/hooks/bash-guard.py' --client codex",
             "timeout": 45
           }
         ]

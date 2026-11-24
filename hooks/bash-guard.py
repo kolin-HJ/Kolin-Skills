@@ -50,6 +50,23 @@ DOCKER_DB_MESSAGE = (
     "carry on with the task. Elsewhere, run `supabase start --runtime native --output-format json`, "
     "connect with its env.DB_URL, and carry on with the task."
 )
+SLEEP = re.compile(COMMAND_START + r"sleep\s+(\d+(?:\.\d+)?)([smhd]?)(?![\w.])(?!\s*&(?!&))")
+SLEEP_UNIT_SECONDS = {"": 1, "s": 1, "m": 60, "h": 3600, "d": 86400}
+POLL_SECONDS = 5
+POLL_LOOP = re.compile(
+    COMMAND_START + r"(?:until|while)\b(?!\s+(?:IFS=\S*\s+)?read\b)(?:(?!\bdone\b).)*?\bdo\b(?:(?!\bdone\b).)*?\bsleep\b",
+    re.DOTALL,
+)
+POLL_MESSAGE = (
+    "Blocked: this command waits by polling (a `sleep` of 5 s or more, or an until/while loop that sleeps). "
+    "Run the job itself with run_in_background: true, then wait for its completion notification with "
+    "t3_background_wait or Monitor, and do other work meanwhile."
+)
+SLOT_ROOM_MESSAGE = (
+    "Blocked: this heavy job asks for {seconds} s in the foreground, which leaves no time to wait for one of the "
+    "heavy-job slots. Run it with run_in_background: true and wait with t3_background_wait or Monitor, "
+    "or pass a timeout of {limit} ms or less."
+)
 MERGE = re.compile(COMMAND_START + r"gh\s+pr\s+merge\b([^;&|)\n]*)")
 REPO_FLAG = re.compile(r"(?:--repo[=\s]|-R\s*)(\S+)")
 AUTO_FLAG = re.compile(r"(?:^|\s)--auto(?:\s|=|$)")
@@ -127,6 +144,13 @@ def merge_block(rest, cwd):
     return None
 
 
+def polls(code):
+    long_sleep = any(
+        float(match.group(1)) * SLEEP_UNIT_SECONDS[match.group(2)] >= POLL_SECONDS for match in SLEEP.finditer(code)
+    )
+    return long_sleep or POLL_LOOP.search(code) is not None
+
+
 def quote_globs(command: str) -> str:
     return UNQUOTED_GLOB.sub(
         lambda match: match.group(0) if match.group(3) is None else f"{match.group(3)}='{match.group(4)}'",
@@ -162,6 +186,7 @@ def main() -> int:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         return 0
+    claude = sys.argv[1:] != ["--client", "codex"]
     tool_input = payload.get("tool_input") or payload.get("toolInput") or {}
     command = tool_input.get("command") or ""
     background = bool(tool_input.get("run_in_background"))
@@ -169,6 +194,9 @@ def main() -> int:
 
     if DOCKER_DB.search(code):
         print(DOCKER_DB_MESSAGE, file=sys.stderr)
+        return 2
+    if claude and not background and polls(code):
+        print(POLL_MESSAGE, file=sys.stderr)
         return 2
     merge = MERGE.search(code)
     if merge:
@@ -185,6 +213,10 @@ def main() -> int:
         default_ms, ceiling_ms = TIMEOUT_MS[background]
         timeout_ms = tool_input.get("timeout") or default_ms
         max_wait_ms = max(0, min(timeout_ms // 2, ceiling_ms - timeout_ms))
+        if claude and not background and max_wait_ms < timeout_ms // 2:
+            limit = ceiling_ms * 2 // 3
+            print(SLOT_ROOM_MESSAGE.format(seconds=timeout_ms // 1000, limit=limit), file=sys.stderr)
+            return 2
         prefix = f"python3 {shlex.quote(str(SLOT))} $$ {max_wait_ms // 1000}\n"
         updated = {**updated, "command": prefix + updated["command"], "timeout": timeout_ms + max_wait_ms}
     if updated == tool_input:

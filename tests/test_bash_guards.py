@@ -14,10 +14,10 @@ BASH_GUARD = REPO / "hooks/bash-guard.py"
 ENV_HOOK = REPO / "hooks/block-env-reads.py"
 
 
-def invoke(hook, tool_input, **payload):
+def invoke(hook, tool_input, *args, **payload):
     with tempfile.TemporaryDirectory() as directory:
         return subprocess.run(
-            [sys.executable, str(hook)],
+            [sys.executable, str(hook), *args],
             input=json.dumps({"tool_input": tool_input, **payload}),
             text=True,
             capture_output=True,
@@ -148,6 +148,48 @@ class HeavyJobsGuardTests(unittest.TestCase):
         updated = updated_input(invoke(BASH_GUARD, {"command": command}))
         self.assertRegex(updated["command"], r"^python3 \S+heavy-slot\.py \$\$ \d+\npnpm test && grep -rn foo --include='\*\.ts' src$")
         self.assertEqual(updated["timeout"], 180000)
+
+    def test_poll_loops_are_blocked_and_name_the_background_fix(self):
+        for command in [
+            "until grep -q ok /tmp/x.log; do sleep 5; done",
+            "while kill -0 123 2>/dev/null; do sleep 20; done; tail -8 /tmp/x.log",
+            "sleep 30 && tail /tmp/x.log",
+            "until ! pgrep -f verify >/dev/null\ndo\n  sleep 1\ndone",
+            "sleep 2m; gh run view 1",
+            "sleep 30s && tail /tmp/x.log",
+        ]:
+            with self.subTest(command=command):
+                result = invoke(BASH_GUARD, {"command": command})
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("run_in_background: true", result.stderr)
+
+    def test_settle_delays_loops_without_sleep_and_background_jobs_pass(self):
+        for tool_input in [
+            {"command": "sleep 2 && curl -s localhost:3000"},
+            {"command": "while read line; do echo $line; done < /tmp/x"},
+            {"command": "echo 'sleep 30'"},
+            {"command": "until grep -q ok /tmp/x.log; do sleep 5; done", "run_in_background": True},
+            {"command": "while read -r id; do gh api repos/x/$id; sleep 1; done < ids.txt"},
+            {"command": "sleep 30 & pnpm lint"},
+        ]:
+            with self.subTest(tool_input=tool_input):
+                self.assertEqual(invoke(BASH_GUARD, tool_input).returncode, 0)
+
+    def test_codex_keeps_its_poll_loops_and_heavy_jobs(self):
+        for tool_input in [
+            {"command": "until grep -q ok x; do sleep 5; done"},
+            {"command": "pnpm check", "timeout": 600000},
+        ]:
+            with self.subTest(tool_input=tool_input):
+                result = invoke(BASH_GUARD, tool_input, "--client", "codex", turn_id="t", hook_event_name="PreToolUse")
+                self.assertEqual(result.returncode, 0)
+
+    def test_a_heavy_job_with_no_room_to_wait_for_a_slot_is_sent_to_the_background(self):
+        self.assertEqual(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 600000}).returncode, 2)
+        background = updated_input(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 600000, "run_in_background": True}))
+        self.assertRegex(background["command"], r"^python3 \S+heavy-slot\.py \$\$ 300\n")
+        fits = updated_input(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 400000}))
+        self.assertEqual(fits["timeout"], 600000)
 
     def test_docker_database_message_tells_the_agent_to_carry_on(self):
         blocked = invoke(BASH_GUARD, {"command": "docker compose up -d postgres"})

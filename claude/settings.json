@@ -56,6 +56,11 @@
             "type": "command",
             "command": "python3 '{{REPO}}/bin/kolin-skills' stacks --stop --idle-hours 2 1>&2",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "nohup python3 '{{REPO}}/bin/disk-cleanup' --only build-caches --apply --once-a-day >/dev/null 2>&1 &",
+            "timeout": 5
           }
         ]
       }
