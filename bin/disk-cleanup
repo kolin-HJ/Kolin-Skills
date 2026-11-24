@@ -208,8 +208,12 @@ def fetch_prs(slug):
         return None
 
 
+def repo_root(common):
+    return common.parent if common.name == ".git" else common
+
+
 def load_repo(common):
-    root = common.parent if common.name == ".git" else common
+    root = repo_root(common)
     url = git("--git-dir", str(common), "remote", "get-url", "origin")
     if url.code != 0:
         return Repo(common, root, None, [], "no origin remote")
@@ -334,15 +338,19 @@ def settle_worktree(ctx, repos, worktree, verdict, reason):
     return Row("worktrees", target, DONE[verdict], reason)
 
 
+def agent_worktree_paths(ctx):
+    paths = {path.resolve() for path in ctx.located}
+    for common in ctx.commons:
+        paths.update(path for path in listed_worktrees(common) if agent_owned(path, repo_root(common)))
+    return sorted(paths)
+
+
 def step_worktrees(ctx):
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         loaded = list(pool.map(load_repo, ctx.commons))
         repos = {repo.common: repo for repo in loaded}
-        paths = {path.resolve() for path in ctx.located}
-        for repo in loaded:
-            paths.update(path for path in listed_worktrees(repo.common) if agent_owned(path, repo.root))
         cwds = process_cwds()
-        worktrees = list(pool.map(lambda path: load_worktree(path, repos, cwds), sorted(paths)))
+        worktrees = list(pool.map(lambda path: load_worktree(path, repos, cwds), agent_worktree_paths(ctx)))
     rows = []
     for worktree in worktrees:
         verdict, reason = decide(WORKTREE_RULES, worktree, ctx.policy)
@@ -445,7 +453,7 @@ def docker_rows(ctx):
 
 def step_caches(ctx):
     rows = [tool_row(ctx, "npm", ["cache", "clean", "--force"]), tool_row(ctx, "pnpm", ["store", "prune"])]
-    turbo = (turbo_row(ctx, common.parent if common.name == ".git" else common) for common in ctx.commons)
+    turbo = (turbo_row(ctx, repo_root(common)) for common in ctx.commons)
     rows.extend(row for row in turbo if row)
     rows.extend(docker_rows(ctx))
     return rows
@@ -459,9 +467,9 @@ def build_cache_rows(ctx, path, cwds):
     gitdir = linked_gitdir(path) if (path / ".git").is_file() else None
     if gitdir is None or not gitdir.exists():
         return []
-    idle_hours = (ctx.policy.now - last_activity(gitdir)) / 3600
     rows = []
     for cache in build_caches_of(path):
+        idle_hours = (ctx.policy.now - max(last_activity(gitdir), cache.stat().st_mtime)) / 3600
         if inside(cwds, path):
             rows.append(Row("build-caches", str(cache), "keep", "a running program is inside it"))
         elif idle_hours < BUILD_CACHE_IDLE_HOURS:
@@ -475,12 +483,8 @@ def build_cache_rows(ctx, path, cwds):
 
 
 def step_build_caches(ctx):
-    paths = {path.resolve() for path in ctx.located}
-    for common in ctx.commons:
-        root = common.parent if common.name == ".git" else common
-        paths.update(path for path in listed_worktrees(common) if agent_owned(path, root))
     cwds = process_cwds()
-    return [row for path in sorted(paths) for row in build_cache_rows(ctx, path, cwds)]
+    return [row for path in agent_worktree_paths(ctx) for row in build_cache_rows(ctx, path, cwds)]
 
 
 STEPS: dict[str, Callable] = {
@@ -541,8 +545,11 @@ def ran_today():
 
 def main(argv=None):
     args = parse_args(argv)
-    if args.once_a_day and ran_today():
-        return 0
+    if args.once_a_day:
+        if ran_today():
+            return 0
+        STATE.mkdir(parents=True, exist_ok=True)
+        DAILY_STAMP.touch()
     located, commons = discover(args.scan)
     ctx = Context(args.apply, Policy(time.time(), args.active_hours, args.stale_days), located, commons)
     before = shutil.disk_usage(HOME).free
@@ -551,8 +558,6 @@ def main(argv=None):
     after = shutil.disk_usage(HOME).free
     STATE.mkdir(parents=True, exist_ok=True)
     REPORT.write_text(json.dumps([dataclasses.asdict(row) for row in rows], indent=1) + "\n")
-    if args.once_a_day:
-        DAILY_STAMP.touch()
     if args.json:
         print(json.dumps([dataclasses.asdict(row) for row in rows], indent=1))
     else:

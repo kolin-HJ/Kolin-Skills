@@ -155,12 +155,11 @@ class HeavyJobsGuardTests(unittest.TestCase):
             "while kill -0 123 2>/dev/null; do sleep 20; done; tail -8 /tmp/x.log",
             "sleep 30 && tail /tmp/x.log",
             "until ! pgrep -f verify >/dev/null\ndo\n  sleep 1\ndone",
+            "sleep 2m; gh run view 1",
+            "sleep 30s && tail /tmp/x.log",
         ]:
             with self.subTest(command=command):
-                blocked = invoke(BASH_GUARD, {"command": command})
-                self.assertEqual(blocked.returncode, 2)
-                self.assertIn("run_in_background: true", blocked.stderr)
-                self.assertIn("t3_background_wait", blocked.stderr)
+                self.assertEqual(invoke(BASH_GUARD, {"command": command}).returncode, 2)
 
     def test_settle_delays_loops_without_sleep_and_background_jobs_pass(self):
         for tool_input in [
@@ -168,14 +167,26 @@ class HeavyJobsGuardTests(unittest.TestCase):
             {"command": "while read line; do echo $line; done < /tmp/x"},
             {"command": "echo 'sleep 30'"},
             {"command": "until grep -q ok /tmp/x.log; do sleep 5; done", "run_in_background": True},
+            {"command": "while read -r id; do gh api repos/x/$id; sleep 1; done < ids.txt"},
+            {"command": "sleep 30 & pnpm lint"},
         ]:
             with self.subTest(tool_input=tool_input):
                 self.assertEqual(invoke(BASH_GUARD, tool_input).returncode, 0)
 
-    def test_slot_wait_is_never_zero_at_the_foreground_ceiling(self):
-        updated = updated_input(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 600000}))
-        self.assertRegex(updated["command"], r"^python3 \S+heavy-slot\.py \$\$ 300\n")
-        self.assertEqual(updated["timeout"], 600000)
+    def test_codex_keeps_its_poll_loops(self):
+        result = subprocess.run(
+            [sys.executable, str(BASH_GUARD)],
+            input=json.dumps({"toolInput": {"command": "until grep -q ok x; do sleep 5; done"}}),
+            text=True, capture_output=True, timeout=10,
+        )
+        self.assertEqual(result.returncode, 0)
+
+    def test_a_heavy_job_with_no_room_to_wait_for_a_slot_is_sent_to_the_background(self):
+        self.assertEqual(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 600000}).returncode, 2)
+        background = updated_input(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 600000, "run_in_background": True}))
+        self.assertRegex(background["command"], r"^python3 \S+heavy-slot\.py \$\$ 300\n")
+        fits = updated_input(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 400000}))
+        self.assertEqual(fits["timeout"], 600000)
 
     def test_docker_database_message_tells_the_agent_to_carry_on(self):
         blocked = invoke(BASH_GUARD, {"command": "docker compose up -d postgres"})
