@@ -149,11 +149,11 @@ class DerivedTreeTests(SelfInvokeCase):
 
     def test_a_skill_that_upstream_drops_leaves_no_entry_in_the_derived_folder(self):
         self.apply()
-        shutil.rmtree(self.vendor / "tdd")
+        shutil.rmtree(self.vendor / "how")
         shutil.rmtree(self.vendor / "swarm")
         self.apply()
         remaining = sorted(os.listdir(self.derived()))
-        self.assertEqual(remaining, sorted(set(SELF_INVOKING + USER_ONLY) - {"tdd", "swarm"}))
+        self.assertEqual(remaining, sorted(set(SELF_INVOKING + USER_ONLY) - {"how", "swarm"}))
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
     def test_a_dangling_link_inside_a_derived_folder_fails_the_quick_check(self):
