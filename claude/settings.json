@@ -55,7 +55,7 @@
           {
             "type": "command",
             "command": "python3 '{{REPO}}/bin/kolin-skills' stacks --stop --idle-hours 2 1>&2",
-            "timeout": 30
+            "timeout": 60
           },
           {
             "type": "command",
@@ -111,6 +111,16 @@
           {
             "type": "command",
             "command": "python3 '{{REPO}}/hooks/keep-awake.py'",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__t3-code__preview_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/preview-budget.py'",
             "timeout": 5
           }
         ]
