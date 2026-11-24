@@ -190,6 +190,11 @@ class DiskCleanupTests(unittest.TestCase):
         (stacks / "idle4-stack").mkdir(parents=True)
         (stacks / "idle4-stack" / "state.json").write_text(json.dumps({"identity": {"projectRoot": str(claude_root / "idle4")}}))
 
+        t3_cache = self.worktrees / "dirty" / "apps" / "web" / ".next"
+        t3_cache.mkdir(parents=True)
+        stale = time.time() - 2 * DAY
+        os.utime(t3_cache, (stale, stale))
+
         hook = json.loads((CLI.parent.parent / "claude" / "settings.json").read_text())
         command = next(h["command"] for group in hook["hooks"]["SessionStart"] for h in group["hooks"]
                        if "bin/disk-cleanup" in h["command"])
@@ -205,6 +210,8 @@ class DiskCleanupTests(unittest.TestCase):
         self.assertEqual(rows["idle2"]["reason"], "unmerged, idle less than 3 days")
         self.assertTrue((self.worktrees / "merged").exists())
         self.assertNotIn("merged", rows)
+        self.assertFalse(t3_cache.exists())
+        self.assertTrue((self.worktrees / "dirty" / "base").exists())
 
 
 if __name__ == "__main__":

@@ -59,7 +59,7 @@
           },
           {
             "type": "command",
-            "command": "nohup python3 '{{REPO}}/bin/disk-cleanup' --only worktrees --only supabase-stacks --only build-caches --worktree-owner claude --worktree-owner codex --stale-days 3 --apply --once-a-day >/dev/null 2>&1 &",
+            "command": "nohup python3 '{{REPO}}/bin/disk-cleanup' --only worktrees --only supabase-stacks --only build-caches --worktree-owner claude --stale-days 3 --apply --once-a-day >/dev/null 2>&1 &",
             "timeout": 5
           }
         ]
