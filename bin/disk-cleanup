@@ -22,6 +22,8 @@ STACKS = HOME / ".supabase" / "stacks"
 T3_WORKTREES = HOME / ".t3" / "worktrees"
 CODEX_WORKTREES = HOME / ".codex" / "worktrees"
 INTEGRATION_BRANCHES = ("main", "master", "staging")
+FIXED_OWNER_ROOTS = {"t3": T3_WORKTREES, "codex": CODEX_WORKTREES}
+WORKTREE_OWNERS = ("t3", "codex", "claude")
 REMOTE_SLUG = re.compile(r"[:/]([^/:]+/[^/]+?)(?:\.git)?/?$")
 PR_FIELDS = "headRefName,headRefOid,state,number"
 DONE = {"remove": "removed", "archive": "archived", "clean": "cleaned"}
@@ -60,6 +62,7 @@ class Context:
     policy: Policy
     located: list
     commons: list
+    worktree_owners: tuple
 
 
 @dataclasses.dataclass
@@ -168,9 +171,13 @@ def common_dir_of(path):
     return Path(result.out).resolve() if result.code == 0 else None
 
 
-def agent_owned(path, repo_root):
-    roots = (T3_WORKTREES, CODEX_WORKTREES, repo_root / ".claude" / "worktrees")
-    return any(path.is_relative_to(root.resolve()) for root in roots)
+def under_fixed_owner_root(path, owners):
+    return any(path.is_relative_to(FIXED_OWNER_ROOTS[owner].resolve()) for owner in owners if owner in FIXED_OWNER_ROOTS)
+
+
+def agent_owned(path, repo_root, owners):
+    in_claude_root = "claude" in owners and path.is_relative_to((repo_root / ".claude" / "worktrees").resolve())
+    return in_claude_root or under_fixed_owner_root(path, owners)
 
 
 def discover(scan):
@@ -305,7 +312,7 @@ WORKTREE_RULES: list[tuple[Callable, str, Callable]] = [
     (lambda w, p: w.merged, "remove", lambda w, p: w.merged),
     (lambda w, p: p.now - w.activity > p.stale_days * 86400, "archive",
      lambda w, p: f"unmerged, idle more than {p.stale_days:g} days"),
-    (lambda w, p: True, "keep", lambda w, p: "unmerged, active this week"),
+    (lambda w, p: True, "keep", lambda w, p: f"unmerged, idle less than {p.stale_days:g} days"),
 ]
 
 
@@ -338,10 +345,10 @@ def settle_worktree(ctx, repos, worktree, verdict, reason):
     return Row("worktrees", target, DONE[verdict], reason)
 
 
-def agent_worktree_paths(ctx):
-    paths = {path.resolve() for path in ctx.located}
+def agent_worktree_paths(ctx, owners):
+    paths = {path.resolve() for path in ctx.located if under_fixed_owner_root(path.resolve(), owners)}
     for common in ctx.commons:
-        paths.update(path for path in listed_worktrees(common) if agent_owned(path, repo_root(common)))
+        paths.update(path for path in listed_worktrees(common) if agent_owned(path, repo_root(common), owners))
     return sorted(paths)
 
 
@@ -350,7 +357,7 @@ def step_worktrees(ctx):
         loaded = list(pool.map(load_repo, ctx.commons))
         repos = {repo.common: repo for repo in loaded}
         cwds = process_cwds()
-        worktrees = list(pool.map(lambda path: load_worktree(path, repos, cwds), agent_worktree_paths(ctx)))
+        worktrees = list(pool.map(lambda path: load_worktree(path, repos, cwds), agent_worktree_paths(ctx, ctx.worktree_owners)))
     rows = []
     for worktree in worktrees:
         verdict, reason = decide(WORKTREE_RULES, worktree, ctx.policy)
@@ -484,7 +491,7 @@ def build_cache_rows(ctx, path, cwds):
 
 def step_build_caches(ctx):
     cwds = process_cwds()
-    return [row for path in agent_worktree_paths(ctx) for row in build_cache_rows(ctx, path, cwds)]
+    return [row for path in agent_worktree_paths(ctx, WORKTREE_OWNERS) for row in build_cache_rows(ctx, path, cwds)]
 
 
 STEPS: dict[str, Callable] = {
@@ -530,6 +537,8 @@ def parse_args(argv):
     parser.add_argument("--json", action="store_true", help="print the rows as JSON")
     parser.add_argument("--active-hours", type=float, default=6, help="keep worktrees used within this many hours")
     parser.add_argument("--stale-days", type=float, default=7, help="archive unmerged worktrees idle longer than this")
+    parser.add_argument("--worktree-owner", choices=WORKTREE_OWNERS, action="append", default=[],
+                        help="remove only worktrees made by this tool (repeatable; default: all)")
     parser.add_argument("--only", choices=list(STEPS), action="append", default=[],
                         help="run only this step (repeatable)")
     parser.add_argument("--once-a-day", action="store_true",
@@ -551,7 +560,8 @@ def main(argv=None):
         DAILY_STAMP.parent.mkdir(parents=True, exist_ok=True)
         DAILY_STAMP.touch()
     located, commons = discover(args.scan)
-    ctx = Context(args.apply, Policy(time.time(), args.active_hours, args.stale_days), located, commons)
+    ctx = Context(args.apply, Policy(time.time(), args.active_hours, args.stale_days), located, commons,
+                  tuple(args.worktree_owner) or WORKTREE_OWNERS)
     before = shutil.disk_usage(HOME).free
     steps = [STEPS[name] for name in args.only] if args.only else list(STEPS.values())
     rows = [row for step in steps for row in step(ctx)]
