@@ -18,8 +18,10 @@ def read_state(path):
     try:
         state = json.loads(pathlib.Path(path).read_text())
         started = datetime.datetime.fromisoformat(state["startedAt"].replace("Z", "+00:00"))
-    except (OSError, ValueError, KeyError, AttributeError) as error:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         return None, f"  {root}: unreadable verify state ({type(error).__name__}: {error})"
+    if started.tzinfo is None:
+        return None, f"  {root}: unreadable verify state (startedAt {state['startedAt']} has no timezone)"
     pids = {pid for pid in (state.get("serverPid"), state.get("chromePid")) if isinstance(pid, int)}
     return {"root": root, "started": started, "pids": pids, "transcript_hours": hours_since_transcript(root)}, None
 
@@ -39,7 +41,7 @@ def verify_servers_found():
 def cleanup_command(root):
     try:
         manager = json.loads(pathlib.Path(root, "package.json").read_text()).get("packageManager", "npm").split("@")[0]
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, AttributeError) as error:
         return None, f"no readable package.json ({type(error).__name__})"
     if manager not in RUN_SILENT:
         return None, f"no cleanup runner for packageManager {manager}"

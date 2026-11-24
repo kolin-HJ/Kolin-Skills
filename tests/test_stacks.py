@@ -221,6 +221,17 @@ class StacksTests(unittest.TestCase):
         self.assertIn(f"{odd}: verify cleanup not run: no cleanup runner for packageManager yarn", result.stdout)
         self.assertIn(f"{bun}: stopped", result.stdout)
 
+    def test_unreadable_verify_states_are_one_line_each_and_others_still_stop(self):
+        good = self.verify_server("good", 30, manager="bun")
+        for name, body in [("list", "[]"), ("naive", json.dumps({"startedAt": "2026-01-01T00:00:00"})), ("broken", "{")]:
+            root = self.home / ".t3/worktrees/repo" / name
+            (root / ".verify").mkdir(parents=True)
+            (root / ".verify/state.json").write_text(body)
+        result = self.run_cli("--stop")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.count("unreadable verify state"), 3)
+        self.assertIn(f"{good}: stopped", result.stdout)
+
     def test_failed_verify_cleanup_fails_the_command(self):
         root = self.verify_server("a1", 30, exit_code=1)
         result = self.run_cli("--stop")
