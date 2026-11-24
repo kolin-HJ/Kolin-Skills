@@ -30,8 +30,10 @@ VENDOR_SKILL_DIRS = {
     "cursor-plugins/cursor-team-kit/skills": None,
 }
 VENDOR_SKIP = {"setup-pstack"}
-SELF_INVOKING_SKILLS = {"poteto-mode", "how", "architect", "interrogate", "principle-model-the-domain", "principle-laziness-protocol", "principle-subtract-before-you-add", "principle-type-system-discipline", "principle-minimize-reader-load", "principle-boundary-discipline"}
+SELF_INVOKING_SKILLS = {"architect", "how", "statechart", "unslop", "deslop", "thermo-nuclear-code-quality-review"}
 MODEL_LOCK_KEY = "disable-model-invocation"
+POLICY_MAX_BYTES = 2048
+PSTACK_LOCAL_MAX_BYTES = 1024
 QUICK_CHECK_SECONDS = 30
 TEST_FILES_AT_ONCE = 6
 TEST_FILE_SECONDS = 300
@@ -49,7 +51,18 @@ OTHER_INSTALLERS = {
     "claude.ai skill sync": ["synced"],
     "herdr": ["herdr-agent-state.sh"],
 }
-DROPPED_SKILLS = {"break-ui", "full-stop", "emil-design-eng", "loop-refactor-to-pstack", "mobile-native", "modernize", "firecrawl", "firecrawl-crawl", "firecrawl-map", "firecrawl-scrape", "firecrawl-search", "improve", "ponytail", "ponytail-audit"}
+DROPPED_SKILLS = {
+    "break-ui", "full-stop", "emil-design-eng", "loop-refactor-to-pstack", "mobile-native",
+    "modernize", "firecrawl", "firecrawl-crawl", "firecrawl-map", "firecrawl-scrape",
+    "firecrawl-search", "improve", "ponytail", "ponytail-audit",
+    "ask-matt", "code-review", "codebase-design", "domain-modeling", "grill-me",
+    "grill-with-docs", "grilling", "to-spec", "to-tickets", "implement", "implement-spec",
+    "prototype", "research", "triage", "wayfinder", "retro", "handoff", "to-questionnaire",
+    "wait-what", "improve-codebase-architecture", "setup-matt-pocock-skills",
+    "hyperframes", "hyperframes-cli", "hyperframes-registry", "media-use",
+    "reverse-any-video", "style-sampling", "slideshow",
+}
+PROFILES_JSON = REPO / "upstream/profiles.json"
 NPX_SKILL_LOCK = HOME / ".agents/.skill-lock.json"
 LINKS = {
     "policy/AGENTS.md": [".codex/AGENTS.md", ".claude/CLAUDE.md", ".grok/AGENTS.md"],
@@ -301,6 +314,22 @@ def without_model_lock(text):
 
 def declared_upstream_skills():
     return {skill for skills in json.loads((REPO / "upstream/skills.json").read_text()).values() for skill in skills}
+
+
+def profile_catalog():
+    return json.loads(PROFILES_JSON.read_text()) if PROFILES_JSON.is_file() else {}
+
+
+def active_profiles(state=None):
+    if state is None:
+        state_file = STATE_DIR / "state.json"
+        state = json.loads(state_file.read_text()) if state_file.is_file() else {}
+    return [name for name in state.get("profiles") or [] if isinstance(name, str)]
+
+
+def profile_skill_names(state=None):
+    catalog = profile_catalog()
+    return {skill for name in active_profiles(state) for skills in catalog.get(name, {}).values() for skill in skills}
 
 
 @contextlib.contextmanager

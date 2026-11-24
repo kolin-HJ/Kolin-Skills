@@ -23,6 +23,7 @@ def main():
     import_parser.add_argument("path")
     upstream_parser = commands.add_parser("upstream", help="check out vendored pstack and cursor-team-kit at their pins, add missing third-party skills, then apply")
     upstream_parser.add_argument("--bump", action="store_true", help="move each vendor pin to its newest upstream commit and print what changed")
+    upstream_parser.add_argument("--profile", metavar="NAME", help="also install an optional skill profile from upstream/profiles.json")
     stacks_parser = commands.add_parser("stacks", help="list running native Supabase stacks and `verify launch` servers; --stop stops the idle ones, and the session-start hook runs it")
     stacks_parser.add_argument("--stop", action="store_true", help="send SIGTERM to each idle stack's supabase owner process and wait for postgres to exit, and runs `pnpm -s verify cleanup` in each idle verify server's checkout; skips a root another process works in or whose database is serving a query")
     stacks_parser.add_argument("--idle-hours", type=float, default=6, help="a stack is idle only after it has run this many hours; the 2-hour transcript window stays fixed")
@@ -42,7 +43,7 @@ def main():
     if args.command == "import":
         return import_into_repo(args.path)
     if args.command == "upstream":
-        return upstream(args.bump)
+        return upstream(args.bump, args.profile)
     if args.command == "stacks":
         return stacks(args.stop, args.idle_hours) | verify_servers(args.stop, args.idle_hours)
     if args.command == "check":

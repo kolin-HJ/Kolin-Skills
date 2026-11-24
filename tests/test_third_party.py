@@ -28,6 +28,24 @@ class SkillInstallTests(unittest.TestCase):
             third_party.install_skills(root, set())
         self.assertEqual(seen.read_text().strip(), "unset")
 
+    def test_extra_profile_skills_join_the_npx_add(self):
+        root = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        (root / "upstream").mkdir()
+        (root / "upstream/skills.json").write_text(json.dumps({"someone/skills": ["from-npx"]}))
+        calls = root / "npx-calls"
+        npx = root / "npx"
+        npx.write_text(f"#!/bin/sh\necho \"$@\" >> {calls}\n")
+        npx.chmod(0o755)
+        env = {"PATH": f"{root}{os.pathsep}{os.environ['PATH']}"}
+        with mock.patch.dict(os.environ, env):
+            third_party.install_skills(root, set(), extra={"heygen-com/hyperframes": ["hyperframes"]})
+        text = calls.read_text()
+        self.assertIn("someone/skills", text)
+        self.assertIn("from-npx", text)
+        self.assertIn("heygen-com/hyperframes", text)
+        self.assertIn("--skill hyperframes", text)
+
 
 class PinnedCliTests(unittest.TestCase):
     def setUp(self):

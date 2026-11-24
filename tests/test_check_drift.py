@@ -185,6 +185,9 @@ class CheckDriftTests(unittest.TestCase):
             "`senior-reviewer` or `judge` in a new context with only the diff, the task and the repo.\n",
             "Before every PR is marked ready to merge, run one fresh-context read-only "
             "`senior-reviewer` or `judge` pass. `interrogate` stays high-risk-only.\n",
+            "Spawn senior-reviewer on every PR over about 300 changed lines and on each "
+            "release as a structural diff. Structure findings block a staging merge. "
+            "`interrogate` stays high-risk-only.\n",
         )
         for text in passing:
             with self.subTest(text=text):

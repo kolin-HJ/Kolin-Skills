@@ -90,6 +90,12 @@ class PrBodyTests(unittest.TestCase):
         self.assertNotIn("## Visual proof", body)
         self.assertIn("## Check these\n", body)
 
+    def test_the_skeleton_stays_under_1500_characters_and_has_no_cleanup_section(self):
+        self.write("src/price.ts", "export const price = 2;\n")
+        body = self.body("Pricing=src/price.ts")
+        self.assertLessEqual(len(body), 1500)
+        self.assertNotIn("## Cleanup", body)
+
     def test_many_files_still_fit_on_one_screen(self):
         for n in range(2_500):
             self.write(f"src/f{n:04}.ts", f"export const a{n} = 1;\n")

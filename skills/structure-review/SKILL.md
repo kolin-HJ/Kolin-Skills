@@ -1,6 +1,7 @@
 ---
 name: structure-review
-description: Strict read-only review of code structure for a blueprint, a first slice, a diff or an existing folder. It counts state owners, duplicate paths and reader load with commands, then reports each fix with its proof, the simpler shape, and its rung on the ladder (delete, simplify, optimize, automate). Use for "structure review", "thermo review", "is this bloated", "is this tangled", a harsh code quality or maintainability review, and the structure read of a blueprint build.
+description: Use only when Kolin asks for a structure review or the policy sends a blueprint or first slice here. Strict read-only review of code structure. It counts state owners, duplicate paths and reader load, then reports each fix with its proof and the simpler shape.
+disable-model-invocation: true
 ---
 
 # Structure review

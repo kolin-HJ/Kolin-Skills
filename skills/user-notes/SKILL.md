@@ -1,6 +1,7 @@
 ---
 name: user-notes
 description: "Ask Kolin first: text, graphic and/or video (video is low-frequency; never auto-make graphic or video). Then write user-facing release notes in the formats he picked, from a merged release PR. Use when Kolin says \"user notes\", \"release notes\", \"what's new\" or \"changelog\" for a release or a PR. Not for a PR body or its Scope table."
+disable-model-invocation: true
 ---
 # User notes
 

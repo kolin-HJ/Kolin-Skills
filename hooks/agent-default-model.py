@@ -109,7 +109,7 @@ def main():
     if agent == "Plan":
         print(
             "Blocked: Plan starts without CLAUDE.md or AGENTS.md. "
-            "Use `judge` (Opus, read-only) for design or judgment, `senior-reviewer` for a diff, or `Explore` (Sonnet) for search.",
+            "Use `senior-reviewer` (Opus, read-only) for a diff or a judgment call, or `Explore` (Sonnet) for search.",
             file=sys.stderr,
         )
         return 2

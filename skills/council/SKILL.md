@@ -1,6 +1,7 @@
 ---
 name: council
 description: Use only when Kolin says "council" or invokes /council. Gets review or feedback from Claude Opus 5.5, GPT 6.1 Sol, Muse Wonder (via Cursor) and Grok 4.7 (via the Grok subscription), one per provider, all at high effort, picked from what T3 Code shows is available.
+disable-model-invocation: true
 ---
 
 # Council

@@ -4,7 +4,7 @@ import sys
 
 import third_party
 from kolin_skills.apply import run_apply
-from kolin_skills.helpers import HOME, REPO, VENDOR, vendor_git
+from kolin_skills.helpers import HOME, REPO, STATE_DIR, VENDOR, profile_catalog, vendor_git
 
 
 def sync_vendor(name, source, bump):
@@ -29,7 +29,28 @@ def sync_vendor(name, source, bump):
     return target
 
 
-def upstream(bump=False):
+def remember_profile(name):
+    STATE_DIR.mkdir(exist_ok=True)
+    state_file = STATE_DIR / "state.json"
+    state = json.loads(state_file.read_text()) if state_file.is_file() else {}
+    profiles = [item for item in state.get("profiles") or [] if item != name]
+    profiles.append(name)
+    state["profiles"] = profiles
+    state.setdefault("repo", str(REPO))
+    state.setdefault("generated", [])
+    temporary = state_file.with_name(".state.json.tmp")
+    temporary.write_text(json.dumps(state, indent=2) + "\n")
+    temporary.replace(state_file)
+
+
+def upstream(bump=False, profile=None):
+    extra = {}
+    if profile:
+        catalog = profile_catalog()
+        if profile not in catalog:
+            raise SystemExit(f"unknown profile {profile!r}; known: {', '.join(sorted(catalog)) or 'none'}")
+        extra = catalog[profile]
+        remember_profile(profile)
     manifest_file = REPO / "upstream/vendor.json"
     manifest = json.loads(manifest_file.read_text())
     failed = []
@@ -45,6 +66,6 @@ def upstream(bump=False):
     if problem:
         print(f"kolin-skills: skipped third-party skills and tools: {problem}", file=sys.stderr)
     else:
-        third_party.install_skills(REPO, installed)
+        third_party.install_skills(REPO, installed, extra)
         failed += third_party.install_npm_tools(REPO)
     return run_apply(check=False, quiet=False) or (1 if failed else 0)

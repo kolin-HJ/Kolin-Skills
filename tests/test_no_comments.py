@@ -8,7 +8,7 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 HASH_COMMENT = re.compile(r"^\s*#(?!!)")
 SLASH_COMMENT = re.compile(r"^\s*(//|/\*)")
 GATE_DIRECTIVE = re.compile(r"((eslint|oxlint)-disable\S*|@ts-expect-error) .*-- \S")
-STYLE_BY_SUFFIX = {".py": HASH_COMMENT, ".sh": HASH_COMMENT, ".mjs": SLASH_COMMENT, ".js": SLASH_COMMENT, ".ts": SLASH_COMMENT, ".tsx": SLASH_COMMENT}
+STYLE_BY_SUFFIX = {".py": HASH_COMMENT, ".sh": HASH_COMMENT, ".mjs": SLASH_COMMENT, ".cjs": SLASH_COMMENT, ".js": SLASH_COMMENT, ".ts": SLASH_COMMENT, ".tsx": SLASH_COMMENT}
 
 
 def comment_style(path):

@@ -13,7 +13,7 @@ python3 bin/kolin-skills check-drift /path/to/hj-reporting
 python3 bin/kolin-skills check-drift /path/to/hj-ui
 ```
 
-Paths are clone roots, not GitHub URLs. A failure is a drifted pstack pin, a drifted synced `senior-reviewer`, or policy that still keeps stale every-PR reviewer or `interrogate` mandates. What the check compares: [`consumer-drift.md`](consumer-drift.md).
+Paths are clone roots, not GitHub URLs. A failure is a drifted pstack pin, a drifted synced `senior-reviewer`, or policy that still keeps stale every-PR reviewer or `interrogate` mandates. What the check compares: [`consumer-drift.md`](consumer-drift.md). After Kolin merges a Kolin-Skills change, each machine runs the recipe in [`stay-on-main.md`](stay-on-main.md) so home gets the trimmed skill set.
 
 ## Land a change
 
