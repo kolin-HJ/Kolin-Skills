@@ -5,6 +5,7 @@ import sys
 
 PREVIEW_PREFIX = "mcp__t3-code__preview_"
 WARN_EVERY = 40
+SAME_BATCH = 4
 
 
 def preview_call_count(transcript_path, exclude_id):
@@ -32,7 +33,7 @@ def preview_call_count(transcript_path, exclude_id):
 def main():
     event = json.load(sys.stdin)
     prior = preview_call_count(event.get("transcript_path"), event.get("tool_use_id"))
-    if not prior or prior % WARN_EVERY:
+    if prior < WARN_EVERY or prior % WARN_EVERY >= SAME_BATCH:
         return 0
     warning = (
         f"This thread already made {prior} preview calls. Each one re-reads the whole context. "

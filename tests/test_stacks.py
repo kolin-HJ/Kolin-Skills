@@ -59,25 +59,24 @@ class StacksTests(unittest.TestCase):
             self.ps_lines.append(f"{owner.pid}:/cache/bin/.postgres-wrapped -D {directory}/data/x")
             self.table_lines.append(f"{owner.pid} 1 /cache/bin/.postgres-wrapped -D {directory}/data/x")
         if transcript_hours is not None:
-            transcript = self.home / ".claude_personal/projects" / re.sub(r"[^A-Za-z0-9]", "-", root) / "s.jsonl"
-            transcript.parent.mkdir(parents=True, exist_ok=True)
-            transcript.write_text("{}")
-            when = datetime.datetime.now().timestamp() - transcript_hours * 3600
-            os.utime(transcript, (when, when))
+            self.touch_transcript(root, transcript_hours)
 
-    def verify_server(self, name, hours_started, transcript_hours=None, manager="pnpm", exit_code=0):
+    def touch_transcript(self, root, hours_ago):
+        transcript = self.home / ".claude_personal/projects" / re.sub(r"[^A-Za-z0-9]", "-", str(root)) / "s.jsonl"
+        transcript.parent.mkdir(parents=True, exist_ok=True)
+        transcript.write_text("{}")
+        when = datetime.datetime.now().timestamp() - hours_ago * 3600
+        os.utime(transcript, (when, when))
+
+    def verify_server(self, name, hours_started, transcript_hours=None, manager="pnpm", exit_code=0, server_pid=1):
         root = self.home / ".t3/worktrees/repo" / name
         (root / ".verify").mkdir(parents=True)
         (root / "package.json").write_text(json.dumps({"packageManager": f"{manager}@1.0.0"}))
         started = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=hours_started)
-        (root / ".verify/state.json").write_text(json.dumps({"startedAt": started.isoformat().replace("+00:00", "Z"), "serverPid": 1, "chromePid": 2}))
+        (root / ".verify/state.json").write_text(json.dumps({"startedAt": started.isoformat().replace("+00:00", "Z"), "serverPid": server_pid, "chromePid": 2}))
         self.executable(self.bin / manager, f'echo "{manager} $PWD $*" >> {self.home / "cleanup.log"}; exit {exit_code}')
         if transcript_hours is not None:
-            transcript = self.home / ".claude_personal/projects" / re.sub(r"[^A-Za-z0-9]", "-", str(root)) / "s.jsonl"
-            transcript.parent.mkdir(parents=True, exist_ok=True)
-            transcript.write_text("{}")
-            when = datetime.datetime.now().timestamp() - transcript_hours * 3600
-            os.utime(transcript, (when, when))
+            self.touch_transcript(root, transcript_hours)
         return root
 
     def cleanup_calls(self):
@@ -198,6 +197,29 @@ class StacksTests(unittest.TestCase):
         self.assertIn("keep  ", result.stdout)
         self.assertIn("2 verify servers, 0 idle", result.stdout)
         self.assertEqual(self.cleanup_calls(), [])
+
+    def test_verify_server_is_kept_while_another_process_works_in_its_checkout(self):
+        root = self.verify_server("live", 30, server_pid=500)
+        self.table_lines += ["500 1 next-server", "501 500 node turbopack-worker", "700 1 codex"]
+        self.lsof_out = f"p500\ncnext-server\nn{root}\np501\ncnode\nn{root}\np700\ncnode\nn{root}\n"
+        result = self.run_cli("--stop")
+        self.assertIn(f"skipped: a process works in {root}", result.stdout)
+        self.assertEqual(self.cleanup_calls(), [])
+
+    def test_verify_servers_own_processes_do_not_keep_it_alive(self):
+        root = self.verify_server("stale", 30, server_pid=500)
+        self.table_lines += ["500 1 next-server", "501 500 node turbopack-worker"]
+        self.lsof_out = f"p500\ncnext-server\nn{root}\np501\ncnode\nn{root}\n"
+        result = self.run_cli("--stop")
+        self.assertIn(f"{root}: stopped", result.stdout)
+
+    def test_unknown_package_manager_is_one_failure_line_and_others_still_stop(self):
+        odd = self.verify_server("yarn-repo", 30, manager="yarn")
+        bun = self.verify_server("bun-repo", 30, manager="bun")
+        result = self.run_cli("--stop")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"{odd}: verify cleanup not run: no cleanup runner for packageManager yarn", result.stdout)
+        self.assertIn(f"{bun}: stopped", result.stdout)
 
     def test_failed_verify_cleanup_fails_the_command(self):
         root = self.verify_server("a1", 30, exit_code=1)

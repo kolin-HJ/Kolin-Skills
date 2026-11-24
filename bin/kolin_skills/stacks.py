@@ -84,13 +84,24 @@ def stop_stacks(targets):
     return all(stack in signalled and not postgres_running(STACKS_DIR / stack["id"]) for stack in targets)
 
 
-def busy_roots(roots):
-    listing = subprocess.run(["lsof", "-a", "-d", "cwd", "-F", "cn"], capture_output=True, text=True).stdout
-    busy, command = set(), ""
+def process_tree(table, leaders):
+    tree, grew = set(leaders), True
+    while grew:
+        children = {pid for pid, ppid, _ in table if ppid in tree} - tree
+        tree |= children
+        grew = bool(children)
+    return tree
+
+
+def busy_roots(roots, ignore_pids=frozenset()):
+    listing = subprocess.run(["lsof", "-a", "-d", "cwd", "-F", "pcn"], capture_output=True, text=True).stdout
+    busy, pid, command = set(), 0, ""
     for line in listing.splitlines():
-        if line.startswith("c"):
+        if line.startswith("p"):
+            pid = int(line[1:])
+        elif line.startswith("c"):
             command = line[1:]
-        elif line.startswith("n") and not command.startswith(("supabase", "postgres", ".postgres")):
+        elif line.startswith("n") and pid not in ignore_pids and not command.startswith(("supabase", "postgres", ".postgres")):
             busy.update(root for root in roots if line[1:] == root or line[1:].startswith(root + "/"))
     return busy
 
