@@ -65,12 +65,13 @@ class StacksTests(unittest.TestCase):
             when = datetime.datetime.now().timestamp() - transcript_hours * 3600
             os.utime(transcript, (when, when))
 
-    def verify_server(self, name, hours_started, transcript_hours=None, pnpm_exit=0):
+    def verify_server(self, name, hours_started, transcript_hours=None, manager="pnpm", exit_code=0):
         root = self.home / ".t3/worktrees/repo" / name
         (root / ".verify").mkdir(parents=True)
+        (root / "package.json").write_text(json.dumps({"packageManager": f"{manager}@1.0.0"}))
         started = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=hours_started)
         (root / ".verify/state.json").write_text(json.dumps({"startedAt": started.isoformat().replace("+00:00", "Z"), "serverPid": 1, "chromePid": 2}))
-        self.executable(self.bin / "pnpm", f'echo "$PWD $*" >> {self.home / "pnpm.log"}; exit {pnpm_exit}')
+        self.executable(self.bin / manager, f'echo "{manager} $PWD $*" >> {self.home / "cleanup.log"}; exit {exit_code}')
         if transcript_hours is not None:
             transcript = self.home / ".claude_personal/projects" / re.sub(r"[^A-Za-z0-9]", "-", str(root)) / "s.jsonl"
             transcript.parent.mkdir(parents=True, exist_ok=True)
@@ -79,8 +80,8 @@ class StacksTests(unittest.TestCase):
             os.utime(transcript, (when, when))
         return root
 
-    def pnpm_calls(self):
-        log = self.home / "pnpm.log"
+    def cleanup_calls(self):
+        log = self.home / "cleanup.log"
         return log.read_text().splitlines() if log.exists() else []
 
     def backend(self, name, title):
@@ -178,11 +179,17 @@ class StacksTests(unittest.TestCase):
         root = self.verify_server("a1", 30, transcript_hours=5)
         listed = self.run_cli()
         self.assertIn(f"idle  {root}  verify server", listed.stdout)
-        self.assertEqual(self.pnpm_calls(), [])
+        self.assertEqual(self.cleanup_calls(), [])
         stopped = self.run_cli("--stop")
         self.assertEqual(stopped.returncode, 0)
         self.assertIn(f"{root}: stopped", stopped.stdout)
-        self.assertEqual(self.pnpm_calls(), [f"{root.resolve()} -s verify cleanup"])
+        self.assertEqual(self.cleanup_calls(), [f"pnpm {root.resolve()} -s verify cleanup"])
+
+    def test_idle_verify_server_in_a_bun_repo_cleans_up_through_bun(self):
+        root = self.verify_server("b1", 30, transcript_hours=5, manager="bun")
+        stopped = self.run_cli("--stop")
+        self.assertEqual(stopped.returncode, 0)
+        self.assertEqual(self.cleanup_calls(), [f"bun {root.resolve()} run --silent verify cleanup"])
 
     def test_verify_server_with_a_fresh_transcript_or_a_recent_start_is_kept(self):
         self.verify_server("busy", 30, transcript_hours=0.5)
@@ -190,10 +197,10 @@ class StacksTests(unittest.TestCase):
         result = self.run_cli("--stop")
         self.assertIn("keep  ", result.stdout)
         self.assertIn("2 verify servers, 0 idle", result.stdout)
-        self.assertEqual(self.pnpm_calls(), [])
+        self.assertEqual(self.cleanup_calls(), [])
 
     def test_failed_verify_cleanup_fails_the_command(self):
-        root = self.verify_server("a1", 30, pnpm_exit=1)
+        root = self.verify_server("a1", 30, exit_code=1)
         result = self.run_cli("--stop")
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"{root}: verify cleanup failed", result.stdout)

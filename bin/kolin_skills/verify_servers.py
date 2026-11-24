@@ -22,9 +22,17 @@ def verify_servers_found():
     return found
 
 
+RUN_SILENT = {"bun": ["bun", "run", "--silent"], "pnpm": ["pnpm", "-s"], "npm": ["npm", "run", "-s"]}
+
+
+def cleanup_command(root):
+    manager = json.loads(open(f"{root}/package.json").read()).get("packageManager", "npm").split("@")[0]
+    return [*RUN_SILENT[manager], "verify", "cleanup"]
+
+
 def run_cleanup(server):
     try:
-        done = subprocess.run(["pnpm", "-s", "verify", "cleanup"], cwd=server["root"], capture_output=True, text=True, timeout=CLEANUP_SECONDS)
+        done = subprocess.run(cleanup_command(server["root"]), cwd=server["root"], capture_output=True, text=True, timeout=CLEANUP_SECONDS)
     except subprocess.TimeoutExpired:
         return f"  {server['root']}: verify cleanup took over {CLEANUP_SECONDS}s", False
     if done.returncode:
