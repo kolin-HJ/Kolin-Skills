@@ -50,6 +50,13 @@ DOCKER_DB_MESSAGE = (
     "carry on with the task. Elsewhere, run `supabase start --runtime native --output-format json`, "
     "connect with its env.DB_URL, and carry on with the task."
 )
+LONG_SLEEP = re.compile(COMMAND_START + r"sleep\s+(?:[5-9]|\d{2,})(?:\.\d+)?\b")
+POLL_LOOP = re.compile(COMMAND_START + r"(?:until|while)\b(?:(?!\bdone\b).)*?\bdo\b(?:(?!\bdone\b).)*?\bsleep\b", re.DOTALL)
+POLL_MESSAGE = (
+    "Blocked: this command waits by polling (a `sleep` of 5 s or more, or an until/while loop that sleeps). "
+    "Run the job itself with run_in_background: true, then wait for its completion notification with "
+    "t3_background_wait or Monitor, and do other work meanwhile."
+)
 MERGE = re.compile(COMMAND_START + r"gh\s+pr\s+merge\b([^;&|)\n]*)")
 REPO_FLAG = re.compile(r"(?:--repo[=\s]|-R\s*)(\S+)")
 AUTO_FLAG = re.compile(r"(?:^|\s)--auto(?:\s|=|$)")
@@ -170,6 +177,9 @@ def main() -> int:
     if DOCKER_DB.search(code):
         print(DOCKER_DB_MESSAGE, file=sys.stderr)
         return 2
+    if not background and (LONG_SLEEP.search(code) or POLL_LOOP.search(code)):
+        print(POLL_MESSAGE, file=sys.stderr)
+        return 2
     merge = MERGE.search(code)
     if merge:
         blocked = merge_block(merge.group(1), payload.get("cwd") or ".")
@@ -184,9 +194,9 @@ def main() -> int:
     if heavy:
         default_ms, ceiling_ms = TIMEOUT_MS[background]
         timeout_ms = tool_input.get("timeout") or default_ms
-        max_wait_ms = max(0, min(timeout_ms // 2, ceiling_ms - timeout_ms))
+        max_wait_ms = timeout_ms // 2
         prefix = f"python3 {shlex.quote(str(SLOT))} $$ {max_wait_ms // 1000}\n"
-        updated = {**updated, "command": prefix + updated["command"], "timeout": timeout_ms + max_wait_ms}
+        updated = {**updated, "command": prefix + updated["command"], "timeout": min(timeout_ms + max_wait_ms, ceiling_ms)}
     if updated == tool_input:
         return 0
     output = {"hookEventName": "PreToolUse", "updatedInput": updated}
