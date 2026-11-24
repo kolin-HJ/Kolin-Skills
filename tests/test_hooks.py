@@ -15,6 +15,7 @@ ENV_HOOK = REPO / "hooks/block-env-reads.py"
 BASH_GUARD = REPO / "hooks/bash-guard.py"
 SLOT = REPO / "hooks/heavy-slot.py"
 MODEL_HOOK = REPO / "hooks/agent-default-model.py"
+PREVIEW_HOOK = REPO / "hooks/preview-budget.py"
 
 
 def invoke(hook, payload, cwd):
@@ -300,6 +301,26 @@ class NativeHookPayloadTests(unittest.TestCase):
             self.assertIn("4 review subagents", context)
             quiet = invoke(MODEL_HOOK, {"cwd": directory, "transcript_path": str(transcript), "tool_input": {"subagent_type": "poteto-agent"}}, directory)
             self.assertEqual((quiet.returncode, quiet.stdout), (0, ""))
+
+    def test_preview_budget_warns_when_the_count_crosses_each_fortieth_call(self):
+        with tempfile.TemporaryDirectory() as directory:
+            transcript = pathlib.Path(directory) / "session.jsonl"
+            calls = [
+                {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": f"toolu_{n}", "name": "mcp__t3-code__preview_evaluate", "input": {}}]}}
+                for n in range(50)
+            ]
+
+            def preview_hook_after(prior):
+                transcript.write_text("".join(json.dumps(call) + "\n" for call in calls[:prior]))
+                return invoke(PREVIEW_HOOK, {"transcript_path": str(transcript), "tool_use_id": f"toolu_{prior}"}, directory)
+
+            warned = preview_hook_after(40)
+            self.assertEqual(warned.returncode, 0, warned.stderr)
+            self.assertIn("40 preview calls", json.loads(warned.stdout)["hookSpecificOutput"]["additionalContext"])
+            self.assertIn("41 preview calls", preview_hook_after(41).stdout)
+            self.assertEqual(preview_hook_after(39).stdout, "")
+            self.assertEqual(preview_hook_after(44).stdout, "")
+            self.assertEqual(invoke(PREVIEW_HOOK, {"tool_use_id": "toolu_1"}, directory).stdout, "")
 
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
         with tempfile.TemporaryDirectory() as directory:

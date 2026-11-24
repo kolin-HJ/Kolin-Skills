@@ -59,11 +59,29 @@ class StacksTests(unittest.TestCase):
             self.ps_lines.append(f"{owner.pid}:/cache/bin/.postgres-wrapped -D {directory}/data/x")
             self.table_lines.append(f"{owner.pid} 1 /cache/bin/.postgres-wrapped -D {directory}/data/x")
         if transcript_hours is not None:
-            transcript = self.home / ".claude_personal/projects" / re.sub(r"[^A-Za-z0-9]", "-", root) / "s.jsonl"
-            transcript.parent.mkdir(parents=True, exist_ok=True)
-            transcript.write_text("{}")
-            when = datetime.datetime.now().timestamp() - transcript_hours * 3600
-            os.utime(transcript, (when, when))
+            self.touch_transcript(root, transcript_hours)
+
+    def touch_transcript(self, root, hours_ago):
+        transcript = self.home / ".claude_personal/projects" / re.sub(r"[^A-Za-z0-9]", "-", str(root)) / "s.jsonl"
+        transcript.parent.mkdir(parents=True, exist_ok=True)
+        transcript.write_text("{}")
+        when = datetime.datetime.now().timestamp() - hours_ago * 3600
+        os.utime(transcript, (when, when))
+
+    def verify_server(self, name, hours_started, transcript_hours=None, manager="pnpm", exit_code=0, server_pid=1):
+        root = self.home / ".t3/worktrees/repo" / name
+        (root / ".verify").mkdir(parents=True)
+        (root / "package.json").write_text(json.dumps({"packageManager": f"{manager}@1.0.0"}))
+        started = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=hours_started)
+        (root / ".verify/state.json").write_text(json.dumps({"startedAt": started.isoformat().replace("+00:00", "Z"), "serverPid": server_pid, "chromePid": 2}))
+        self.executable(self.bin / manager, f'echo "{manager} $PWD $*" >> {self.home / "cleanup.log"}; exit {exit_code}')
+        if transcript_hours is not None:
+            self.touch_transcript(root, transcript_hours)
+        return root
+
+    def cleanup_calls(self):
+        log = self.home / "cleanup.log"
+        return log.read_text().splitlines() if log.exists() else []
 
     def backend(self, name, title):
         self.table_lines.append(f"99{len(self.table_lines)} {self.owners[name].pid} postgres: main: {title}          ")
@@ -155,6 +173,70 @@ class StacksTests(unittest.TestCase):
     def test_transcript_folder_name_replaces_every_symbol(self):
         self.stack("a1", 30, root="/work/my_app.v2", transcript_hours=0.5)
         self.assertIn("keep  /work/my_app.v2", self.run_cli().stdout)
+
+    def test_idle_verify_server_gets_the_repos_own_cleanup(self):
+        root = self.verify_server("a1", 30, transcript_hours=5)
+        listed = self.run_cli()
+        self.assertIn(f"idle  {root}  verify server", listed.stdout)
+        self.assertEqual(self.cleanup_calls(), [])
+        stopped = self.run_cli("--stop")
+        self.assertEqual(stopped.returncode, 0)
+        self.assertIn(f"{root}: stopped", stopped.stdout)
+        self.assertEqual(self.cleanup_calls(), [f"pnpm {root.resolve()} -s verify cleanup"])
+
+    def test_idle_verify_server_in_a_bun_repo_cleans_up_through_bun(self):
+        root = self.verify_server("b1", 30, transcript_hours=5, manager="bun")
+        stopped = self.run_cli("--stop")
+        self.assertEqual(stopped.returncode, 0)
+        self.assertEqual(self.cleanup_calls(), [f"bun {root.resolve()} run --silent verify cleanup"])
+
+    def test_verify_server_with_a_fresh_transcript_or_a_recent_start_is_kept(self):
+        self.verify_server("busy", 30, transcript_hours=0.5)
+        self.verify_server("new", 1)
+        result = self.run_cli("--stop")
+        self.assertIn("keep  ", result.stdout)
+        self.assertIn("2 verify servers, 0 idle", result.stdout)
+        self.assertEqual(self.cleanup_calls(), [])
+
+    def test_verify_server_is_kept_while_another_process_works_in_its_checkout(self):
+        root = self.verify_server("live", 30, server_pid=500)
+        self.table_lines += ["500 1 next-server", "501 500 node turbopack-worker", "700 1 codex"]
+        self.lsof_out = f"p500\ncnext-server\nn{root}\np501\ncnode\nn{root}\np700\ncnode\nn{root}\n"
+        result = self.run_cli("--stop")
+        self.assertIn(f"skipped: a process works in {root}", result.stdout)
+        self.assertEqual(self.cleanup_calls(), [])
+
+    def test_verify_servers_own_processes_do_not_keep_it_alive(self):
+        root = self.verify_server("stale", 30, server_pid=500)
+        self.table_lines += ["500 1 next-server", "501 500 node turbopack-worker"]
+        self.lsof_out = f"p500\ncnext-server\nn{root}\np501\ncnode\nn{root}\n"
+        result = self.run_cli("--stop")
+        self.assertIn(f"{root}: stopped", result.stdout)
+
+    def test_unknown_package_manager_is_one_failure_line_and_others_still_stop(self):
+        odd = self.verify_server("yarn-repo", 30, manager="yarn")
+        bun = self.verify_server("bun-repo", 30, manager="bun")
+        result = self.run_cli("--stop")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"{odd}: verify cleanup not run: no cleanup runner for packageManager yarn", result.stdout)
+        self.assertIn(f"{bun}: stopped", result.stdout)
+
+    def test_unreadable_verify_states_are_one_line_each_and_others_still_stop(self):
+        good = self.verify_server("good", 30, manager="bun")
+        for name, body in [("list", "[]"), ("naive", json.dumps({"startedAt": "2026-01-01T00:00:00"})), ("broken", "{")]:
+            root = self.home / ".t3/worktrees/repo" / name
+            (root / ".verify").mkdir(parents=True)
+            (root / ".verify/state.json").write_text(body)
+        result = self.run_cli("--stop")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.count("unreadable verify state"), 3)
+        self.assertIn(f"{good}: stopped", result.stdout)
+
+    def test_failed_verify_cleanup_fails_the_command(self):
+        root = self.verify_server("a1", 30, exit_code=1)
+        result = self.run_cli("--stop")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"{root}: verify cleanup failed", result.stdout)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ description: The builder. Spawn one only for a large, independent unit of code w
 background: true
 model: sonnet
 effort: high
+maxTurns: 80
 tools: Read, Grep, Glob, Bash, Edit, Write, Monitor, TaskStop
 ---
 
@@ -25,7 +26,7 @@ Read the repo's `AGENTS.md` and each skill the brief names.
 - A file outside your list needs a change, or a file changed under you.
 - A check fails twice on its own result. A timeout or a busy tool is not a failure: wait and retry it.
 - The unit needs a tool you lack: an MCP server, a browser, the web, or another agent. The orchestrator runs it or puts its result in the brief.
-- You pass about 60 tool calls and the unit is not done. Report what is done and what is left, so the orchestrator starts a fresh builder: a long builder re-reads its whole context on every call.
+- You pass about 60 turns and the unit is not done. Report what is done and what is left, so the orchestrator starts a fresh builder: a long builder re-reads its whole context on every turn, and `maxTurns: 80` cuts the run without your report.
 - The brief reads two ways, or the work needs a design, security, data, data structure or behavior decision.
 
 Never commit, push, merge or deploy. Never add behavior the brief did not ask for.

@@ -263,7 +263,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `kolin-skills pull` | Fast-forwards to `origin/main` when it safely can, then applies. Runs at Claude Code and Codex session start |
 | `kolin-skills upstream` | Installs git pins and CLIs at their pins. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. `--bump` moves the git pins. Edit `upstream/tools.json` to move a CLI |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into this repo |
-| `kolin-skills stacks` | Lists running local Supabase stacks. `--stop` stops the idle ones, and each Claude session start runs it with `--idle-hours 2` |
+| `kolin-skills stacks` | Lists running local Supabase stacks and `verify launch` servers (a `.verify/state.json` in a T3 or Codex worktree). `--stop` stops the idle ones (a Supabase owner gets SIGTERM; a verify server gets the repo's own `pnpm -s verify cleanup`, which also stops its Chrome), and each Claude session start runs it with `--idle-hours 2` |
 | `kolin-skills check` | The gate: drift, stray files, pins, spend caps, file length, tools, tests and comments. `--quick` checks only home, in seconds. `--files` checks only file length. In a worktree it skips home drift. In CI it skips home and vendored skills |
 | `kolin-skills check-drift <path>` | Fails when another repo's copy of pstack or `senior-reviewer` differs from this repo, or its policy keeps stale every-PR reviewer or `interrogate` mandates. See [`docs/consumer-drift.md`](docs/consumer-drift.md) |
 | `pr-body <base> --feature NAME=PATHS` | Prints a one-screen PR body skeleton: a line per feature with its size, Check these, Cleanup and Verification |
@@ -289,6 +289,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `lint-changed-lines.py` | Claude Code, Codex, Cursor | Lints the JS and TS lines the agent just changed |
 | `compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through context compaction |
 | `agent-default-model.py` | Claude Code | Blocks `Plan` (starts without policy), redirects `Interrogate` off `general-purpose` to read-only `senior-reviewer`, floors `senior-reviewer` at Opus, runs unpinned `Explore` on Sonnet, and warns past 4 review spawns in one session |
+| `preview-budget.py` | Claude Code | Warns at every 40th `preview_*` call in one thread to hand the UI drive to the repo's `verifier` |
 | `keep-awake.py` | Claude Code | Keeps the Mac awake during each prompt and subagent run |
 
 </details>
