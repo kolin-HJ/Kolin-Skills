@@ -21,6 +21,6 @@ No marker: pass. A recorded rev may be a unique abbreviation of the full pin. Po
 
 ## hj-supply-chain (later PR)
 
-As of 2026-11-22 on `origin/staging`, it vendors pstack into `.agents/skills` at `df58112` through `scripts/sync-agent-skills.sh`, behind the pin (`7a583913`, pstack 0.15.46), so `check-drift` fails there. Its synced `.claude/agents/senior-reviewer.md` is gone; only its own `verifier` remains.
+As of 2026-11-22 on `origin/staging`, it vendors pstack into `.agents/skills` at `df58112` through `scripts/sync-agent-skills.sh`, behind the pin (`005d8f6e`, pstack 0.15.48), so `check-drift` fails there. Its synced `.claude/agents/senior-reviewer.md` is gone; only its own `verifier` remains.
 
 In Claude Code the home skill wins over a repo skill of the same name, so the vendored copy only serves agents with no wired home, such as cloud agents. Stop vendoring pstack in that repo once those agents can run `kolin-skills install`. Do not do that in this PR.
