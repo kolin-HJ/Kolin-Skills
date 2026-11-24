@@ -174,7 +174,7 @@ Git pins live in `upstream/vendor.json` and CLIs in `upstream/tools.json`. The `
 
 | Source | Skills | When they start |
 |---|---|---|
-| [pstack](https://github.com/cursor/plugins) | `poteto-mode`, `how`, `why`, `teach`, `architect`, `interrogate`, `swarm`, `arena`, `tdd`, `unslop`, `technical-writing`, `no-comments`, `correct`, `statechart`, the `principle-*` skills and more | When a task or playbook needs one. You can also type `/how`, `/architect` and the rest |
+| [pstack](https://github.com/cursor/plugins) | `poteto-mode`, `how`, `why`, `teach`, `architect`, `interrogate`, `swarm`, `arena`, `tdd`, `unslop`, `technical-writing`, `no-comments`, `correct`, `statechart`, `reframe`, the `principle-*` skills and more | When a task or playbook needs one. You can also type `/how`, `/architect` and the rest. `reframe` is manual-only; type `/reframe` |
 | cursor-team-kit | `deslop`, `control-ui`, `control-cli` | 💬 To clean AI slop out of code, or to drive a web UI or a CLI |
 | cursor-team-kit | `thermo-nuclear-code-quality-review` | High-risk work, or when you ask for a harsh structure review |
 | `npx skills` | `find-skills` | ⌨️ |
