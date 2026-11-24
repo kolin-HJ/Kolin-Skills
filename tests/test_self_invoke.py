@@ -13,12 +13,11 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 PSTACK_SKILLS = "cursor-plugins/pstack/skills"
 LOCKED_FRONTMATTER = "---\nname: {name}\ndescription: test {name}\ndisable-model-invocation: true\nicon: crown\n---\n\n# {name}\n"
 SELF_INVOKING = [
-    "poteto-mode", "how", "architect", "tdd", "interrogate", "correct",
-    "principle-model-the-domain", "principle-laziness-protocol", "principle-subtract-before-you-add",
-    "principle-type-system-discipline", "principle-minimize-reader-load", "principle-boundary-discipline",
+    "architect", "how", "statechart", "unslop", "deslop", "thermo-nuclear-code-quality-review",
 ]
-USER_ONLY = ["swarm", "reflect", "principle-build-the-lever"]
-OWN_USER_ONLY_SKILLS = ["full-send", "hydrojug-untangle"]
+USER_ONLY = ["poteto-mode", "swarm", "tdd", "correct"]
+OWN_USER_ONLY_SKILLS = ["full-send", "hydrojug-untangle", "repo-standard", "user-notes", "council"]
+MANUAL_OWN_SKILLS = ["repo-standard", "user-notes", "full-send", "council"]
 
 
 def has_model_lock(skill_file):
@@ -62,13 +61,12 @@ class ApplySelfInvokeTests(SelfInvokeCase):
                     self.assertEqual(skill_file.read_text(), f"---\nname: {name}\ndescription: test {name}\nicon: crown\n---\n\n# {name}\n")
                     self.assertEqual((self.home / home / name / "references/guide.md").read_text(), f"guide of {name}\n")
 
-    def test_apply_leaves_every_other_pstack_skill_and_the_vendor_files_locked(self):
+    def test_apply_does_not_link_vendored_skills_outside_the_allowlist(self):
         self.apply()
         for name in USER_ONLY:
             with self.subTest(skill=name):
-                linked = self.home / ".claude/skills" / name / "SKILL.md"
-                self.assertTrue(has_model_lock(linked))
-                self.assertEqual((self.home / ".claude/skills" / name).resolve(), (self.vendor / name).resolve())
+                self.assertFalse((self.home / ".claude/skills" / name).exists(), name)
+                self.assertFalse((self.home / ".agents/skills" / name).exists(), name)
         for name in SELF_INVOKING:
             with self.subTest(vendor=name):
                 self.assertEqual((self.vendor / name / "SKILL.md").read_text(), LOCKED_FRONTMATTER.format(name=name))
@@ -77,9 +75,9 @@ class ApplySelfInvokeTests(SelfInvokeCase):
         self.apply()
         for home in [".agents/skills", ".claude/skills"]:
             with self.subTest(home=home):
-                poteto = self.home / home / "poteto-mode"
-                self.assertEqual((poteto / "../how/SKILL.md").read_text().splitlines()[1], "name: how")
-                self.assertEqual((poteto / "../swarm/SKILL.md").read_text().splitlines()[1], "name: swarm")
+                architect = self.home / home / "architect"
+                self.assertEqual((architect / "../how/SKILL.md").read_text().splitlines()[1], "name: how")
+                self.assertEqual((architect / "../unslop/SKILL.md").read_text().splitlines()[1], "name: unslop")
 
     def test_apply_stays_idempotent_and_follows_an_upstream_change_to_the_skill(self):
         self.apply()
@@ -93,10 +91,10 @@ class ApplySelfInvokeTests(SelfInvokeCase):
 
     def test_an_allowlisted_skill_that_upstream_dropped_is_unlinked(self):
         self.apply()
-        shutil.rmtree(self.vendor / "tdd")
+        shutil.rmtree(self.vendor / "unslop")
         self.apply()
         for home in [".agents/skills", ".claude/skills"]:
-            self.assertFalse((self.home / home / "tdd").is_symlink(), home)
+            self.assertFalse((self.home / home / "unslop").is_symlink(), home)
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
 
@@ -118,7 +116,8 @@ class DerivedTreeTests(SelfInvokeCase):
     def test_a_skill_that_joins_the_allowlist_later_is_derived_without_writing_under_the_vendor(self):
         original = self.allowlist_without("how")
         self.apply()
-        self.assertEqual(self.derived("how").resolve(), (self.vendor / "how").resolve())
+        self.assertFalse(self.derived("how").exists())
+        self.assertFalse((self.home / ".claude/skills/how").exists())
         (self.repo / "bin/kolin_skills/helpers.py").write_text(original)
         self.apply()
         self.assertEqual((self.vendor / "how/SKILL.md").read_text(), LOCKED_FRONTMATTER.format(name="how"))
@@ -129,50 +128,58 @@ class DerivedTreeTests(SelfInvokeCase):
         self.assertEqual((self.home / ".claude/skills/how/references/guide.md").read_text(), "guide of how\n")
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
-    def test_a_skill_that_leaves_the_allowlist_goes_back_to_the_vendored_folder_without_a_backup(self):
+    def test_a_skill_that_leaves_the_allowlist_is_unlinked_without_a_backup(self):
         self.apply()
         self.allowlist_without("how")
         self.apply()
-        self.assertEqual((self.home / ".claude/skills/how").resolve(), (self.vendor / "how").resolve())
-        self.assertTrue(has_model_lock(self.home / ".claude/skills/how/SKILL.md"))
-        self.assertEqual(self.derived("how").resolve(), (self.vendor / "how").resolve())
+        self.assertFalse((self.home / ".claude/skills/how").exists())
+        self.assertFalse((self.home / ".agents/skills/how").exists())
+        self.assertFalse(self.derived("how").exists())
         self.assertFalse((self.home / ".kolin-skills/backup").exists())
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
     def test_a_subpath_that_upstream_deletes_leaves_no_dangling_link_in_the_derived_folder(self):
         self.apply()
-        shutil.rmtree(self.vendor / "poteto-mode/references")
-        (self.derived("poteto-mode") / "stray.md").write_text("left behind\n")
+        shutil.rmtree(self.vendor / "how/references")
+        (self.derived("how") / "stray.md").write_text("left behind\n")
         self.apply()
-        self.assertEqual(sorted(os.listdir(self.derived("poteto-mode"))), ["SKILL.md"])
+        self.assertEqual(sorted(os.listdir(self.derived("how"))), ["SKILL.md"])
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
     def test_a_skill_that_upstream_drops_leaves_no_entry_in_the_derived_folder(self):
         self.apply()
-        shutil.rmtree(self.vendor / "tdd")
+        shutil.rmtree(self.vendor / "unslop")
         shutil.rmtree(self.vendor / "swarm")
         self.apply()
         remaining = sorted(os.listdir(self.derived()))
-        self.assertEqual(remaining, sorted(set(SELF_INVOKING + USER_ONLY) - {"tdd", "swarm"}))
+        self.assertEqual(remaining, sorted(set(SELF_INVOKING) - {"unslop"}))
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
     def test_a_dangling_link_inside_a_derived_folder_fails_the_quick_check(self):
         self.apply()
-        shutil.rmtree(self.vendor / "poteto-mode/references")
+        shutil.rmtree(self.vendor / "how/references")
         result = self.run_cli("check", "--quick")
         self.assertEqual(result.returncode, 1)
-        self.assertIn("remove ~/.kolin-skills/derived/poteto-mode/references", result.stdout)
+        self.assertIn("remove ~/.kolin-skills/derived/how/references", result.stdout)
         self.assertEqual(
             [line for line in result.stderr.splitlines() if line.startswith("FAIL:")],
             ["FAIL: home differs from the repo; fix each line above",
-             f"FAIL: ~/.kolin-skills/derived/poteto-mode/references links to {self.vendor}/poteto-mode/references, which does not exist; run kolin-skills apply"],
+             f"FAIL: ~/.kolin-skills/derived/how/references links to {self.vendor}/how/references, which does not exist; run kolin-skills apply"],
         )
 
 
 class UserOnlyOwnSkillsTests(SelfInvokeCase):
     def test_the_user_only_process_skills_are_never_on_the_allowlist(self):
-        self_invoking = runpy.run_path(str(REPO / "bin/kolin_skills/helpers.py"), run_name="not_main")["self_invoking"]
-        self.assertEqual([name for name in OWN_USER_ONLY_SKILLS if self_invoking(name)], [])
+        helpers = runpy.run_path(str(REPO / "bin/kolin_skills/helpers.py"), run_name="not_main")
+        self.assertEqual([name for name in OWN_USER_ONLY_SKILLS if helpers["self_invoking"](name)], [])
+        self.assertFalse(helpers["SELF_INVOKING_SKILLS"] & {
+            "poteto-mode", "tdd", "interrogate", "correct", "principle-model-the-domain",
+        })
+
+    def test_named_manual_skills_set_the_model_lock_in_the_repo(self):
+        for name in MANUAL_OWN_SKILLS:
+            with self.subTest(skill=name):
+                self.assertTrue(has_model_lock(REPO / "skills" / name / "SKILL.md"), name)
 
     def test_apply_links_the_user_only_process_skills_unchanged_even_when_the_vendor_ships_the_same_name(self):
         for name in OWN_USER_ONLY_SKILLS:
@@ -200,20 +207,20 @@ class QuickCheckTests(SelfInvokeCase):
 
     def test_a_pstack_skill_linked_with_its_model_lock_fails_the_quick_check(self):
         self.apply()
-        agents_link = self.home / ".agents/skills/poteto-mode"
+        agents_link = self.home / ".agents/skills/how"
         agents_link.unlink()
-        agents_link.symlink_to(self.vendor / "poteto-mode")
+        agents_link.symlink_to(self.vendor / "how")
         result = self.run_cli("check", "--quick")
         self.assertEqual(result.returncode, 1)
-        self.assertIn(f"FAIL: ~/.agents/skills/poteto-mode/SKILL.md sets disable-model-invocation, so the agent cannot start it; run kolin-skills apply", self.failures(result))
+        self.assertIn(f"FAIL: ~/.agents/skills/how/SKILL.md sets disable-model-invocation, so the agent cannot start it; run kolin-skills apply", self.failures(result))
 
     def test_a_missing_allowlisted_skill_fails_the_quick_check(self):
         self.apply()
-        shutil.rmtree(self.vendor / "poteto-mode")
+        shutil.rmtree(self.vendor / "how")
         self.apply()
         result = self.run_cli("check", "--quick")
         self.assertEqual(result.returncode, 1)
-        self.assertIn("FAIL: ~/.agents/skills/poteto-mode is not installed; run kolin-skills upstream", self.failures(result))
+        self.assertIn("FAIL: ~/.agents/skills/how is not installed; run kolin-skills upstream", self.failures(result))
 
     def test_an_unlinked_policy_and_unwired_hooks_fail_the_quick_check_with_the_fix_for_each(self):
         self.apply()

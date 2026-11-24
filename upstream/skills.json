@@ -8,39 +8,7 @@
   "vercel-labs/agent-browser": [
     "agent-browser"
   ],
-  "heygen-com/hyperframes": [
-    "hyperframes",
-    "hyperframes-cli",
-    "hyperframes-registry",
-    "media-use",
-    "reverse-any-video",
-    "style-sampling",
-    "slideshow"
-  ],
   "benjitaylor/skills": [
     "stageshow"
-  ],
-  "mattpocock/skills": [
-    "ask-matt",
-    "code-review",
-    "codebase-design",
-    "domain-modeling",
-    "grill-me",
-    "grill-with-docs",
-    "grilling",
-    "to-spec",
-    "to-tickets",
-    "implement",
-    "implement-spec",
-    "prototype",
-    "research",
-    "triage",
-    "wayfinder",
-    "retro",
-    "handoff",
-    "to-questionnaire",
-    "wait-what",
-    "improve-codebase-architecture",
-    "setup-matt-pocock-skills"
   ]
 }

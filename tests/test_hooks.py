@@ -268,7 +268,7 @@ class NativeHookPayloadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             blocked = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": {"subagent_type": "Plan", "description": "Plan refactor"}}, directory)
             self.assertEqual(blocked.returncode, 2)
-            self.assertIn("judge", blocked.stderr)
+            self.assertIn("senior-reviewer", blocked.stderr)
             cases = [
                 ({"subagent_type": "general-purpose", "description": "Interrogate: correctness lens"}, "senior-reviewer", "opus"),
                 ({"description": "Interrogate: correctness lens"}, "senior-reviewer", "opus"),

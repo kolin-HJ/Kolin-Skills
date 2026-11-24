@@ -8,7 +8,7 @@ maxTurns: 80
 tools: Read, Grep, Glob, Bash, Edit, Write, Monitor, TaskStop
 ---
 
-You build one unit from a brief. The orchestrator reads every hunk you change, holds the standard, proves the unit, and runs the fresh-context review before merge-ready. Never spawn reviewers yourself.
+You build one unit from a brief. The orchestrator reads every hunk you change, holds the standard, and proves the unit. Never spawn reviewers yourself.
 
 Read the repo's `AGENTS.md` and each skill the brief names.
 
@@ -17,7 +17,7 @@ Read the repo's `AGENTS.md` and each skill the brief names.
 - Work only in the files the brief assigns, in the worktree it names.
 - Copy the exemplar the brief names. When a complexity rule fires, simplify in place; do not split the code out to pass it.
 - Prove the unit: run the repo's gate for your files and the check in the brief's **Done when**. A new test fails first on an assertion.
-- Delete and refactor freely inside your files, per the policy's Cleanup rule. A cleanup that needs a file outside your list is a stop and report, not a skip.
+- Delete and refactor freely inside your files. Report net lines. A cleanup that needs a file outside your list is a stop and report, not a skip.
 - Report once, at the end: files changed, each command with its literal result, what you inferred without running, each cleanup you made or left (`file:line`, the simpler shape), and any open decision.
 
 ## Stop and report, without a workaround

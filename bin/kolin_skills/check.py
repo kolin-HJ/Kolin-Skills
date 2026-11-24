@@ -13,11 +13,11 @@ import time
 import third_party
 from kolin_skills.apply import points_into_managed_tree, run_apply
 from kolin_skills.helpers import (
-    DERIVED, HOME, LINKS, MAX_FILE_LINES, MODEL_LOCK_KEY, OWN_SKILL_HOMES, QUICK_CHECK_SECONDS,
-    REPO, REQUIRED_TOOLS, SELF_INVOKING_SKILLS, SKILL_INDEXES, SPEND_CAPS, TEST_FILES_AT_ONCE,
-    TEST_FILE_SECONDS, VENDOR, VENDOR_SKILL_HOMES, antigravity_config_dirs, frontmatter_keys,
-    line_count, model_locked, running_in_ci, self_invoking, vendor_skills, wired_repo,
-    without_git_repo_env,
+    DERIVED, HOME, LINKS, MAX_FILE_LINES, MODEL_LOCK_KEY, OWN_SKILL_HOMES, POLICY_MAX_BYTES,
+    PSTACK_LOCAL_MAX_BYTES, QUICK_CHECK_SECONDS, REPO, REQUIRED_TOOLS, SELF_INVOKING_SKILLS,
+    SKILL_INDEXES, SPEND_CAPS, TEST_FILES_AT_ONCE, TEST_FILE_SECONDS, VENDOR, VENDOR_SKILL_HOMES,
+    antigravity_config_dirs, frontmatter_keys, line_count, model_locked, running_in_ci,
+    self_invoking, vendor_skills, wired_repo, without_git_repo_env,
 )
 
 PSTACK_SOURCE = ".agents/PSTACK.SOURCE"
@@ -49,6 +49,9 @@ MERGE_READY_PASS = re.compile(
     r"one\s+fresh-context\s+read-only\s+(?:review|senior-reviewer|judge)|"
     r"merge-ready\s+(?:review|handoff))"
 )
+SIZE_REVIEW_PASS = re.compile(
+    r"(?i)(?:every|each)\s+(?:pr|pull\s+request)s?\s+over"
+)
 HEAVY_REVIEW_ACTOR = re.compile(
     r"(?i)\b(interrogate|thermo(?:-nuclear[\w-]*)?|formal\s+verification|statechart)s?\b"
 )
@@ -65,6 +68,18 @@ def spend_failures():
     if "agent-default-model.py" not in json.dumps(settings.get("hooks", {}).get("PreToolUse", [])):
         failures.append("claude settings PreToolUse must run hooks/agent-default-model.py so a repo copy of senior-reviewer cannot pin below Opus")
     return failures
+
+
+def instruction_size_problems():
+    problems = []
+    for relative, limit in (("policy/AGENTS.md", POLICY_MAX_BYTES), ("skills/pstack-local/SKILL.md", PSTACK_LOCAL_MAX_BYTES)):
+        path = REPO / relative
+        if not path.is_file():
+            continue
+        size = path.stat().st_size
+        if size > limit:
+            problems.append(f"{relative} is {size} bytes, over the {limit}-byte limit; cut it")
+    return problems
 
 
 def overlong_files(root=REPO, limit=MAX_FILE_LINES):
@@ -160,6 +175,8 @@ def requires_reviewer_everywhere(chunks):
         if EVERY_REVIEWER_GATE.search(chunk):
             if MERGE_READY_PASS.search(chunk) and not HEAVY_REVIEW_ACTOR.search(chunk):
                 continue
+            if SIZE_REVIEW_PASS.search(chunk) or SIZE_REVIEW_PASS.search(window):
+                continue
             return True
     return False
 
@@ -173,7 +190,7 @@ def reviewer_gate_problems(target):
         if any(requires_reviewer_everywhere(chunks) for chunks in policy_paragraphs(path.read_text())):
             problems.append(
                 f"{relative} still requires a separate reviewer or interrogate gate on every PR or every staging merge; "
-                "same-session proof comes first, with one fresh-context merge-ready review (senior-reviewer or judge) "
+                "same-session proof comes first, with senior-reviewer on a PR over about 300 lines "
                 "and interrogate strictly high-risk or ask-only, as in Kolin-Skills policy/AGENTS.md"
             )
     return problems
@@ -331,7 +348,7 @@ def python_test_failures(test_env):
 def check(files_only=False):
     failures = [f"{entry}, over the {MAX_FILE_LINES}-line limit; split it in its own change"
                 for entry in overlong_files()]
-    failures += unloadable_skill_problems() + hook_command_problems()
+    failures += instruction_size_problems() + unloadable_skill_problems() + hook_command_problems()
     if files_only:
         for failure in failures:
             print(f"FAIL: {failure}", file=sys.stderr)

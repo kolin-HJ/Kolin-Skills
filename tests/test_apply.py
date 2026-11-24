@@ -94,12 +94,12 @@ class ApplyTests(unittest.TestCase):
 
     def test_removing_a_skill_or_agent_from_the_repo_removes_it_everywhere(self):
         self.assertEqual(self.run_cli("apply").returncode, 0)
-        self.assertIn('sandbox_mode = "read-only"', (self.home / ".codex/agents/judge.toml").read_text())
+        self.assertIn('sandbox_mode = "read-only"', (self.home / ".codex/agents/senior-reviewer.toml").read_text())
         shutil.rmtree(self.repo / "skills/explainer")
-        (self.repo / "agents/judge.md").unlink()
+        (self.repo / "agents/poteto-agent.md").unlink()
         self.assertEqual(self.run_cli("apply").returncode, 0)
         for relative in [".agents/skills/explainer", ".claude/skills/explainer", ".cursor/skills/explainer",
-                         ".claude/agents/judge.md", ".codex/agents/judge.toml"]:
+                         ".claude/agents/poteto-agent.md", ".codex/agents/poteto-agent.toml"]:
             path = self.home / relative
             self.assertFalse(path.exists() or path.is_symlink(), relative)
 
@@ -377,6 +377,28 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual((self.home / ".claude/agents/comment-sicko.md").resolve(), (pstack / "agents/comment-sicko.md").resolve())
         self.assertIn('name = "comment-sicko"', (self.home / ".codex/agents/comment-sicko.toml").read_text())
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+
+    def test_hyperframes_is_retired_unless_the_media_profile_is_on(self):
+        self.write_skill(self.home / ".agents/skills/hyperframes")
+        link = self.home / ".claude/skills/hyperframes"
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to("../../.agents/skills/hyperframes")
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        self.assertFalse((self.home / ".agents/skills/hyperframes").exists())
+        self.write_skill(self.home / ".agents/skills/hyperframes")
+        link.symlink_to("../../.agents/skills/hyperframes")
+        state = self.home / ".kolin-skills/state.json"
+        payload = json.loads(state.read_text())
+        payload["profiles"] = ["media"]
+        state.write_text(json.dumps(payload, indent=2) + "\n")
+        self.assertEqual(self.run_cli("apply").returncode, 0)
+        self.assertTrue((self.home / ".agents/skills/hyperframes").exists())
+        self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
+
+    def test_unknown_upstream_profile_exits_before_fetch(self):
+        result = self.run_cli("upstream", "--profile", "nope")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unknown profile", result.stderr)
 
     def test_a_dropped_npx_skill_is_retired_from_every_home_with_a_backup(self):
         installed = self.home / ".agents/skills/firecrawl"

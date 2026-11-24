@@ -76,11 +76,15 @@ def model_price(model):
     return LIST_PRICE_PER_MTOK[max(matches, key=len)] if matches else None
 
 
+UNPRICED_WARNED = set()
+
+
 def cost_parts(model, usage):
     price = model_price(model)
     if not price:
-        if context_tokens(usage) or usage.get("output_tokens", 0):
-            sys.exit(f"context-audit: no list price for model {model!r}; add it to LIST_PRICE_PER_MTOK from ~/.t3/userdata/usage-model-rates.json")
+        if (context_tokens(usage) or usage.get("output_tokens", 0)) and model not in UNPRICED_WARNED:
+            UNPRICED_WARNED.add(model)
+            print(f"context-audit: no list price for model {model!r}; counted as $0", file=sys.stderr)
         return {kind: 0.0 for kind in COST_KINDS}
     if context_tokens(usage) > 100_000:
         price = price.get("above_100k", price)

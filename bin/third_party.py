@@ -28,8 +28,14 @@ def env_installing_under_home():
     return {key: value for key, value in os.environ.items() if key != "CLAUDE_CONFIG_DIR"}
 
 
-def install_skills(repo, installed):
-    for package, skills in json.loads((repo / "upstream/skills.json").read_text()).items():
+def install_skills(repo, installed, extra=None):
+    packages = json.loads((repo / "upstream/skills.json").read_text())
+    for package, skills in (extra or {}).items():
+        current = packages.setdefault(package, [])
+        for skill in skills:
+            if skill not in current:
+                current.append(skill)
+    for package, skills in packages.items():
         missing = [skill for skill in skills if skill not in installed]
         if not missing:
             continue

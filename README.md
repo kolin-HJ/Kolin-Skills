@@ -40,14 +40,14 @@ It is built on [pstack](https://github.com/cursor/plugins), Lauren Tan's method 
 
 | Part | Folder | What it does |
 |---|---|---|
-| 📜 **Policy** | `policy/` | The short rule book every agent loads at the start of a session: when to ask me first, code style, security, what "done" means, and PR format |
+| 📜 **Policy** | `policy/` | The short rule book every agent loads at the start of a session: approvals, the coding lane, secrets, proof, smallest correct diff, done, and the quality bar |
 | 🧰 **Skills** | `skills/` | Extra know-how an agent loads when a task needs it, such as running a local database or writing release notes |
-| 🤖 **Subagents** | `agents/` | Helper agents the main agent can start: a builder, a judge and a reviewer |
+| **Subagents** | `agents/` | Helper agents the main agent can start: a builder and a reviewer |
 | 🛡️ **Hooks** | `hooks/` | Small scripts that run around each agent action. They block risky actions and lint changed code |
 | ⚙️ **Tool settings** | `claude/`, `codex/`, `cursor/`, `antigravity/` | Each tool's managed settings, hook wiring, status line and reply style |
 | 📦 **Third-party pins** | `upstream/` | Git pins in `upstream/vendor.json` and CLIs in `upstream/tools.json` at exact versions. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. They are installed, never copied in |
 | 🧪 **Gate** | `bin/`, `tests/`, `.githooks/` | The `kolin-skills` CLI, small helper CLIs, and the tests that must pass before a push |
-| 📚 **Docs** | `docs/` | How to keep a machine on `main`, and how to check other repos for drift |
+| 📚 **Docs** | `docs/` | How to keep a machine on `main`, how to check other repos for drift, workflow templates, and the consumer-gate recipe |
 
 ## Install
 
@@ -89,7 +89,7 @@ export PATH="$HOME/.local/bin:$PATH"
 kolin-skills check --quick
 ```
 
-Keep the clone where it is, because the home folders link into it. `check --quick` takes a few seconds. It passes only when every link resolves, the hooks and policy are wired, and the pstack skills that must start on their own (`poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct` and the six core `principle-*` skills) have no `disable-model-invocation` line. Then start a new session: a running agent keeps the skills and policy it loaded at start.
+Keep the clone where it is, because the home folders link into it. `check --quick` takes a few seconds. It passes only when every link resolves, the hooks and policy are wired, and the pstack skills that must start on their own (`architect`, `how`, `statechart`, `unslop`, `deslop`, `thermo-nuclear-code-quality-review`) have no `disable-model-invocation` line. Then start a new session: a running agent keeps the skills and policy it loaded at start.
 
 ## How work runs
 
@@ -101,7 +101,7 @@ Ask for the outcome in plain words, such as "fix the redirect bug on login". The
 4. It opens a PR with a `## Verification` section that lists what it ran.
 5. I read the PR and merge it.
 
-Proof on the real running app comes first. Before a PR is marked ready or reported ready to merge, one fresh-context read-only review (`senior-reviewer` or `judge`) checks the diff (with at most one fix-delta re-check). Heavy passes (`interrogate`, `thermo-nuclear-code-quality-review`, `statechart`) stay high-risk-only (auth, money, data deletion) or when I ask.
+Proof on the real running app comes first. Spawn `senior-reviewer` on a PR over about 300 changed lines and on each release as a structural diff. A structure finding blocks a staging merge. `interrogate` stays high-risk-only (auth, money, data deletion) or when I ask.
 
 **What the agent does alone, and what waits for my yes:**
 
@@ -148,7 +148,7 @@ A skill starts in one of three ways:
 
 | Skill | Starts | What it does |
 |---|---|---|
-| `pstack-local` | 💬 | Adapts pstack to each tool on this machine: tool names, paths, which model does which job, and where my policy wins |
+| `pstack-local` | 💬 | Maps pstack Cursor tool names to Claude Code, Codex, Cursor, Grok Bot and Antigravity |
 | `repo-standard` | ⌨️ | My bar for a finished repo: layout, size budgets, quality bars, gate design, the UI bar, and a checklist to audit a repo |
 | `full-send` | ⌨️ "full send" | Takes a task all the way to a green, proven PR that is ready to merge, then stops. It never merges |
 | `local-supabase` | 💬 "start a local database" | Runs a local Supabase or Postgres for each checkout, never in Docker |
@@ -157,15 +157,14 @@ A skill starts in one of three ways:
 | `council` | ⌨️ "council" | Gets a review from four model families at once (Claude, GPT, Muse and Grok), with one re-review after fixes. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
 | `hydrojug-untangle` | ⌨️ `/hydrojug-untangle` | Untangles only the files I name or the current diff, never the whole repo. Inspired by [caldoai `untangle-codebase`](https://github.com/caldoai/skills/blob/main/skills/untangle-codebase/SKILL.md) (MIT) |
 
-**The method** comes from pstack. `poteto-mode` (📜) holds the playbooks for a feature, a bug fix, a refactor, a review and shipping. The policy sends any code work bigger than a one-line change to it.
+**The method** is the global policy. pstack stays vendored. `apply` auto-starts only `architect`, `how`, `statechart`, `unslop`, `deslop` and `thermo-nuclear-code-quality-review`. Other pstack skills stay in `~/.agents/vendor/cursor-plugins/pstack/skills/` and are read by path.
 
 **Subagents** (in `agents/`). The main agent starts these. You do not call them.
 
 | Agent | Model | Used for |
 |---|---|---|
 | `poteto-agent` | Sonnet | Building a large, independent piece of code in parallel with other work |
-| `judge` | Opus, or Fable 5.2 for architecture planning | One design or judgment call. It cannot edit files, and unlike the built-in `Plan` agent, it loads my policy |
-| `senior-reviewer` | Opus | One fresh-context read-only diff review before merge-ready, and high-risk work or when asked |
+| `senior-reviewer` | Opus | Diff review on a PR over about 300 changed lines and on each release as a structural diff; also one design or judgment call |
 
 <details>
 <summary><b>Third-party skills that <code>install</code> adds</b></summary>
@@ -174,15 +173,13 @@ Git pins live in `upstream/vendor.json` and CLIs in `upstream/tools.json`. The `
 
 | Source | Skills | When they start |
 |---|---|---|
-| [pstack](https://github.com/cursor/plugins) | `poteto-mode`, `how`, `why`, `teach`, `architect`, `interrogate`, `swarm`, `arena`, `tdd`, `unslop`, `technical-writing`, `no-comments`, `correct`, `statechart`, `reframe`, the `principle-*` skills and more | When a task or playbook needs one. You can also type `/how`, `/architect` and the rest. `reframe` is manual-only; type `/reframe` |
-| cursor-team-kit | `deslop`, `control-ui`, `control-cli` | 💬 To clean AI slop out of code, or to drive a web UI or a CLI |
-| cursor-team-kit | `thermo-nuclear-code-quality-review` | High-risk work, or when you ask for a harsh structure review |
+| [pstack](https://github.com/cursor/plugins) | Auto: `architect`, `how`, `statechart`, `unslop`. The rest stay in the vendor tree and are read by path | Auto skills start on match. Others: `~/.agents/vendor/cursor-plugins/pstack/skills/<name>/SKILL.md` |
+| cursor-team-kit | Auto: `deslop`, `thermo-nuclear-code-quality-review`. `control-ui` and `control-cli` stay in the vendor tree | Auto skills start on match |
 | `npx skills` | `find-skills` | ⌨️ |
 | `npx skills` | `agent-browser` | To drive or check a web app. `upstream` also installs its CLI |
 | `npx skills` | `agent-desktop` | To drive or check a native desktop app. `upstream` also installs its CLI. On macOS, grant Accessibility once with `agent-desktop permissions --guide` |
-| `npx skills` | `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use`, `slideshow`, `reverse-any-video`, `style-sampling` | To make app demo and training videos. Sign in with `hyperframes auth login` for free music, sound effects and stock media |
 | `npx skills` ([benjitaylor/skills](https://github.com/benjitaylor/skills)) | `stageshow` | Records UI mock scenes for `user-notes` videos |
-| `npx skills` ([mattpocock/skills](https://github.com/mattpocock/skills)) | `grill-me`, `grill-with-docs`, `to-spec`, `to-tickets`, `implement`, `implement-spec`, `triage`, `wayfinder`, `retro`, `handoff`, `to-questionnaire`, `wait-what`, `improve-codebase-architecture`, `ask-matt`, `setup-matt-pocock-skills`, plus the 6 helper skills they call (`grilling`, `domain-modeling`, `codebase-design`, `code-review`, `prototype`, `research`) | ⌨️ The 15 manual-only skills plus the 6 helpers they delegate to. `tdd` and `teach` stay out because they clash with pstack's, and standalone auto-start skills stay out. The plugin stays off. Run `/setup-matt-pocock-skills` once per repo before the ticket skills |
+| media profile (`kolin-skills upstream --profile media`) | `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use`, `slideshow`, `reverse-any-video`, `style-sampling` | Optional. Default `upstream` does not install them |
 
 </details>
 
@@ -216,7 +213,7 @@ Work in a git worktree, not the main clone. The main clone is live for every ses
 | A skill | `skills/<name>/SKILL.md`, plus a row in this README | Run `kolin-skills apply`, or start a new session |
 | A subagent | `agents/<name>.md` | Run `apply`. It links the agent for Claude and writes the Codex `.toml` copy |
 | A hook | `hooks/<name>.py`, plus an entry in `claude/settings.json` or `codex/hooks.json` | Add a test to `tests/test_hooks.py` if the hook can block work or lose data |
-| A third-party skill | `upstream/skills.json` | Run `kolin-skills upstream` |
+| A third-party skill | `upstream/skills.json` | Run `kolin-skills upstream`. Media skills: `--profile media` |
 | A skill another tool wrote into home | Nowhere by hand | Run `kolin-skills import <path>` to move it here |
 
 Rules that keep it working on every machine:
@@ -261,12 +258,12 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `kolin-skills install` | First run on a machine: `upstream`, then `apply`, then `check` |
 | `kolin-skills apply` | Links the repo into home. `--check` only reports drift. `--adopt` moves home to this checkout. `--if-wired` runs only when home already points here |
 | `kolin-skills pull` | Fast-forwards to `origin/main` when it safely can, then applies. Runs at Claude Code and Codex session start |
-| `kolin-skills upstream` | Installs git pins and CLIs at their pins. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. `--bump` moves the git pins. Edit `upstream/tools.json` to move a CLI |
+| `kolin-skills upstream` | Installs git pins and CLIs at their pins. The `skills` CLI (`npx skills`) and the skill packs it installs are not pinned and float to latest. `--bump` moves the git pins. `--profile media` adds the hyperframes skills. Edit `upstream/tools.json` to move a CLI |
 | `kolin-skills import <path>` | Moves a skill or agent made in home into this repo |
 | `kolin-skills stacks` | Lists running local Supabase stacks and `verify launch` servers (a `.verify/state.json` in a T3 or Codex worktree). `--stop` stops the idle ones (a Supabase owner gets SIGTERM; a verify server gets the repo's own `pnpm -s verify cleanup`, which also stops its Chrome), and each Claude session start runs it with `--idle-hours 2` |
 | `kolin-skills check` | The gate: drift, stray files, pins, spend caps, file length, tools, tests and comments. `--quick` checks only home, in seconds. `--files` checks only file length. In a worktree it skips home drift. In CI it skips home and vendored skills |
 | `kolin-skills check-drift <path>` | Fails when another repo's copy of pstack or `senior-reviewer` differs from this repo, or its policy keeps stale every-PR reviewer or `interrogate` mandates. See [`docs/consumer-drift.md`](docs/consumer-drift.md) |
-| `pr-body <base> --feature NAME=PATHS` | Prints a one-screen PR body skeleton: a line per feature with its size, Check these, Cleanup and Verification |
+| `pr-body <base> --feature NAME=PATHS` | Prints a one-screen PR body skeleton: a line per feature with its size, Check these and Verification |
 | `diff-audit <base>` | Flags reward hacks and slop in a diff: skipped tests, edited assertions, comments, new dependencies, growth in `AGENTS.md` |
 | `feature-budget` | Counts each feature's files and lines against the plan's budget. A feature is a `features/<name>/` folder or a plan entry with `paths`. Report only, except `--base <ref>`, which fails when a feature over twice its budget grew since that ref |
 | `context-audit` | Lists skills, tools and MCP servers that cost context and went unused for 30 days. `--sessions` and `--window` report tokens and list price (by model id, with Haiku 5.5's above-100K tier) per session and role, hook blocks and failing tools, and count a message copied into a side chat once |
@@ -300,6 +297,8 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 - [`docs/stay-on-main.md`](docs/stay-on-main.md): put any machine on current `main` and verify it.
 - [`docs/maintain.md`](docs/maintain.md): the weekly drift check across consumer repos, and how a change lands.
 - [`docs/consumer-drift.md`](docs/consumer-drift.md): what `check-drift` compares, and the open hj-supply-chain follow-up.
+- [`docs/workflows.md`](docs/workflows.md): one-page shape, grill, brief, PR and release templates.
+- [`docs/consumer-gates.md`](docs/consumer-gates.md): shared gates a product repo can copy. Not wired from here.
 
 </details>
 

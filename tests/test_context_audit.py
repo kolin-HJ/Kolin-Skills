@@ -173,8 +173,17 @@ class ContextAuditTests(unittest.TestCase):
         self.assertIn("p side 2026-11-05T09:00:00+00:00 $7.10 4,000,000", result.stdout)
         transcript(self.home / ".claude/projects/p/old.jsonl", message("m5", "claude-opus-4-1", {"input_tokens": 1}))
         unpriced = self.run_cli("--window", "2026-11-05", "2026-11-05")
-        self.assertNotEqual(unpriced.returncode, 0)
+        self.assertEqual(unpriced.returncode, 0, unpriced.stderr)
         self.assertIn("no list price for model 'claude-opus-4-1'", unpriced.stderr)
+
+    def test_sessions_report_survives_an_unpriced_claude_opus_5_model(self):
+        message = {"type": "assistant", "timestamp": "2026-10-20T10:00:00Z",
+                   "message": {"id": "m", "model": "claude-opus-5", "usage": {"input_tokens": 40, "output_tokens": 10}, "content": []}}
+        transcript(self.projects / "p/s.jsonl", message)
+        result = self.run_cli("--sessions")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("1 main sessions", result.stdout)
+        self.assertIn("no list price for model 'claude-opus-5'", result.stderr)
 
     def test_window_splits_spend_by_repo_kind_context_size_and_effort(self):
         def message(identifier, usage, effort):

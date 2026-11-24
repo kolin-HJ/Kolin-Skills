@@ -11,8 +11,9 @@ from kolin_skills.helpers import (
     OWN_SKILL_HOMES, READ_ONLY_EXECUTABLES, RENDERED, REPO, STATE_DIR, TRUNK,
     VENDOR, VENDOR_AGENTS, VENDOR_SKILL_HOMES, WATCHED_HOMES, Plan, antigravity_config_dirs,
     codex_agent_toml, declared_upstream_skills, git, merge_antigravity_hooks,
-    merge_antigravity_skills, merge_settings, model_locked, render_template, self_invoking,
-    state_lock, vendor_pin_problems, vendor_skills, wired_repo, without_model_lock,
+    merge_antigravity_skills, merge_settings, model_locked, profile_skill_names,
+    render_template, self_invoking, state_lock, vendor_pin_problems, vendor_skills,
+    wired_repo, without_model_lock,
 )
 
 
@@ -85,7 +86,9 @@ def apply(plan, roots):
     for name, skill in vendored.items():
         if name in {path.name for path in own}:
             continue
-        if self_invoking(name) and model_locked(skill / "SKILL.md"):
+        if not self_invoking(name):
+            continue
+        if model_locked(skill / "SKILL.md"):
             source = derive_unlocked_skill(plan, name, skill)
         else:
             source = skill
@@ -99,7 +102,7 @@ def apply(plan, roots):
             plan.link(pathlib.Path(f"../../.agents/skills/{name}"), existing)
     prune_derived(plan)
 
-    for name in sorted(DROPPED_SKILLS - declared_upstream_skills()):
+    for name in sorted(DROPPED_SKILLS - declared_upstream_skills() - profile_skill_names()):
         for home in WATCHED_HOMES:
             path = HOME / home / name
             if path.is_symlink() or path.exists():
@@ -149,14 +152,18 @@ def apply(plan, roots):
 
     if not plan.check:
         STATE_DIR.mkdir(exist_ok=True)
+        saved = json.loads(state_file.read_text()) if state_file.is_file() else {}
+        payload = {"repo": str(REPO), "generated": sorted(generated)}
+        if saved.get("profiles"):
+            payload["profiles"] = saved["profiles"]
         temporary = state_file.with_name(".state.json.tmp")
-        temporary.write_text(json.dumps({"repo": str(REPO), "generated": sorted(generated)}, indent=2) + "\n")
+        temporary.write_text(json.dumps(payload, indent=2) + "\n")
         temporary.replace(state_file)
 
 
 def ownership_problems(owned):
     declared = declared_upstream_skills()
-    known = declared | {name for names in OTHER_INSTALLERS.values() for name in names}
+    known = declared | {name for names in OTHER_INSTALLERS.values() for name in names} | profile_skill_names()
     problems = []
     for home in WATCHED_HOMES:
         directory = HOME / home

@@ -1,11 +1,12 @@
 ---
 name: repo-standard
-description: Kolin's bar for a repo — feature-first layout and budgets, quality bars, gate and ratchet design, the UI bar, and the checklist to audit a repo against it. Use when setting up gates, budgets or layout, when planning a rebuild, port or migration of a live feature, or when Kolin asks to audit a repo, says "what is it missing", "bring it up to standard", "close the gaps" or "make it agent-ready". The method (plan, build, review, ship) is pstack's poteto-mode, not this file.
+description: Kolin's bar for a repo — feature-first layout and budgets, quality bars, gate and ratchet design, the UI bar, and the checklist to audit a repo against it. Use when setting up gates, budgets or layout, when planning a rebuild, port or migration of a live feature, or when Kolin asks to audit a repo, says "what is it missing", "bring it up to standard", "close the gaps" or "make it agent-ready". Shared consumer gates live in docs/consumer-gates.md.
+disable-model-invocation: true
 ---
 
 # Repo standard
 
-What a finished repo looks like. pstack's `poteto-mode` is how to get there; the policy owns approvals, code rules and tests. A unit is one change that one builder finishes and one check proves.
+What a finished repo looks like. The global policy owns approvals, code rules and tests. Shared consumer gates: `docs/consumer-gates.md`. A unit is one change that one builder finishes and one check proves.
 
 ## North star
 
@@ -40,7 +41,7 @@ src/
 
 ## Guardrails
 
-- A new rule (policy, Adding rules), including a review finding seen twice, becomes a lint rule, test or check where it can. A ratchet starts at today's count and goes to zero. The rule message names the fix.
+- A new prose rule must replace one. A miss seen twice becomes a check, not a sentence. A ratchet starts at today's count and goes to zero. The rule message names the fix.
 - **Ratchet counts.** One baseline file counts `any`, `@ts-ignore` / `@ts-expect-error`, `eslint-disable` without a `-- <reason>`, files over 1,000 lines, comment lines outside lint directives, and each banned API below. CI compares the PR's counts to the base branch's and fails on a rise, so a count only falls.
 - **Banned APIs.** An API that needs nuance to use well and that agents keep misusing (React `useEffect`, `setTimeout`, `requestAnimationFrame`) is banned in product code by a lint rule, and allowed only inside one foundation wrapper. The message names the replacement. Start a ratchet at today's count, then remove the old uses in a stacked PR, because agents copy what they find.
 - **Flow model check.** A write flow with a model skill (Audit, Write flows) gets a CI check: a PR that changes a covered file changes the model or names it in the body. Lint cannot see a stale check or a wrong event order; a model can.
@@ -70,7 +71,7 @@ Desktop and phone both clean and professional, tables become cards on phones, to
 
 ## PR Verification
 
-Policy (Pull requests) owns the rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the Visual proof and `Ran:` / `Not run:` lines into an existing template. `pr-body` prints Visual proof when the diff has a `.tsx` or `.jsx` file. CI body-lint is the ratchet when recent PRs skip that shape: copy `assets/check-pr-proof.mjs` to `scripts/` and `assets/pr-proof.yml` to `.github/workflows/`, then set `RUNNABLE_SOURCE`, `APP_PROOF_COMMAND` and `branches` for the repo.
+The global policy owns the PR proof rule. Copy `references/pr-verification.md` into `.github/PULL_REQUEST_TEMPLATE.md`, or merge the Visual proof and `Ran:` / `Not run:` lines into an existing template. `pr-body` prints Visual proof when the diff has a `.tsx` or `.jsx` file. CI body-lint is the ratchet when recent PRs skip that shape: copy `assets/check-pr-proof.mjs` to `scripts/` and `assets/pr-proof.yml` to `.github/workflows/`, then set `RUNNABLE_SOURCE`, `APP_PROOF_COMMAND` and `branches` for the repo.
 
 ## Audit a repo
 
@@ -78,7 +79,7 @@ Read only. Measure, do not guess, and record each row's command and count.
 
 | Area | Measure |
 |---|---|
-| Outcomes | Measure this first, because it says where the other rows matter. Over the last 30 days on the integration branch (`git log --no-merges --since="30 days ago" --format=%s`): the share of subjects that start with `fix` or `revert`, the count per scope (`fix(<scope>)`), and the three largest bug classes read from the subjects, such as claims and locks, or review follow-ups. Record the repo's own trust script where it has one, the share of merges that a same-file fix followed within 7 days, and the share merged with a real red check. A scope's fix count ranks its gaps and sets its model (`pstack-local/models.md`) |
+| Outcomes | Measure this first, because it says where the other rows matter. Over the last 30 days on the integration branch (`git log --no-merges --since="30 days ago" --format=%s`): the share of subjects that start with `fix` or `revert`, the count per scope (`fix(<scope>)`), and the three largest bug classes read from the subjects, such as claims and locks, or review follow-ups. Record the repo's own trust script where it has one, the share of merges that a same-file fix followed within 7 days, and the share merged with a real red check. A scope's fix count ranks its gaps and sets its model |
 | Instruction file | One root `AGENTS.md`, under about 1,500 words (`wc -w`, because a line count hides long lines, and one file passed at 209 lines and 5,668 words); a rule a gate enforces lives in that gate's error message, not in the file; no `CLAUDE.md` copy; each factual line (path, command, name, behavior) checked against the code: followed, contradicted (`file:line`), or not checkable |
 | Gates | Formatter, type-aware linter, strict type check, dead-code check, tests, and one gate command. Local hooks (pre-commit, pre-push, `verify` evidence) if there is no CI. With CI, each job's command also runs in the local gate; a check only CI runs is a gap (a CI-only `bundle-budget` let a red build reach `staging` twice in one release). So is a required job that merged PRs show as CANCELLED; count them with `gh pr list --state merged --json statusCheckRollup` |
 | Ratchets | A baseline file with target 0 per rule; counts per rule today: `any`, `@ts-ignore` / `@ts-expect-error`, `eslint-disable` without `-- <reason>`, files over 1,000 lines, comment lines outside lint directives, files using each banned API (Guardrails). Missing: CI does not compare those counts to the base branch |
@@ -91,8 +92,8 @@ Read only. Measure, do not guess, and record each row's command and count.
 | Boundaries | Import rules, one home per concept, parked or out-of-scope code |
 | Guardrails | Agent hooks that block gate skips and protected pushes; secrets out of the tree; on GitHub, `delete_branch_on_merge` on (a stacked PR merged into its already-merged base is lost) and the CI jobs required on staging and on the default branch (pending or skipped is not green); third-party GitHub Actions pinned to a full commit SHA (count unpinned `uses:`); flag `pull_request_target` workflows that check out PR head code; CI-installed tool versions, pinned |
 | Approval text | Repo instruction text (`AGENTS.md`, repo skills) that requires an ask before a reversible step on a work branch (commit, push, opening a PR) conflicts with the global policy's Approvals. Flag it with `file:line` and rewrite it to match. |
-| Agent roles | A repo agent that shares a global agent's name (`senior-reviewer`, `poteto-agent`) and pins a lower model than `skills/pstack-local/models.md` gives that role. Flag it |
-| Review rule | `kolin-skills check-drift <repo>`. Repo text that mandates `interrogate` on every PR, requires `Ran: senior-reviewer` / `No Not run` review receipts, keeps the old 150-line pre-PR rule, or copies a drifted `senior-reviewer`, conflicts with the policy (Pull requests). Flag it with `file:line` |
+| Agent roles | A repo agent that shares a global agent's name (`senior-reviewer`, `poteto-agent`) and pins a lower model than Opus for `senior-reviewer` or Sonnet for `poteto-agent`. Flag it |
+| Review rule | `kolin-skills check-drift <repo>`. Repo text that mandates `interrogate` on every PR, requires `Ran: senior-reviewer` / `No Not run` review receipts, keeps the old 150-line pre-PR rule, or copies a drifted `senior-reviewer`, conflicts with the global policy. Flag it with `file:line` |
 | Verification | A verification skill with a CLI and feature maps; parity against staging or the base; `verifier` runs on UI/feature PRs against `senior-reviewer` and `interrogate` runs from `context-audit --window` (every feature PR should have live proof, and reviews should stay capped at 1 pass + 1 re-check) |
 | PR Verification | Template `.github/PULL_REQUEST_TEMPLATE.md` (or GitHub's other template paths) has `## Visual proof` and `## Verification` with `Ran:` / `Not run: <check>, because <why>`. No template is met if `pr-body` emits that shape. Measure the template with `rg`; count recent `gh pr list --json body` that miss it. CI body-lint (`check-pr-proof.mjs` or equivalent) is the ratchet when they miss; a template without lint is enough when they match |
 | UI (if any) | Raw tables, raw hex colors, screens without 390 and 1440 px checks, tap targets, UI PRs without before and after screenshots in the body |

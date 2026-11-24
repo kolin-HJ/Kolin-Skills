@@ -19,7 +19,7 @@ python3 "$PWD/bin/kolin-skills" apply --adopt
 python3 "$PWD/bin/kolin-skills" check
 ```
 
-`--adopt` when `~/.kolin-skills/state.json` names a different checkout. Skip it when this checkout already owns home. `install` is only the first run on a machine (it also fetches third-party skills).
+`--adopt` when `~/.kolin-skills/state.json` names a different checkout. Skip it when this checkout already owns home. `install` is only the first run on a machine (it also fetches third-party skills). `apply` unlinks pstack skills that are no longer auto-started, retires dropped `npx` skills (including the old mattpocock set), and retires hyperframes unless `kolin-skills upstream --profile media` was run on that machine.
 
 An old install keeps its old hooks until home is wired to current `main`. Those hooks can block commands that current `main` allows. Do not change hook behavior to work around that. Run this recipe.
 

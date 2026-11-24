@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "complexity": ["error", 12],
+    "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }],
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "FunctionDeclaration[params.length>0] > Identifier.params[typeAnnotation.typeAnnotation.type='TSBooleanKeyword']",
+        "message": "Do not use a boolean parameter to switch behavior; split the function or use a typed union."
+      }
+    ]
+  },
+  "oxlint": {
+    "deny": ["import/no-cycle", "complexity", "max-lines-per-function"]
+  }
+}

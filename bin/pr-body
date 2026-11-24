@@ -24,8 +24,6 @@ VISUAL = (
 TAIL = (
     "## Check these\n\n"
     "- [ ] `<file:line>`: <a question only a person can answer. Delete the section if none.>\n\n"
-    "## Cleanup\n\n"
-    "- `<file:line>`: <what you simplified, or what you left and why. Delete the section if none.>\n\n"
     "## Verification\n\n"
     "- Ran: `<command>`, <result in a few words>\n"
     "- Not run: <check>, because <why>\n"
