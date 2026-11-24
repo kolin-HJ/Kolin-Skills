@@ -9,7 +9,7 @@ pstack ([upstream](https://github.com/cursor/plugins/tree/main/pstack)) is writt
 
 ## Loading a pstack skill
 
-`kolin-skills apply` links skills into `~/.agents/skills` (registered in Antigravity's `skills.json`). In Claude Code, use the Skill tool. In Codex and Antigravity (no Skill tool), read `SKILL.md` at its supplied path, or `~/.agents/skills/<name>/SKILL.md` when unlisted; resolve relative paths from that folder. `apply` removes the invocation lock from `poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct`, and the six core principles (`principle-model-the-domain`, `principle-laziness-protocol`, `principle-subtract-before-you-add`, `principle-type-system-discipline`, `principle-minimize-reader-load`, `principle-boundary-discipline`). Other principles stay locked and are read by path when named.
+`kolin-skills apply` links skills into `~/.agents/skills` (registered in Antigravity's `skills.json`). In Claude Code, use the Skill tool. In Codex and Antigravity (no Skill tool), read `SKILL.md` at its supplied path, or `~/.agents/skills/<name>/SKILL.md` when unlisted; resolve relative paths from that folder. `apply` removes the invocation lock from `poteto-mode`, `how`, `architect`, `interrogate`, and the six core principles (`principle-model-the-domain`, `principle-laziness-protocol`, `principle-subtract-before-you-add`, `principle-type-system-discipline`, `principle-minimize-reader-load`, `principle-boundary-discipline`). Every other pstack skill, `tdd` and `correct` included, stays locked and is read by path when named.
 
 ## Cursor term to local equivalent
 
@@ -55,12 +55,12 @@ The global policy and the repo's `AGENTS.md` win every conflict with pstack. Thi
 - **Write flows.** Before Feature or Bug fix builds a flow that takes a lock, claim, key or queue, or retries an outside write, write its event orders in the plan: a retry, a crash between two steps, two writers at once, a late answer from the outside system, and what each must leave behind (policy, Approvals). Where a repo model skill covers the files, extend the model and run it before the build; its result is the unit's first `Ran:` line.
 - **Review rounds.** Follow policy (Pull requests) and `models.md` (Reviewer): one fresh-context review, then one fix-delta re-check. When the re-check brings a new high finding, stop reviewing and stop patching, because the design is unsettled. Apply `principle-attack-the-premise`, return to the flow or the plan, and tell Kolin.
 - **Comments.** No comment survives except a lint directive with `-- <reason>`.
-- **Builder brief.** poteto-mode now tells kickoffs to read its path and `worker.md` first. Here the brief names the files and the done check, quotes any principle the unit depends on, and the builder reads neither. Where `worker.md` differs (ready-for-review PRs, no questions, its PR body), the policy wins.
+- **Builder brief.** poteto-mode now tells kickoffs to read its path and `worker.md` first. Here the brief names the files and the done check, quotes any principle the unit depends on, and the builder reads neither. For a build with a blueprint, the brief also quotes the blueprint's owner file for each state and decision the unit touches, and the builder writes that state nowhere else. Where `worker.md` differs (ready-for-review PRs, no questions, its PR body), the policy wins.
 - **Reply style.** Keep pstack's Writing the reply rules. An explain, how, or walk-through follows `teach`: the active output style wins over `teach`'s diagram: plain words first, a flow as a short numbered list, no ASCII art, no table unless asked, offer an explainer page in one line and build it only after a yes. State the principles that changed a decision in one line, not a section.
 
 ## Own skills
 
-Read `thermo-nuclear-code-quality-review` when Kolin asks for a harsh structure review.
+`structure-review` is the structure read of a blueprint build (`models.md`, Size) and the answer when Kolin asks for a harsh structure or thermo review. It replaces cursor-team-kit's `thermo-nuclear-code-quality-review`, which stays vendored and locked.
 
 ## Verify the setup
 

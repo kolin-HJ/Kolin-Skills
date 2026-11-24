@@ -13,11 +13,11 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 PSTACK_SKILLS = "cursor-plugins/pstack/skills"
 LOCKED_FRONTMATTER = "---\nname: {name}\ndescription: test {name}\ndisable-model-invocation: true\nicon: crown\n---\n\n# {name}\n"
 SELF_INVOKING = [
-    "poteto-mode", "how", "architect", "tdd", "interrogate", "correct",
+    "poteto-mode", "how", "architect", "interrogate",
     "principle-model-the-domain", "principle-laziness-protocol", "principle-subtract-before-you-add",
     "principle-type-system-discipline", "principle-minimize-reader-load", "principle-boundary-discipline",
 ]
-USER_ONLY = ["swarm", "reflect", "principle-build-the-lever"]
+USER_ONLY = ["swarm", "reflect", "principle-build-the-lever", "tdd", "correct"]
 OWN_USER_ONLY_SKILLS = ["full-send", "hydrojug-untangle"]
 
 
@@ -93,10 +93,10 @@ class ApplySelfInvokeTests(SelfInvokeCase):
 
     def test_an_allowlisted_skill_that_upstream_dropped_is_unlinked(self):
         self.apply()
-        shutil.rmtree(self.vendor / "tdd")
+        shutil.rmtree(self.vendor / "interrogate")
         self.apply()
         for home in [".agents/skills", ".claude/skills"]:
-            self.assertFalse((self.home / home / "tdd").is_symlink(), home)
+            self.assertFalse((self.home / home / "interrogate").is_symlink(), home)
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
 

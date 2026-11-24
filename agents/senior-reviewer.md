@@ -38,8 +38,8 @@ Count changed lines (`git diff --numstat`, ignoring lockfiles and generated file
 
 Block only on structure.
 
-- **Structure (blocks unless justified).** A parallel owner beside an existing one (name it). Logic duplicated from elsewhere (grep first). A branch per case where the data model should carry it. One decision in two places. A file pushed past 1,000 lines. Independent async work serialized, or related writes left non-atomic.
-- **Size.** Is there a version half the size a user could not tell apart? If so, say it first. Name behavior the task did not ask for. A deletion or refactor that leaves the code simpler is not scope creep.
+- **Structure (blocks unless justified).** A state or decision written outside the owner file the PR's blueprint names. A parallel owner beside an existing one (name it). Logic duplicated from elsewhere (grep first). A branch per case where the data model should carry it. One decision in two places. A file pushed past 1,000 lines. Independent async work serialized, or related writes left non-atomic.
+- **Size.** Is there a version half the size a user could not tell apart? If so, say it first. A PR that carries more than one ask, or adds more than about 1,500 lines of product code with tests not counted, gets its split named first. Name behavior the task did not ask for. A deletion or refactor that leaves the code simpler is not scope creep.
 - **Polish.** A simpler structure with the same behavior, a misleading name, an added comment, dead code left behind, real-path inefficiency.
 
 If a risky change is the stated purpose (removing a flag or a safeguard) and its scope is tight, do not report it.

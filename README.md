@@ -89,7 +89,7 @@ export PATH="$HOME/.local/bin:$PATH"
 kolin-skills check --quick
 ```
 
-Keep the clone where it is, because the home folders link into it. `check --quick` takes a few seconds. It passes only when every link resolves, the hooks and policy are wired, and the pstack skills that must start on their own (`poteto-mode`, `how`, `architect`, `tdd`, `interrogate`, `correct` and the six core `principle-*` skills) have no `disable-model-invocation` line. Then start a new session: a running agent keeps the skills and policy it loaded at start.
+Keep the clone where it is, because the home folders link into it. `check --quick` takes a few seconds. It passes only when every link resolves, the hooks and policy are wired, and the pstack skills that must start on their own (`poteto-mode`, `how`, `architect`, `interrogate` and the six core `principle-*` skills) have no `disable-model-invocation` line. Then start a new session: a running agent keeps the skills and policy it loaded at start.
 
 ## How work runs
 
@@ -101,7 +101,7 @@ Ask for the outcome in plain words, such as "fix the redirect bug on login". The
 4. It opens a PR with a `## Verification` section that lists what it ran.
 5. I read the PR and merge it.
 
-Proof on the real running app comes first. Before a PR is marked ready or reported ready to merge, one fresh-context read-only review (`senior-reviewer` or `judge`) checks the diff (with at most one fix-delta re-check). Heavy passes (`interrogate`, `thermo-nuclear-code-quality-review`, `statechart`) stay high-risk-only (auth, money, data deletion) or when I ask.
+Proof on the real running app comes first. Before a PR is marked ready or reported ready to merge, one fresh-context read-only review (`senior-reviewer` or `judge`) checks the diff (with at most one fix-delta re-check). A build over about 10 files, or one that adds a lifecycle, shows me a blueprint first, and a `judge` reads the blueprint and the first slice with `structure-review` before builders copy that slice. Heavy passes (`interrogate`, `statechart`) stay high-risk-only (auth, money, data deletion) or when I ask.
 
 **What the agent does alone, and what waits for my yes:**
 
@@ -109,6 +109,7 @@ Proof on the real running app comes first. Before a PR is marked ready or report
 |---|---|
 | Read, edit, run, test, review, fix | A plan with more than one phase, before the build |
 | Commit, push and open a PR on a work branch | A new or changed data shape (type, table, schema) or system flow |
+| | The blueprint of a build over about 10 files: states, the one owner file for each, and the modules |
 | Delete or refactor code it touches | A merge, a deploy, a release or a migration |
 | | Money, secrets, and messages to people |
 
@@ -155,6 +156,7 @@ A skill starts in one of three ways:
 | `user-notes` | ⌨️ "release notes for PR 42" | Asks which format I want (text, graphic or video), then writes short release notes for users |
 | `explainer` | ⌨️ "explain this PR visually" | Builds a one-page HTML explainer, only when asked |
 | `council` | ⌨️ "council" | Gets a review from four model families at once (Claude, GPT, Muse and Grok), with one re-review after fixes. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
+| `structure-review` | 💬 "structure review", "is this bloated" | A strict read-only review of code structure. It counts state owners, duplicate paths and reader load, then ranks fixes on the ladder: delete, simplify, optimize, automate. It replaces `thermo-nuclear-code-quality-review` |
 | `hydrojug-untangle` | ⌨️ `/hydrojug-untangle` | Untangles only the files I name or the current diff, never the whole repo. Inspired by [caldoai `untangle-codebase`](https://github.com/caldoai/skills/blob/main/skills/untangle-codebase/SKILL.md) (MIT) |
 
 **The method** comes from pstack. `poteto-mode` (📜) holds the playbooks for a feature, a bug fix, a refactor, a review and shipping. The policy sends any code work bigger than a one-line change to it.
@@ -175,8 +177,9 @@ Git pins live in `upstream/vendor.json` and CLIs in `upstream/tools.json`. The `
 | Source | Skills | When they start |
 |---|---|---|
 | [pstack](https://github.com/cursor/plugins) | `poteto-mode`, `how`, `why`, `teach`, `architect`, `interrogate`, `swarm`, `arena`, `tdd`, `unslop`, `technical-writing`, `no-comments`, `correct`, `statechart`, `reframe`, the `principle-*` skills and more | When a task or playbook needs one. You can also type `/how`, `/architect` and the rest. `reframe` is manual-only; type `/reframe` |
-| cursor-team-kit | `deslop`, `control-ui`, `control-cli` | 💬 To clean AI slop out of code, or to drive a web UI or a CLI |
-| cursor-team-kit | `thermo-nuclear-code-quality-review` | High-risk work, or when you ask for a harsh structure review |
+| cursor-team-kit | `deslop` | 💬 To clean AI slop out of code |
+| cursor-team-kit | `control-ui`, `control-cli` | ⌨️ To drive a web UI or a CLI |
+| cursor-team-kit | `thermo-nuclear-code-quality-review` | ⌨️ Only when you type it. `structure-review` does this job now |
 | `npx skills` | `find-skills` | ⌨️ |
 | `npx skills` | `agent-browser` | To drive or check a web app. `upstream` also installs its CLI |
 | `npx skills` | `agent-desktop` | To drive or check a native desktop app. `upstream` also installs its CLI. On macOS, grant Accessibility once with `agent-desktop permissions --guide` |
