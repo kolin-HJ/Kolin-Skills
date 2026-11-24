@@ -68,4 +68,12 @@ Plan, build and review are separate roles:
 
 ## Size
 
-For one owner and about 10 files or fewer, skip `how` and `architect`, and build it yourself. The proof stays.
+For about 10 files or fewer and no new lifecycle, skip `how` and `architect`, and build it yourself. The proof stays.
+
+Past that, the order is fixed (policy, Approvals):
+
+1. `how` finds the module that owns each state and decision today.
+2. `architect` writes the blueprint, and Kolin says yes to it. It goes in the PR body in a `<details>` block, where the reviewer finds it.
+3. Build the first slice.
+4. A `judge` reads the blueprint and that slice with `structure-review`. It reads the skill at `~/.agents/skills/structure-review/SKILL.md`, because it has no Skill tool.
+5. Fix its findings. Kolin says yes to the slice, then builders copy it.

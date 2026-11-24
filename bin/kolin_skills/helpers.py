@@ -30,7 +30,7 @@ VENDOR_SKILL_DIRS = {
     "cursor-plugins/cursor-team-kit/skills": None,
 }
 VENDOR_SKIP = {"setup-pstack"}
-SELF_INVOKING_SKILLS = {"poteto-mode", "how", "architect", "tdd", "interrogate", "correct", "principle-model-the-domain", "principle-laziness-protocol", "principle-subtract-before-you-add", "principle-type-system-discipline", "principle-minimize-reader-load", "principle-boundary-discipline"}
+SELF_INVOKING_SKILLS = {"poteto-mode", "how", "architect", "interrogate", "principle-model-the-domain", "principle-laziness-protocol", "principle-subtract-before-you-add", "principle-type-system-discipline", "principle-minimize-reader-load", "principle-boundary-discipline"}
 MODEL_LOCK_KEY = "disable-model-invocation"
 QUICK_CHECK_SECONDS = 30
 TEST_FILES_AT_ONCE = 6
