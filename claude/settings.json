@@ -202,8 +202,6 @@
     "reverse-any-video": "user-invocable-only",
     "style-sampling": "user-invocable-only",
     "slideshow": "user-invocable-only",
-    "stageshow": "user-invocable-only",
-    "control-ui": "user-invocable-only",
-    "control-cli": "user-invocable-only"
+    "stageshow": "user-invocable-only"
   }
 }

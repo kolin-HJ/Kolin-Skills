@@ -109,7 +109,7 @@ Proof on the real running app comes first. Before a PR is marked ready or report
 |---|---|
 | Read, edit, run, test, review, fix | A plan with more than one phase, before the build |
 | Commit, push and open a PR on a work branch | A new or changed data shape (type, table, schema) or system flow |
-| | The blueprint of a build over about 10 files: states, the one owner file for each, and the modules |
+| | The blueprint of a build over about 10 files, or one that adds a lifecycle: states, the one owner file for each, and the modules |
 | Delete or refactor code it touches | A merge, a deploy, a release or a migration |
 | | Money, secrets, and messages to people |
 
@@ -177,8 +177,7 @@ Git pins live in `upstream/vendor.json` and CLIs in `upstream/tools.json`. The `
 | Source | Skills | When they start |
 |---|---|---|
 | [pstack](https://github.com/cursor/plugins) | `poteto-mode`, `how`, `why`, `teach`, `architect`, `interrogate`, `swarm`, `arena`, `tdd`, `unslop`, `technical-writing`, `no-comments`, `correct`, `statechart`, `reframe`, the `principle-*` skills and more | When a task or playbook needs one. You can also type `/how`, `/architect` and the rest. `reframe` is manual-only; type `/reframe` |
-| cursor-team-kit | `deslop` | 💬 To clean AI slop out of code |
-| cursor-team-kit | `control-ui`, `control-cli` | ⌨️ To drive a web UI or a CLI |
+| cursor-team-kit | `deslop`, `control-ui`, `control-cli` | 💬 To clean AI slop out of code, or to drive a web UI or a CLI |
 | cursor-team-kit | `thermo-nuclear-code-quality-review` | ⌨️ Only when you type it. `structure-review` does this job now |
 | `npx skills` | `find-skills` | ⌨️ |
 | `npx skills` | `agent-browser` | To drive or check a web app. `upstream` also installs its CLI |

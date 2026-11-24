@@ -14,7 +14,7 @@ Correctness, security and proof of behavior belong to `senior-reviewer` and `int
 Review what you were handed, and nothing wider. A finding outside it is one line under Leftovers.
 
 - **A blueprint, before code.** Run Owners and Paths on the code that exists today. Say which existing owner each new state extends, which existing path each new task extends, and what the build deletes. A blueprint that adds a second owner or a second path fails.
-- **A first slice or a diff.** Run every check on the changed files and the modules they call.
+- **A first slice or a diff.** Run every check on the changed files and the modules they call. Handed a blueprint with its first slice, do both: the slice is checked against the owners the blueprint names.
 - **A folder or a feature.** Run every check on it. Read `git log` for files that were written and then rewritten.
 
 ## Measure first
@@ -45,13 +45,13 @@ For each finding, try the rungs in order and stop at the first that solves it. N
 1. **Delete.** What breaks if this goes? If nothing a user or a caller relies on, it goes: the second engine, the pass-through, the dead branch, the unused option, the test that repeats another test.
 2. **Simplify.** One owner for the state. One path for the task. A union or a table in place of the branches. The wrapper inlined. A value derived, not kept in sync.
 3. **Optimize.** Only code that is already simple: drop the repeat read, start independent work together.
-4. **Automate.** A kind of finding seen twice becomes a check whose message names the fix (`correct`). Never automate around code that should be deleted.
+4. **Automate.** A kind of finding seen twice becomes a check whose message names the fix (pstack `correct`). Never automate around code that should be deleted.
 
 Prefer the move that makes a whole branch, helper or mode disappear over the move that tidies it. Ask what the code would be if today's requirements had been known on day one.
 
 Do not force a model. Boring code that is clear, local and unlikely to grow stays. An abstraction that removes no branch and no invalid state is itself a finding.
 
-Read a principle before you cite it: `principle-model-the-domain`, `principle-minimize-reader-load`, `principle-subtract-before-you-add`, `principle-laziness-protocol`, `principle-redesign-from-first-principles`, `principle-type-system-discipline`, `principle-boundary-discipline`.
+Read a principle before you cite it, at `~/.agents/skills/<name>/SKILL.md`: `principle-model-the-domain`, `principle-minimize-reader-load`, `principle-subtract-before-you-add`, `principle-laziness-protocol`, `principle-redesign-from-first-principles`, `principle-type-system-discipline`, `principle-boundary-discipline`.
 
 ## Prove each fix
 
@@ -68,7 +68,7 @@ First line: `Structure review of <scope> at <sha>: <Sound / Fix first / Redesign
 
 - `Fix first`: a fix on rung 1 or 2 stands with proof.
 - `Redesign`: the shape is wrong enough that a new blueprint costs less than the fixes one by one. Say what the blueprint must decide.
-- `Sound`: write "No findings" and stop.
+- `Sound`: no fix on rung 1 or 2 stands. Give the Scores, then any rung 3 or 4 fix, or "No findings".
 
 Then, in this order:
 
