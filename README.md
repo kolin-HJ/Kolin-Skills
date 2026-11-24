@@ -157,6 +157,7 @@ A skill starts in one of three ways:
 | `explainer` | ⌨️ "explain this PR visually" | Builds a one-page HTML explainer, only when asked |
 | `council` | ⌨️ "council" | Gets a review from four model families at once (Claude, GPT, Muse and Grok), with one re-review after fixes. Adapted from [tstack](https://github.com/t3dotgg/tstack) (MIT) |
 | `structure-review` | 💬 "structure review", "is this bloated" | A strict read-only review of code structure. It counts state owners, duplicate paths and reader load, then ranks fixes on the ladder: delete, simplify, optimize, automate. It replaces `thermo-nuclear-code-quality-review` |
+| `split-pr` | 💬 "split this PR", "split the release" | Splits a PR that is too big to review, most often a release, into slices to review and cuts to release, then takes them one at a time. Every merge waits for my yes |
 | `hydrojug-untangle` | ⌨️ `/hydrojug-untangle` | Untangles only the files I name or the current diff, never the whole repo. Inspired by [caldoai `untangle-codebase`](https://github.com/caldoai/skills/blob/main/skills/untangle-codebase/SKILL.md) (MIT) |
 
 **The method** comes from pstack. `poteto-mode` (📜) holds the playbooks for a feature, a bug fix, a refactor, a review and shipping. The policy sends any code work bigger than a one-line change to it.
