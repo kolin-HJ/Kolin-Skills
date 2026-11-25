@@ -17,6 +17,7 @@ SLOT = REPO / "hooks/heavy-slot.py"
 MODEL_HOOK = REPO / "hooks/agent-default-model.py"
 TURN_HOOK = REPO / "hooks/subagent-turn-guard.py"
 PREVIEW_HOOK = REPO / "hooks/preview-budget.py"
+AG_NOTES = REPO / "hooks/ag_notes.py"
 
 
 def invoke(hook, payload, cwd):
@@ -405,6 +406,74 @@ class NativeHookPayloadTests(unittest.TestCase):
             sub.write_text("".join(lines[:65]))
             warn65 = invoke(TURN_HOOK, {"transcript_path": str(sub)}, directory)
             self.assertIn("turn 65 of 80", json.loads(warn65.stdout)["hookSpecificOutput"]["additionalContext"])
+
+    def test_antigravity_lint_preview_delegate_and_notes_flush_end_to_end(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            state = root / "state"
+            env = {**os.environ, "KOLIN_SKILLS_STATE_DIR": str(state)}
+            (root / "package.json").write_text("{}")
+            (root / "edited.ts").write_text("const value = 1;\n")
+            eslint = root / "node_modules/.bin/eslint"
+            eslint.parent.mkdir(parents=True)
+            eslint.write_text(
+                f"#!{sys.executable}\nimport json,sys\n"
+                "print(json.dumps([{'messages': [{'ruleId': 'fixture/bad', 'severity': 2, 'line': 1, 'column': 1, 'message': 'Bad.'}]}]))\n"
+                "sys.exit(1)\n"
+            )
+            eslint.chmod(0o755)
+            lint_res = subprocess.run(
+                [sys.executable, str(LINT_HOOK), "--emit", "antigravity"],
+                input=json.dumps({"conversationId": "conv-1", "cwd": directory,
+                                  "toolCall": {"name": "edit_file", "args": {"Path": "edited.ts"}}}),
+                text=True, capture_output=True, cwd=directory, env=env, timeout=10,
+            )
+            self.assertEqual((lint_res.returncode, lint_res.stdout.strip()), (0, "{}"))
+            ag_transcript = root / "transcript.jsonl"
+            ag_lines = [{"tool_calls": [{"id": f"p{n}", "name": "mcp_t3-code_preview_snapshot", "args": {}}]} for n in range(15)]
+            ag_transcript.write_text("".join(json.dumps(line) + "\n" for line in ag_lines))
+            prev_res = subprocess.run(
+                [sys.executable, str(PREVIEW_HOOK), "--emit", "antigravity"],
+                input=json.dumps({"conversationId": "conv-1", "transcriptPath": str(ag_transcript),
+                                  "toolCall": {"id": "p15", "name": "mcp_t3-code_preview_snapshot", "args": {}}}),
+                text=True, capture_output=True, cwd=directory, env=env, timeout=10,
+            )
+            self.assertEqual(json.loads(prev_res.stdout), {"decision": "allow"})
+            del_res = subprocess.run(
+                [sys.executable, str(MODEL_HOOK), "--emit", "antigravity"],
+                input=json.dumps({"conversationId": "conv-1", "cwd": directory,
+                                  "toolCall": {"name": "mcp_t3-code_delegate_task", "args": {
+                                      "role": "implementation", "task": "Build x",
+                                      "target": {"providerInstanceId": "claudeAgent_claude_personal", "model": "claude-opus-5-5"}}}}),
+                text=True, capture_output=True, cwd=directory, env=env, timeout=10,
+            )
+            del_out = json.loads(del_res.stdout)
+            self.assertEqual(del_out["decision"], "allow")
+            self.assertEqual(del_out["overwrite"]["target"]["model"], "claude-sonnet-5-5")
+            flushed = subprocess.run(
+                [sys.executable, str(AG_NOTES)],
+                input=json.dumps({"conversationId": "conv-1"}),
+                text=True, capture_output=True, cwd=directory, env=env, timeout=10,
+            )
+            injected = json.loads(flushed.stdout)["injectSteps"][0]["systemMessage"]["systemMessage"]
+            self.assertIn("Lint: 1 error", injected)
+            self.assertIn("15 preview calls", injected)
+            self.assertIn("Model reason:", injected)
+            second_flush = subprocess.run(
+                [sys.executable, str(AG_NOTES)],
+                input=json.dumps({"conversationId": "conv-1"}),
+                text=True, capture_output=True, cwd=directory, env=env, timeout=10,
+            )
+            self.assertEqual(json.loads(second_flush.stdout), {})
+            rev_lines = [{"tool_calls": [{"id": f"r{n}", "name": "mcp_t3-code_delegate_task", "args": {"role": "review"}}]} for n in range(8)]
+            ag_transcript.write_text("".join(json.dumps(line) + "\n" for line in rev_lines))
+            rev_deny = subprocess.run(
+                [sys.executable, str(MODEL_HOOK), "--emit", "antigravity"],
+                input=json.dumps({"conversationId": "conv-1", "transcriptPath": str(ag_transcript),
+                                  "toolCall": {"id": "r8", "name": "mcp_t3-code_delegate_task", "args": {"role": "review"}}}),
+                text=True, capture_output=True, cwd=directory, env=env, timeout=10,
+            )
+            self.assertEqual(json.loads(rev_deny.stdout)["decision"], "deny")
 
     def test_preview_budget_warns_when_the_count_crosses_each_fifteenth_call(self):
         with tempfile.TemporaryDirectory() as directory:

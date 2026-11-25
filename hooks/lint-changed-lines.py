@@ -6,6 +6,8 @@ import subprocess
 import sys
 import time
 
+import ag_notes
+
 LINTABLE = {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"}
 COSMETIC = {
     "arrow-parens", "block-spacing", "brace-style", "comma-dangle",
@@ -26,7 +28,7 @@ ESLINT_NO_CONFIG = "ESLint couldn't find a"
 MAX_REPORT = 12
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 PATCH_FILE = re.compile(r"^\*\*\* (?:Add|Update) File: (.+?)\s*$", re.M)
-PATH_KEYS = ("file_path", "path", "target_file", "filePath", "relative_workspace_path")
+PATH_KEYS = ("file_path", "path", "target_file", "filePath", "relative_workspace_path", "Path", "TargetFile", "AbsolutePath")
 PATCH_KEYS = ("command", "input", "patch")
 SHELL_WRITE = re.compile(
     r"\bsed\b[^|;&\n]*\s(?:-\w*i|--in-place)|\bperl\s+-\w*i|write_text|\.write\(|open\([^\n]*?,\s*['\"][wa]"
@@ -50,9 +52,12 @@ def find_up(start, rel):
 
 
 def touched_paths(payload, cwd):
-    tool_input = payload.get("tool_input") or payload.get("toolInput") or {}
+    tool_call = payload.get("toolCall") if isinstance(payload.get("toolCall"), dict) else {}
+    tool_input = payload.get("tool_input") or payload.get("toolInput") or tool_call.get("args") or {}
     if isinstance(tool_input, str):
         tool_input = {"command": tool_input}
+    if not isinstance(tool_input, dict):
+        tool_input = {}
     found = []
     for key in PATH_KEYS:
         value = tool_input.get(key)
@@ -64,8 +69,10 @@ def touched_paths(payload, cwd):
             value = "\n".join(map(str, value))
         if isinstance(value, str) and "*** Begin Patch" in value:
             found.extend(PATCH_FILE.findall(value))
-    if payload.get("tool_name") == "Bash" and isinstance(tool_input.get("command"), str):
-        found.extend(shell_written_paths(tool_input["command"], cwd))
+    shell_cmd = tool_input.get("command") or tool_input.get("CommandLine")
+    tool_name = payload.get("tool_name") or tool_call.get("name")
+    if tool_name in ("Bash", "run_command") and isinstance(shell_cmd, str):
+        found.extend(shell_written_paths(shell_cmd, cwd))
     top = payload.get("file_path")
     if isinstance(top, str):
         found.append(top)
@@ -243,6 +250,8 @@ def main(argv):
     paths = [p for p in dict.fromkeys(paths)
              if os.path.splitext(p)[1] in LINTABLE and os.path.isfile(p)]
     if not paths:
+        if emit == "antigravity":
+            print("{}")
         return 0
 
     started = time.monotonic()
@@ -255,6 +264,8 @@ def main(argv):
         if report:
             reports.append(report)
     if not reports and not skipped:
+        if emit == "antigravity":
+            print("{}")
         return 0
 
     not_linted = "Not linted, so run the repo's lint for: {}.".format(
@@ -266,6 +277,10 @@ def main(argv):
         footer = "Problems on lines you did not touch are not shown." + (" " + not_linted if skipped else "")
     has_errors = any(r["errors"] for r in reports)
 
+    if emit == "antigravity":
+        ag_notes.append_note(payload, (text + "\n" + footer).strip())
+        print("{}")
+        return 0
     if emit == "cursor":
         print(json.dumps({"additional_context": (text + "\n" + footer).strip()}))
         return 0

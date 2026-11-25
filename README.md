@@ -197,10 +197,10 @@ Claude Code gets everything. The other tools get what they can support.
 | Subagents | ✅ | ✅ (written as `.toml`) | — | — | — |
 | `.env` guard | ✅ | ✅ shell commands only | — | — | ✅ |
 | Forbidden git guard | ✅ | ✅ | — | — | ✅ |
-| PR proof check | ✅ | ✅ | — | — | — |
-| Bash guard (green merge checks, no Docker DB) | ✅ | ✅ | — | — | — |
-| Lint on changed lines | ✅ | ✅ | ✅ | — | — |
-| Other hooks, status line, reply style | ✅ | — | — | — | — |
+| PR proof check | ✅ | ✅ | — | — | ✅ |
+| Bash guard (green merge checks, no Docker DB) | ✅ | ✅ | — | — | ✅ |
+| Lint on changed lines | ✅ | ✅ | ✅ | — | ✅ |
+| Other hooks, status line, reply style | ✅ | — | — | — | ✅ delegate/preview/notes |
 | Updates itself at session start | ✅ | ✅ | — | — | ✅ |
 
 **Staying up to date.** Claude Code, Codex and Antigravity run `kolin-skills pull` when a session starts. It fast-forwards the clone to `origin/main` and re-links home. Cursor and Grok Bot have no session-start hook, so they keep whatever the last `apply` linked. To update any machine by hand, follow [`docs/stay-on-main.md`](docs/stay-on-main.md). When an update moves a third-party pin, run `kolin-skills upstream`.
@@ -283,14 +283,15 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 |---|---|---|
 | `gate/block-forbidden-git.sh` | Claude Code, Codex, Antigravity | Blocks pushes to protected branches, PR merges (shell and T3 MCP `pull_request_merge`) into `main`, `master`, `staging` and `sandbox`, force push, `--no-verify`, auto-merge, and edits to hook files |
 | `block-env-reads.py` | Claude Code, Codex, Antigravity | Blocks `.env` reads. `.env.example` stays readable |
-| `bash-guard.py` | Claude Code, Codex | Blocks Docker databases, blocks `gh pr merge` and T3 MCP `pull_request_merge` until checks are green, keeps gate output unfiltered, and queues heavy jobs into 3 shared slots |
-| `heavy-slot.py` | Claude Code, Codex (through `bash-guard`) | Gives each heavy job a slot and keeps the Mac awake while it runs |
-| `pr-proof.py` | Claude Code, Codex | After a PR is opened or marked ready (shell `gh pr` or T3 MCP `pull_request_create`/`update`), sends it back to draft if `## Verification` is missing, UI `.tsx`/`.jsx` changes lack `## Visual proof`, non-test diff exceeds 800 lines without `Allowed large-pr:`, or `diff-audit` finds a block. Warns on PR bodies over 2,500 chars. Release PRs and drafts are skipped |
-| `lint-changed-lines.py` | Claude Code, Codex, Cursor | Lints the JS and TS lines the agent just changed |
+| `bash-guard.py` | Claude Code, Codex, Antigravity | Blocks Docker databases, blocks `gh pr merge` and T3 MCP `pull_request_merge` until checks are green, keeps gate output unfiltered, and queues heavy jobs into 3 shared slots |
+| `heavy-slot.py` | Claude Code, Codex, Antigravity (through `bash-guard`) | Gives each heavy job a slot and keeps the Mac awake while it runs |
+| `pr-proof.py` | Claude Code, Codex, Antigravity | After a PR is opened or marked ready (shell `gh pr` or T3 MCP `pull_request_create`/`update`), sends it back to draft if `## Verification` is missing, UI `.tsx`/`.jsx` changes lack `## Visual proof`, non-test diff exceeds 800 lines without `Allowed large-pr:`, or `diff-audit` finds a block. Warns on PR bodies over 2,500 chars. Release PRs and drafts are skipped |
+| `lint-changed-lines.py` | Claude Code, Codex, Cursor, Antigravity | Lints the JS and TS lines the agent just changed |
 | `compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through context compaction |
-| `agent-default-model.py` | Claude Code | Blocks `Plan` (starts without policy), redirects `Interrogate` off `general-purpose` to read-only `senior-reviewer`, floors `senior-reviewer` at Opus, runs unpinned `Explore` on Sonnet, runs `poteto-agent` and T3 `delegate_task` builders (`implementation`, `research`, `test`) on Sonnet unless the brief has a `Model reason:` line, and warns at 4 review spawns (native or delegated) since my last message and blocks at 8 |
+| `agent-default-model.py` | Claude Code, Antigravity | Blocks `Plan` (starts without policy), redirects `Interrogate` off `general-purpose` to read-only `senior-reviewer`, floors `senior-reviewer` at Opus, runs unpinned `Explore` on Sonnet, runs `poteto-agent` and T3 `delegate_task` builders (`implementation`, `research`, `test`) on Sonnet unless the brief has a `Model reason:` line, and warns at 4 review spawns (native or delegated) since my last message and blocks at 8 |
 | `subagent-turn-guard.py` | Claude Code | Warns subagents at turns 55 and 65 of 80 to stop starting new files, finish checks, and write their report before `maxTurns` cuts them off |
-| `preview-budget.py` | Claude Code | Warns at every 15th `preview_*` call in one thread to hand the UI drive to the repo's `verifier` |
+| `preview-budget.py` | Claude Code, Antigravity | Warns at every 15th `preview_*` call in one thread to hand the UI drive to the repo's `verifier` |
+| `ag_notes.py` | Antigravity | Delivers Antigravity `PostToolUse` and warning notes to the model on the next `PreInvocation` via `injectSteps` |
 | `keep-awake.py` | Claude Code | Keeps the Mac awake during each prompt and subagent run |
 
 </details>

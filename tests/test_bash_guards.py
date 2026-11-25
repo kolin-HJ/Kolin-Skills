@@ -389,6 +389,30 @@ class MergeChecksGuardTests(unittest.TestCase):
                                      capture_output=True, cwd=directory, timeout=10, env={**base_env, "GH_CHECKS_EXIT": "0"})
             self.assertEqual((allowed.returncode, allowed.stderr), (0, ""))
 
+    def test_antigravity_emit_denies_docker_and_polling_and_overwrites_heavy_commands(self):
+        with tempfile.TemporaryDirectory() as directory:
+            docker = subprocess.run(
+                [sys.executable, str(BASH_GUARD), "--emit", "antigravity"],
+                input=json.dumps({"cwd": directory, "toolCall": {"name": "run_command", "args": {"CommandLine": "docker compose up -d postgres"}}}),
+                text=True, capture_output=True, cwd=directory, timeout=10,
+            )
+            self.assertEqual(docker.returncode, 0, docker.stderr)
+            self.assertEqual(json.loads(docker.stdout)["decision"], "deny")
+            heavy = subprocess.run(
+                [sys.executable, str(BASH_GUARD), "--emit", "antigravity"],
+                input=json.dumps({"cwd": directory, "toolCall": {"name": "run_command", "args": {"CommandLine": "pnpm check 2>&1 | tail -5"}}}),
+                text=True, capture_output=True, cwd=directory, timeout=10,
+            )
+            heavy_out = json.loads(heavy.stdout)
+            self.assertEqual(heavy_out["decision"], "allow")
+            self.assertRegex(heavy_out["overwrite"]["CommandLine"], r"^python3 \S+heavy-slot\.py \$\$ 120\npnpm check 2>&1$")
+            light = subprocess.run(
+                [sys.executable, str(BASH_GUARD), "--emit", "antigravity"],
+                input=json.dumps({"cwd": directory, "toolCall": {"name": "run_command", "args": {"CommandLine": "git status"}}}),
+                text=True, capture_output=True, cwd=directory, timeout=10,
+            )
+            self.assertEqual(json.loads(light.stdout), {"decision": "allow"})
+
 
 class EnvGuardEmbeddedPathTests(unittest.TestCase):
     def test_env_path_inside_a_script_argument_is_blocked(self):

@@ -4,6 +4,8 @@ import pathlib
 import re
 import sys
 
+import ag_notes
+
 SEAT_FLOORS = {"senior-reviewer": "opus"}
 MEETS_FLOOR = {"opus": ("opus", "fable", "mythos")}
 SEAT_CEILINGS = {"poteto-agent": "sonnet"}
@@ -27,6 +29,14 @@ INTERROGATE_PROMPT = re.compile(
 )
 REVIEW_WARN_AFTER = 4
 REVIEW_BLOCK_AFTER = 8
+
+
+def parse_emit(argv):
+    if "--emit" in argv:
+        index = argv.index("--emit")
+        if index + 1 < len(argv):
+            return argv[index + 1]
+    return "claude"
 
 
 def definition(agent, cwd):
@@ -80,6 +90,8 @@ def is_review_seat(agent, tool_input, tool_name=""):
 
 
 def is_user_prompt(record):
+    if record.get("type") == "USER_INPUT" or record.get("source") == "USER":
+        return True
     if record.get("type") != "user" or record.get("promptSource") == "system":
         return False
     if any(record.get(key) for key in ("isMeta", "isSidechain", "isCompactSummary", "origin")):
@@ -101,8 +113,8 @@ def reviews_since_user_spoke(transcript_path, exclude_id=None):
     count = 0
     with path.open(errors="ignore") as handle:
         for line in handle:
-            spoke = '"type":"user"' in line and '"toolUseResult"' not in line
-            if not spoke and '"tool_use"' not in line:
+            spoke = ('"type":"user"' in line and '"toolUseResult"' not in line) or '"USER_INPUT"' in line or '"source":"USER"' in line or '"source": "USER"' in line
+            if not spoke and '"tool_use"' not in line and '"tool_calls"' not in line:
                 continue
             try:
                 record = json.loads(line)
@@ -132,6 +144,25 @@ def reviews_since_user_spoke(transcript_path, exclude_id=None):
                 agent = str(inp.get("subagent_type") or "")
                 if is_review_seat(agent, inp, name):
                     count += 1
+            for call in record.get("tool_calls") if isinstance(record.get("tool_calls"), list) else []:
+                if not isinstance(call, dict):
+                    continue
+                name = str(call.get("name") or "")
+                if name not in DELEGATE_TOOLS:
+                    continue
+                call_id = call.get("id")
+                if call_id:
+                    if call_id == exclude_id or call_id in seen:
+                        continue
+                    seen.add(call_id)
+                args = call.get("args") or call.get("arguments") or {}
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except ValueError:
+                        args = {}
+                if isinstance(args, dict) and is_review_seat("", args, name):
+                    count += 1
     return count
 
 
@@ -140,18 +171,33 @@ def sonnet_equivalent(asked):
 
 
 def main():
-    event = json.load(sys.stdin)
-    tool_name = str(event.get("tool_name") or event.get("toolName") or "")
-    tool_input = event.get("tool_input") or {}
+    emit = parse_emit(sys.argv[1:])
+    try:
+        event = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError):
+        if emit == "antigravity":
+            print(json.dumps({"decision": "allow"}))
+        return 0
+    if not isinstance(event, dict):
+        if emit == "antigravity":
+            print(json.dumps({"decision": "allow"}))
+        return 0
+    tool_call = event.get("toolCall") if isinstance(event.get("toolCall"), dict) else {}
+    tool_name = str(event.get("tool_name") or event.get("toolName") or tool_call.get("name") or "")
+    raw_input = event.get("tool_input") or tool_call.get("args") or {}
+    tool_input = raw_input if isinstance(raw_input, dict) else {}
     agent = str(tool_input.get("subagent_type") or "")
     is_delegate = tool_name in DELEGATE_TOOLS
 
     if not is_delegate and agent == "Plan":
-        print(
+        msg = (
             "Blocked: Plan starts without CLAUDE.md or AGENTS.md. "
-            "Use `senior-reviewer` (Opus, read-only) for a diff or a judgment call, or `Explore` (Sonnet) for search.",
-            file=sys.stderr,
+            "Use `senior-reviewer` (Opus, read-only) for a diff or a judgment call, or `Explore` (Sonnet) for search."
         )
+        if emit == "antigravity":
+            print(json.dumps({"decision": "deny", "reason": msg}))
+            return 0
+        print(msg, file=sys.stderr)
         return 2
 
     updated = dict(tool_input)
@@ -197,14 +243,19 @@ def main():
                 reasons.append(reason)
 
     if is_review_seat(agent, tool_input, tool_name):
-        prior = reviews_since_user_spoke(event.get("transcript_path") or "", exclude_id=event.get("tool_use_id"))
+        transcript = event.get("transcript_path") or event.get("transcriptPath") or ""
+        exclude = event.get("tool_use_id") or tool_call.get("id")
+        prior = reviews_since_user_spoke(transcript, exclude_id=exclude)
         if prior >= REVIEW_BLOCK_AFTER:
-            print(
+            msg = (
                 f"Blocked: {prior} review subagents since Kolin's last message. "
                 "Policy caps review at 1 pass plus 1 fix-delta re-check. "
-                "Stop patching, report the open findings to Kolin, and wait for a reply.",
-                file=sys.stderr,
+                "Stop patching, report the open findings to Kolin, and wait for a reply."
             )
+            if emit == "antigravity":
+                print(json.dumps({"decision": "deny", "reason": msg}))
+                return 0
+            print(msg, file=sys.stderr)
             return 2
         if prior >= REVIEW_WARN_AFTER:
             notes.append(
@@ -212,6 +263,15 @@ def main():
                 "Policy caps review at 1 pass plus 1 fix-delta re-check; "
                 "if findings keep returning, stop patching, rethink the design, and tell Kolin."
             )
+
+    if emit == "antigravity":
+        if notes:
+            ag_notes.append_note(event, " ".join(notes))
+        if updated != tool_input and "target" in updated:
+            print(json.dumps({"decision": "allow", "overwrite": {"target": updated["target"]}}))
+        else:
+            print(json.dumps({"decision": "allow"}))
+        return 0
 
     if updated == tool_input and not notes:
         return 0

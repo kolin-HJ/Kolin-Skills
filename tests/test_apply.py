@@ -520,7 +520,10 @@ class ApplyTests(unittest.TestCase):
                 env_matchers = [entry["matcher"] for entry in pre if "block-env-reads.py" in json.dumps(entry)]
                 git_matchers = [entry["matcher"] for entry in pre if "block-forbidden-git.sh" in json.dumps(entry)]
                 self.assertEqual(env_matchers, ["run_command|read_file|view_file|grep_search|find_by_name"])
-                self.assertEqual(git_matchers, ["run_command|write_file|edit_file|write_to_file|replace_file_content|multi_replace_file_content"])
+                self.assertEqual(git_matchers, ["run_command|write_file|edit_file|write_to_file|replace_file_content|multi_replace_file_content|mcp_t3-code_pull_request_merge"])
+                self.assertIn("ag_notes.py", json.dumps(hooks["kolin-skills"].get("PreInvocation", [])))
+                self.assertIn("lint-changed-lines.py", json.dumps(hooks["kolin-skills"].get("PostToolUse", [])))
+                self.assertIn("pr-proof.py", json.dumps(hooks["kolin-skills"].get("PostToolUse", [])))
         self.assertIn({"path": "~/team-skills"}, json.loads((t3_config / "skills.json").read_text())["entries"])
         self.assertIn("user-hook", json.loads((t3_config / "hooks.json").read_text()))
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
