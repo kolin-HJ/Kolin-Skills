@@ -302,6 +302,45 @@ class NativeHookPayloadTests(unittest.TestCase):
             quiet = invoke(MODEL_HOOK, {"cwd": directory, "transcript_path": str(transcript), "tool_input": {"subagent_type": "poteto-agent"}}, directory)
             self.assertEqual((quiet.returncode, quiet.stdout), (0, ""))
 
+    def test_agent_model_runs_a_builder_on_sonnet_unless_the_brief_gives_a_model_reason(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cases = [
+                ({"subagent_type": "poteto-agent", "model": "opus", "prompt": "Build the grid."}, "sonnet"),
+                ({"subagent_type": "poteto-agent", "model": "claude-fable-5-2", "prompt": "Build the grid."}, "sonnet"),
+                ({"subagent_type": "poteto-agent", "model": "opus", "prompt": "Build the queue.\nModel reason: lock-free code, wrong twice on sonnet."}, None),
+                ({"subagent_type": "poteto-agent", "model": "sonnet", "prompt": "Build the grid."}, None),
+                ({"subagent_type": "poteto-agent", "prompt": "Build the grid."}, None),
+            ]
+            for tool_input, expected in cases:
+                with self.subTest(tool_input=tool_input):
+                    result = invoke(MODEL_HOOK, {"cwd": directory, "tool_input": tool_input}, directory)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    output = json.loads(result.stdout)["hookSpecificOutput"] if result.stdout else None
+                    self.assertEqual(output["updatedInput"]["model"] if output else None, expected)
+                    self.assertEqual("Model reason:" in output["additionalContext"] if output else None, True if expected else None)
+
+    def test_agent_model_blocks_the_ninth_review_since_the_user_spoke_and_counts_again_after_a_reply(self):
+        with tempfile.TemporaryDirectory() as directory:
+            transcript = pathlib.Path(directory) / "session.jsonl"
+            records = [
+                {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": f"toolu_{n}", "name": "Agent", "input": {"subagent_type": "senior-reviewer"}}]}}
+                for n in range(8)
+            ]
+            records.append({"type": "user", "promptSource": "system", "origin": {"kind": "task-notification"}, "message": {"content": "<task-notification>done</task-notification>"}})
+            records.append({"type": "user", "toolUseResult": {"stdout": ""}, "message": {"content": [{"type": "tool_result", "tool_use_id": "toolu_7", "content": "Ship"}]}})
+            payload = {"cwd": directory, "transcript_path": str(transcript), "tool_use_id": "toolu_next", "tool_input": {"subagent_type": "senior-reviewer", "model": "opus"}}
+
+            def write(lines):
+                transcript.write_text("".join(json.dumps(line, separators=(",", ":")) + "\n" for line in lines))
+
+            write(records)
+            blocked = invoke(MODEL_HOOK, payload, directory)
+            self.assertEqual(blocked.returncode, 2)
+            self.assertIn("8 review subagents since Kolin's last message", blocked.stderr)
+            write(records + [{"type": "user", "promptSource": "sdk", "message": {"content": "Review it once more."}}])
+            allowed = invoke(MODEL_HOOK, payload, directory)
+            self.assertEqual((allowed.returncode, allowed.stdout), (0, ""))
+
     def test_preview_budget_warns_when_the_count_crosses_each_fortieth_call(self):
         with tempfile.TemporaryDirectory() as directory:
             transcript = pathlib.Path(directory) / "session.jsonl"

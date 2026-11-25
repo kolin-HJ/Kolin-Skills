@@ -6,6 +6,9 @@ import sys
 
 SEAT_FLOORS = {"senior-reviewer": "opus"}
 MEETS_FLOOR = {"opus": ("opus", "fable", "mythos")}
+SEAT_CEILINGS = {"poteto-agent": "sonnet"}
+ABOVE_CEILING = {"sonnet": ("opus", "fable", "mythos")}
+MODEL_REASON = re.compile(r"^Model reason:[ \t]*\S", re.M | re.I)
 BUILT_IN_DEFAULTS = {"Explore": "sonnet"}
 PINNED = re.compile(r"^model:[ \t]*(\S+)", re.M)
 INTERROGATE_DESC = re.compile(
@@ -20,6 +23,7 @@ INTERROGATE_PROMPT = re.compile(
     re.I,
 )
 REVIEW_WARN_AFTER = 4
+REVIEW_BLOCK_AFTER = 8
 
 
 def definition(agent, cwd):
@@ -65,7 +69,19 @@ def is_interrogate_call(tool_input):
     return bool(INTERROGATE_DESC.search(desc) or INTERROGATE_PROMPT.search(prompt))
 
 
-def prior_review_count(transcript_path, exclude_id=None):
+def is_user_prompt(record):
+    if record.get("type") != "user" or record.get("promptSource") == "system":
+        return False
+    if any(record.get(key) for key in ("isMeta", "isSidechain", "isCompactSummary", "origin")):
+        return False
+    message = record.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    if isinstance(content, str):
+        return True
+    return isinstance(content, list) and not any(isinstance(block, dict) and block.get("type") == "tool_result" for block in content)
+
+
+def reviews_since_user_spoke(transcript_path, exclude_id=None):
     if not transcript_path:
         return 0
     path = pathlib.Path(transcript_path)
@@ -75,13 +91,19 @@ def prior_review_count(transcript_path, exclude_id=None):
     count = 0
     with path.open(errors="ignore") as handle:
         for line in handle:
-            if '"tool_use"' not in line:
+            spoke = '"type":"user"' in line and '"toolUseResult"' not in line
+            if not spoke and '"tool_use"' not in line:
                 continue
             try:
                 record = json.loads(line)
             except ValueError:
                 continue
-            message = record.get("message") if isinstance(record, dict) else None
+            if not isinstance(record, dict):
+                continue
+            if is_user_prompt(record):
+                count = 0
+                continue
+            message = record.get("message")
             content = message.get("content") if isinstance(message, dict) else None
             for block in content if isinstance(content, list) else []:
                 if not isinstance(block, dict) or block.get("type") != "tool_use":
@@ -124,31 +146,49 @@ def main():
             updated["model"] = "opus"
         reasons.append("Interrogate must run read-only; redirected general-purpose to senior-reviewer")
 
+    notes = []
+    ceiling = SEAT_CEILINGS.get(agent)
+    asked = str(updated.get("model") or "").lower()
+    if ceiling and any(tier in asked for tier in ABOVE_CEILING[ceiling]) and not MODEL_REASON.search(str(tool_input.get("prompt") or "")):
+        updated["model"] = ceiling
+        reasons.append(f"{agent} runs on {ceiling} unless the brief has a `Model reason:` line")
+        notes.append(
+            f"This {agent} runs on {ceiling}, not {asked}: the brief gives no reason for the higher model. "
+            "To run one unit higher, add a `Model reason: <why this unit needs it>` line to the brief."
+        )
+
     if not updated.get("model"):
         model, reason = chosen_model(agent, event.get("cwd") or os.getcwd())
         if model:
             updated["model"] = model
             reasons.append(reason)
 
-    warning = None
     if agent == "senior-reviewer" or interrogate:
-        prior = prior_review_count(event.get("transcript_path") or "", exclude_id=event.get("tool_use_id"))
+        prior = reviews_since_user_spoke(event.get("transcript_path") or "", exclude_id=event.get("tool_use_id"))
+        if prior >= REVIEW_BLOCK_AFTER:
+            print(
+                f"Blocked: {prior} review subagents since Kolin's last message. "
+                "Policy caps review at 1 pass plus 1 fix-delta re-check. "
+                "Stop patching, report the open findings to Kolin, and wait for a reply.",
+                file=sys.stderr,
+            )
+            return 2
         if prior >= REVIEW_WARN_AFTER:
-            warning = (
-                f"This session already spawned {prior} review subagents. "
+            notes.append(
+                f"This session spawned {prior} review subagents since Kolin's last message. "
                 "Policy caps review at 1 pass plus 1 fix-delta re-check; "
                 "if findings keep returning, stop patching, rethink the design, and tell Kolin."
             )
 
-    if updated == tool_input and not warning:
+    if updated == tool_input and not notes:
         return 0
     output = {"hookEventName": "PreToolUse"}
     if updated != tool_input:
         output["permissionDecision"] = "allow"
         output["permissionDecisionReason"] = "; ".join(reasons)
         output["updatedInput"] = updated
-    if warning:
-        output["additionalContext"] = warning
+    if notes:
+        output["additionalContext"] = " ".join(notes)
     json.dump({"hookSpecificOutput": output}, sys.stdout)
     return 0
 

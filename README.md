@@ -287,7 +287,7 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 | `pr-proof.py` | Claude Code, Codex | After a PR is opened or marked ready, sends it back to draft if `## Verification` is missing, UI `.tsx`/`.jsx` changes lack `## Visual proof`, or `diff-audit` finds a block. Release PRs and drafts are skipped |
 | `lint-changed-lines.py` | Claude Code, Codex, Cursor | Lints the JS and TS lines the agent just changed |
 | `compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through context compaction |
-| `agent-default-model.py` | Claude Code | Blocks `Plan` (starts without policy), redirects `Interrogate` off `general-purpose` to read-only `senior-reviewer`, floors `senior-reviewer` at Opus, runs unpinned `Explore` on Sonnet, and warns past 4 review spawns in one session |
+| `agent-default-model.py` | Claude Code | Blocks `Plan` (starts without policy), redirects `Interrogate` off `general-purpose` to read-only `senior-reviewer`, floors `senior-reviewer` at Opus, runs unpinned `Explore` on Sonnet, runs `poteto-agent` on Sonnet unless the brief has a `Model reason:` line, and warns at 4 review spawns since my last message and blocks at 8 |
 | `preview-budget.py` | Claude Code | Warns at every 40th `preview_*` call in one thread to hand the UI drive to the repo's `verifier` |
 | `keep-awake.py` | Claude Code | Keeps the Mac awake during each prompt and subagent run |
 
