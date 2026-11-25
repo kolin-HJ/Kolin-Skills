@@ -281,15 +281,16 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 
 | Hook | Tools | What it does |
 |---|---|---|
-| `gate/block-forbidden-git.sh` | Claude Code, Codex, Antigravity | Blocks pushes to protected branches, PR merges into `main`, `master` and `sandbox`, force push, `--no-verify`, auto-merge, and edits to hook files |
+| `gate/block-forbidden-git.sh` | Claude Code, Codex, Antigravity | Blocks pushes to protected branches, PR merges (shell and T3 MCP `pull_request_merge`) into `main`, `master`, `staging` and `sandbox`, force push, `--no-verify`, auto-merge, and edits to hook files |
 | `block-env-reads.py` | Claude Code, Codex, Antigravity | Blocks `.env` reads. `.env.example` stays readable |
-| `bash-guard.py` | Claude Code, Codex | Blocks Docker databases, blocks `gh pr merge` until checks are green, keeps gate output unfiltered, and queues heavy jobs into 3 shared slots |
+| `bash-guard.py` | Claude Code, Codex | Blocks Docker databases, blocks `gh pr merge` and T3 MCP `pull_request_merge` until checks are green, keeps gate output unfiltered, and queues heavy jobs into 3 shared slots |
 | `heavy-slot.py` | Claude Code, Codex (through `bash-guard`) | Gives each heavy job a slot and keeps the Mac awake while it runs |
-| `pr-proof.py` | Claude Code, Codex | After a PR is opened or marked ready, sends it back to draft if `## Verification` is missing, UI `.tsx`/`.jsx` changes lack `## Visual proof`, or `diff-audit` finds a block. Release PRs and drafts are skipped |
+| `pr-proof.py` | Claude Code, Codex | After a PR is opened or marked ready (shell `gh pr` or T3 MCP `pull_request_create`/`update`), sends it back to draft if `## Verification` is missing, UI `.tsx`/`.jsx` changes lack `## Visual proof`, non-test diff exceeds 800 lines without `Allowed large-pr:`, or `diff-audit` finds a block. Warns on PR bodies over 2,500 chars. Release PRs and drafts are skipped |
 | `lint-changed-lines.py` | Claude Code, Codex, Cursor | Lints the JS and TS lines the agent just changed |
 | `compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through context compaction |
-| `agent-default-model.py` | Claude Code | Blocks `Plan` (starts without policy), redirects `Interrogate` off `general-purpose` to read-only `senior-reviewer`, floors `senior-reviewer` at Opus, runs unpinned `Explore` on Sonnet, runs `poteto-agent` on Sonnet unless the brief has a `Model reason:` line, and warns at 4 review spawns since my last message and blocks at 8 |
-| `preview-budget.py` | Claude Code | Warns at every 40th `preview_*` call in one thread to hand the UI drive to the repo's `verifier` |
+| `agent-default-model.py` | Claude Code | Blocks `Plan` (starts without policy), redirects `Interrogate` off `general-purpose` to read-only `senior-reviewer`, floors `senior-reviewer` at Opus, runs unpinned `Explore` on Sonnet, runs `poteto-agent` and T3 `delegate_task` builders (`implementation`, `research`, `test`) on Sonnet unless the brief has a `Model reason:` line, and warns at 4 review spawns (native or delegated) since my last message and blocks at 8 |
+| `subagent-turn-guard.py` | Claude Code | Warns subagents at turns 55 and 65 of 80 to stop starting new files, finish checks, and write their report before `maxTurns` cuts them off |
+| `preview-budget.py` | Claude Code | Warns at every 15th `preview_*` call in one thread to hand the UI drive to the repo's `verifier` |
 | `keep-awake.py` | Claude Code | Keeps the Mac awake during each prompt and subagent run |
 
 </details>

@@ -15,6 +15,7 @@ ENV_HOOK = REPO / "hooks/block-env-reads.py"
 BASH_GUARD = REPO / "hooks/bash-guard.py"
 SLOT = REPO / "hooks/heavy-slot.py"
 MODEL_HOOK = REPO / "hooks/agent-default-model.py"
+TURN_HOOK = REPO / "hooks/subagent-turn-guard.py"
 PREVIEW_HOOK = REPO / "hooks/preview-budget.py"
 
 
@@ -348,6 +349,62 @@ class NativeHookPayloadTests(unittest.TestCase):
             write(records + [{"type": "user", "promptSource": "sdk", "message": {"content": "Review it once more."}}])
             allowed = invoke(MODEL_HOOK, payload, directory)
             self.assertEqual((allowed.returncode, allowed.stdout), (0, ""))
+
+    def test_delegate_task_caps_builder_models_to_sonnet_and_counts_delegated_reviews(self):
+        with tempfile.TemporaryDirectory() as directory:
+            opus_build = invoke(MODEL_HOOK, {
+                "cwd": directory,
+                "tool_name": "mcp__t3-code__delegate_task",
+                "tool_input": {"role": "implementation", "task": "Build feature.", "target": {"providerInstanceId": "claudeAgent_claude_personal", "model": "claude-opus-5-5"}},
+            }, directory)
+            self.assertEqual(opus_build.returncode, 0, opus_build.stderr)
+            out = json.loads(opus_build.stdout)["hookSpecificOutput"]
+            self.assertEqual(out["updatedInput"]["target"]["model"], "claude-sonnet-5-5")
+            self.assertIn("Model reason:", out["additionalContext"])
+            reasoned = invoke(MODEL_HOOK, {
+                "cwd": directory,
+                "tool_name": "mcp__t3-code__delegate_task",
+                "tool_input": {"role": "implementation", "task": "Build lock.\nModel reason: failed twice on sonnet.", "target": {"model": "claude-opus-5-5"}},
+            }, directory)
+            self.assertEqual((reasoned.returncode, reasoned.stdout), (0, ""))
+            review_opus = invoke(MODEL_HOOK, {
+                "cwd": directory,
+                "tool_name": "mcp__t3-code__delegate_task",
+                "tool_input": {"role": "review", "task": "Review PR", "target": {"model": "claude-opus-5-5"}},
+            }, directory)
+            self.assertEqual((review_opus.returncode, review_opus.stdout), (0, ""))
+            transcript = pathlib.Path(directory) / "session.jsonl"
+            records = [
+                {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": f"d_{n}", "name": "mcp__t3-code__delegate_task", "input": {"role": "review", "task": "Review"}}]}}
+                for n in range(8)
+            ]
+            transcript.write_text("".join(json.dumps(r, separators=(",", ":")) + "\n" for r in records))
+            blocked = invoke(MODEL_HOOK, {
+                "cwd": directory, "transcript_path": str(transcript), "tool_use_id": "d_9",
+                "tool_name": "mcp__t3-code__delegate_task",
+                "tool_input": {"role": "review", "task": "Review again"},
+            }, directory)
+            self.assertEqual(blocked.returncode, 2)
+            self.assertIn("8 review subagents", blocked.stderr)
+
+    def test_subagent_turn_guard_warns_at_55_and_65_only_for_subagents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sub_dir = pathlib.Path(directory) / "session/subagents"
+            sub_dir.mkdir(parents=True)
+            sub = sub_dir / "agent-1.jsonl"
+            main = pathlib.Path(directory) / "session.jsonl"
+            lines = [json.dumps({"type": "assistant", "message": {"id": f"m{n}", "content": []}}) + "\n" for n in range(65)]
+            sub.write_text("".join(lines[:55]))
+            main.write_text("".join(lines[:55]))
+            warn55 = invoke(TURN_HOOK, {"transcript_path": str(sub)}, directory)
+            self.assertEqual(warn55.returncode, 0, warn55.stderr)
+            self.assertIn("turn 55 of 80", json.loads(warn55.stdout)["hookSpecificOutput"]["additionalContext"])
+            self.assertEqual(invoke(TURN_HOOK, {"transcript_path": str(main)}, directory).stdout, "")
+            sub.write_text("".join(lines[:56]))
+            self.assertEqual(invoke(TURN_HOOK, {"transcript_path": str(sub)}, directory).stdout, "")
+            sub.write_text("".join(lines[:65]))
+            warn65 = invoke(TURN_HOOK, {"transcript_path": str(sub)}, directory)
+            self.assertIn("turn 65 of 80", json.loads(warn65.stdout)["hookSpecificOutput"]["additionalContext"])
 
     def test_preview_budget_warns_when_the_count_crosses_each_fifteenth_call(self):
         with tempfile.TemporaryDirectory() as directory:

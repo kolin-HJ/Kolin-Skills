@@ -366,6 +366,29 @@ class MergeChecksGuardTests(unittest.TestCase):
         self.assert_blocked(result)
         self.assertIn("HTTP 401: Bad credentials", result.stderr)
 
+    def test_mcp_pull_request_merge_enforces_green_checks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            gh = bin_dir / "gh"
+            gh.write_text(FAKE_GH)
+            gh.chmod(gh.stat().st_mode | stat.S_IEXEC)
+            calls = root / "calls.txt"
+            out = root / "checks.json"
+            base_env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+                        "GH_CALLS": str(calls), "GH_CHECKS_OUT": str(out)}
+            payload = {"tool_name": "mcp__t3-code__pull_request_merge", "tool_input": {"number": 42, "repository": "acme/app"}, "cwd": directory}
+            out.write_text('[{"name":"ci","bucket":"fail"}]\n')
+            blocked = subprocess.run([sys.executable, str(BASH_GUARD)], input=json.dumps(payload), text=True,
+                                     capture_output=True, cwd=directory, timeout=10, env={**base_env, "GH_CHECKS_EXIT": "1"})
+            self.assertEqual(blocked.returncode, 2, blocked.stderr)
+            self.assertIn("pr checks 42 --required", calls.read_text())
+            out.write_text('[{"name":"ci","bucket":"pass"}]\n')
+            allowed = subprocess.run([sys.executable, str(BASH_GUARD)], input=json.dumps(payload), text=True,
+                                     capture_output=True, cwd=directory, timeout=10, env={**base_env, "GH_CHECKS_EXIT": "0"})
+            self.assertEqual((allowed.returncode, allowed.stderr), (0, ""))
+
 
 class EnvGuardEmbeddedPathTests(unittest.TestCase):
     def test_env_path_inside_a_script_argument_is_blocked(self):

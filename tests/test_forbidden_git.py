@@ -199,6 +199,8 @@ PUSH_ALLOWED = [
     GIT + " push --dry-run -o ci.skip origin my-feature-d",
     GIT + " push origin feature/staging-copy",
     GIT + " push origin fix/main",
+    "python3 - <<'PY'\nif '" + GIT + " push' in cmd or '-d' in cmd:\n    print('ok')\nPY",
+    "cat > note.txt <<'EOF'\nNever run " + GIT + " push -f origin main\nEOF",
 ]
 GATE_SKIP_BLOCKED = [
     "SKIP_LOCAL_GATE=1 " + GIT + " commit -m x",
@@ -323,6 +325,30 @@ class ForbiddenGitHookTests(unittest.TestCase):
 
     def test_reads_and_mentions_of_the_local_gate_are_allowed(self):
         self.check(GATE_SKIP_ALLOWED, 0)
+
+    def test_mcp_pull_request_merge_blocks_protected_bases_auto_and_stack(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fake = pathlib.Path(directory, GH)
+            env = {**os.environ, "PATH": directory + os.pathsep + os.environ["PATH"]}
+            for base, expected in [("main", 2), ("staging", 2), ("sandbox", 2), ("feature", 0)]:
+                fake.write_text("#!/bin/sh\necho " + base + "\n")
+                fake.chmod(0o755)
+                payload = {"tool_name": "mcp__t3-code__pull_request_merge", "tool_input": {"number": 12, "repository": "o/r"}, "cwd": directory}
+                result = subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
+                                        capture_output=True, cwd=directory, env=env, timeout=20)
+                self.assertEqual(result.returncode, expected, (base, result.stderr))
+            fake.write_text("#!/bin/sh\necho feature\n")
+            fake.chmod(0o755)
+            for extra in ({"auto": True}, {"stack": True}):
+                payload = {"tool_name": "mcp__t3-code__pull_request_merge", "tool_input": {"number": 12, **extra}, "cwd": directory}
+                result = subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
+                                        capture_output=True, cwd=directory, env=env, timeout=20)
+                self.assertEqual(result.returncode, 2, (extra, result.stderr))
+            ag_payload = {"toolCall": {"name": "mcp_t3-code_pull_request_merge", "args": {"number": 12, "auto": True}}, "cwd": directory}
+            ag_result = subprocess.run(["bash", str(HOOK), "--emit", "antigravity"], input=json.dumps(ag_payload),
+                                       text=True, capture_output=True, cwd=directory, env=env, timeout=20)
+            self.assertEqual(ag_result.returncode, 0, ag_result.stderr)
+            self.assertEqual(json.loads(ag_result.stdout)["decision"], "deny")
 
 
 if __name__ == "__main__":

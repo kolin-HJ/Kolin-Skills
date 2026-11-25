@@ -8,6 +8,8 @@ Kolin approves this before code on non-trivial work. A build over about 10 files
 
 ```
 Goal:
+Applies to (divisions/roles):
+UX / visible behavior (if UI):
 Types:
 States (union or state machine):
 Owner file per state/decision:
