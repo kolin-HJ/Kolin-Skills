@@ -274,6 +274,47 @@ class PrProofTests(unittest.TestCase):
         self.open_pr(PROOF + "- Not run: visual proof, because only a prop type changed\n")
         self.assert_trusted(self.run_hook())
 
+    def test_mcp_pull_request_create_and_update_are_checked_too(self):
+        self.change("src/Card.tsx", "export function Card() { return null; }\n")
+        self.record("Bash", {"command": "pnpm check"})
+        self.open_pr(PROOF)
+        env = {**os.environ, "PATH": f"{self.bin}:{os.environ['PATH']}", "PR_JSON": str(self.pr_json), "GH_CALLS": str(self.calls)}
+        create_payload = {"cwd": str(self.repo), "transcript_path": str(self.transcript),
+                          "tool_name": "mcp__t3-code__pull_request_create",
+                          "tool_input": {"title": "ui", "body": PROOF}, "tool_response": {"url": URL}}
+        drafted = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(create_payload), text=True,
+                                 capture_output=True, timeout=120, env=env)
+        self.assert_drafted(drafted, "Visual proof")
+        self.calls.unlink()
+        draft_payload = {**create_payload, "tool_input": {"title": "ui", "body": PROOF, "draft": True}}
+        skipped = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(draft_payload), text=True,
+                                 capture_output=True, timeout=120, env=env)
+        self.assert_trusted(skipped)
+        label_update = {"cwd": str(self.repo), "transcript_path": str(self.transcript),
+                        "tool_name": "mcp__t3-code__pull_request_update",
+                        "tool_input": {"number": 7, "addLabels": ["ui"]}, "tool_response": {"url": URL}}
+        self.assert_trusted(subprocess.run([sys.executable, str(HOOK)], input=json.dumps(label_update), text=True,
+                                           capture_output=True, timeout=120, env=env))
+        ready_update = {**label_update, "tool_input": {"number": 7, "ready": True}}
+        self.assert_drafted(subprocess.run([sys.executable, str(HOOK)], input=json.dumps(ready_update), text=True,
+                                           capture_output=True, timeout=120, env=env), "Visual proof")
+
+    def test_oversized_non_test_pr_goes_back_to_draft_unless_allowed_and_long_body_warns(self):
+        self.record("Bash", {"command": "pnpm check"})
+        self.change("src/big.test.ts", "const x = 1;\n" * 900)
+        self.open_pr(PROOF)
+        self.assert_trusted(self.run_hook())
+        self.change("src/big.ts", "export const x = 1;\n" * 850)
+        self.open_pr(PROOF)
+        self.assert_drafted(self.run_hook(), "non-test changed lines")
+        self.calls.unlink()
+        self.open_pr(PROOF + "\nAllowed large-pr: mechanical schema migration\n")
+        self.assert_trusted(self.run_hook())
+        self.open_pr(PROOF + "\nAllowed large-pr: mechanical\n" + ("details " * 400))
+        long_note = self.run_hook()
+        self.assert_trusted(long_note)
+        self.assertIn("PR body is", json.loads(long_note.stdout)["hookSpecificOutput"]["additionalContext"])
+
 
 if __name__ == "__main__":
     unittest.main()

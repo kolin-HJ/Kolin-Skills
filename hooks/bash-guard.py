@@ -71,6 +71,7 @@ SLOT_CLAMP_NOTE = (
     "use run_in_background: true for longer runs."
 )
 MERGE = re.compile(COMMAND_START + r"gh\s+pr\s+merge\b([^;&|)\n]*)")
+MCP_MERGE_TOOLS = {"mcp__t3-code__pull_request_merge", "mcp_t3-code_pull_request_merge"}
 REPO_FLAG = re.compile(r"(?:--repo[=\s]|-R\s*)(\S+)")
 AUTO_FLAG = re.compile(r"(?:^|\s)--auto(?:\s|=|$)")
 NO_CHECKS = re.compile(r"no required checks|no checks reported", re.I)
@@ -117,15 +118,10 @@ def watch_fix(pr, required=True):
     return f"Run `gh pr checks {pr} --watch{flag} --fail-fast`, then fix any red check."
 
 
-def merge_block(rest, cwd):
-    if AUTO_FLAG.search(rest):
-        return None
-    repo = REPO_FLAG.search(rest)
-    repo_args = ["--repo", repo.group(1)] if repo else []
-    words = [word for word in REPO_FLAG.sub(" ", rest).split() if not word.startswith("-") and ">" not in word]
-    pr = words[0] if words else None
-    shown = pr or "<pr>"
-    selector = [pr] if pr else []
+def merge_block_for(pr, repo, cwd):
+    repo_args = ["--repo", str(repo)] if repo else []
+    shown = str(pr) if pr else "<pr>"
+    selector = [str(pr)] if pr else []
     required, err = parse_checks(
         run_gh(cwd, ["pr", "checks", *selector, "--required", "--json", "name,bucket", *repo_args]),
     )
@@ -145,6 +141,14 @@ def merge_block(rest, cwd):
     if not_green(all_rows, False):
         return f"Blocked: required checks are not all green. {watch_fix(shown, False)}"
     return None
+
+
+def merge_block(rest, cwd):
+    if AUTO_FLAG.search(rest):
+        return None
+    repo = REPO_FLAG.search(rest)
+    words = [word for word in REPO_FLAG.sub(" ", rest).split() if not word.startswith("-") and ">" not in word]
+    return merge_block_for(words[0] if words else None, repo.group(1) if repo else None, cwd)
 
 
 def polls(code):
@@ -190,7 +194,15 @@ def main() -> int:
     except (json.JSONDecodeError, ValueError):
         return 0
     claude = sys.argv[1:] != ["--client", "codex"]
+    tool_name = str(payload.get("tool_name") or payload.get("toolName") or "")
     tool_input = payload.get("tool_input") or payload.get("toolInput") or {}
+    if tool_name in MCP_MERGE_TOOLS:
+        if not tool_input.get("auto"):
+            blocked = merge_block_for(tool_input.get("number"), tool_input.get("repository"), payload.get("cwd") or ".")
+            if blocked:
+                print(blocked, file=sys.stderr)
+                return 2
+        return 0
     command = tool_input.get("command") or ""
     background = bool(tool_input.get("run_in_background"))
     code = QUOTED.sub(" ", HEREDOC.sub(" ", command))

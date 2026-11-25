@@ -7,6 +7,8 @@ import sys
 
 DIFF_AUDIT = pathlib.Path(__file__).resolve().parent.parent / "bin/diff-audit"
 TRIGGER = re.compile(r"(?:^|[;&|(\n])\s*(?:\w+=\S*\s+)*gh\s+pr\s+(create|ready)\b([^;&|)\n]*)")
+MCP_CREATE_TOOLS = {"mcp__t3-code__pull_request_create", "mcp_t3-code_pull_request_create"}
+MCP_UPDATE_TOOLS = {"mcp__t3-code__pull_request_update", "mcp_t3-code_pull_request_update"}
 REPO_FLAG = re.compile(r"(?:--repo[=\s]|-R\s*)(\S+)")
 PR_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/pull/\d+")
 HTML_COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
@@ -18,6 +20,13 @@ VISUAL_EVIDENCE = re.compile(r"!\[[^\]]*\]\([^)]+\)|<img\b|<video\b|https?://\S+
 VISUAL_WAIVED = re.compile(r"^[ \t]*(?:[-*][ \t]*)?Not run:[ \t]*[^\n]*\b(?:visual|screenshots?|ui|videos?)\b[^\n]*\bbecause\b.*\S", re.MULTILINE | re.IGNORECASE)
 UI_FILE = re.compile(r"\.(?:tsx|jsx)$")
 TEST_FILE = re.compile(r"(?:\.test\.|\.spec\.|(^|/)(?:__tests__|tests?)/)")
+EXCLUDED_SIZE_FILE = re.compile(
+    r"(?:^|/)(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?|Cargo\.lock|poetry\.lock|uv\.lock|Gemfile\.lock|composer\.lock)$"
+    r"|\.(?:snap|min\.js|min\.css|generated\.\w+|d\.ts|md)$"
+    r"|(?:^|/)(?:generated|__generated__|dist|build)/"
+)
+MAX_PR_LINES = 800
+MAX_BODY_CHARS = 2500
 UNFILLED = re.compile(r"<(?:command|result|check|why|kind|who and where|screenshot[^>]*)>|\b(?:TODO|TBD)\b")
 LINE_START = r"^[ \t]*(?:[-*][ \t]*)?"
 RAN_LINE = re.compile(LINE_START + r"Ran:[ \t]*\S", re.MULTILINE)
@@ -43,6 +52,29 @@ def named_pr(verb, rest, payload):
     repo = REPO_FLAG.search(rest)
     words = [word for word in REPO_FLAG.sub(" ", rest).split() if not word.startswith("-") and ">" not in word]
     return [*words[:1], *(["--repo", repo.group(1)] if repo else [])]
+
+
+def mcp_pr_selector(tool_name, tool_input, payload):
+    if tool_name in MCP_CREATE_TOOLS:
+        if tool_input.get("draft"):
+            return None
+        urls = PR_URL.findall(json.dumps(payload.get("tool_response") or ""))
+        return urls[-1:]
+    if tool_name in MCP_UPDATE_TOOLS:
+        if tool_input.get("ready") is not True and tool_input.get("body") is None:
+            return None
+        if tool_input.get("ready") is False:
+            return None
+        urls = PR_URL.findall(json.dumps(payload.get("tool_response") or ""))
+        if urls:
+            return urls[-1:]
+        selector = []
+        if tool_input.get("number"):
+            selector.append(str(tool_input["number"]))
+        if tool_input.get("repository"):
+            selector.extend(["--repo", str(tool_input["repository"])])
+        return selector
+    return None
 
 
 def is_release(pr):
@@ -97,6 +129,22 @@ def ui_changed_files(base, cwd):
     return [path for path in listed.stdout.splitlines() if UI_FILE.search(path) and not TEST_FILE.search(path)]
 
 
+def non_test_changed_lines(base, cwd):
+    listed = run(cwd, "git", "diff", "--numstat", f"{base}...HEAD")
+    if listed.returncode:
+        return 0
+    total = 0
+    for line in listed.stdout.splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) != 3 or parts[0] == "-" or parts[1] == "-":
+            continue
+        path = parts[2]
+        if TEST_FILE.search(path) or EXCLUDED_SIZE_FILE.search(path):
+            continue
+        total += int(parts[0]) + int(parts[1])
+    return total
+
+
 def check(pr, payload, cwd):
     visible = HTML_COMMENT.sub("", pr["body"] or "")
     body = "\n".join(line for line in visible.splitlines() if not UNFILLED.search(line))
@@ -105,6 +153,8 @@ def check(pr, payload, cwd):
     problems, notes = [], []
     if not RAN_LINE.search(section) and not NOT_RUN_LINE.search(section):
         problems.append(f"The body has no filled-in `## Verification` section with one line per check: {FORMAT}.")
+    if len(visible) > MAX_BODY_CHARS:
+        notes.append(f"PR body is {len(visible):,} chars (target ~1,500 chars); trim it to one screen with `pr-body`.")
     base_ref = pr["baseRefName"]
     base = f"origin/{base_ref}"
     fetched = run(cwd, "git", "fetch", "-q", "origin", f"+refs/heads/{base_ref}:refs/remotes/{base}")
@@ -120,6 +170,13 @@ def check(pr, payload, cwd):
         problems.append(
             f"The diff changes UI files ({', '.join(ui_files[:3])}) with no filled-in `## Visual proof` 390 px and 1440 px screenshots "
             "(or `- Not run: visual proof, because <why>`)."
+        )
+    changed = non_test_changed_lines(base, cwd)
+    allowed_kinds = set(ALLOWED.findall(body))
+    if changed > MAX_PR_LINES and "large-pr" not in allowed_kinds:
+        problems.append(
+            f"Diff has {changed:,} non-test changed lines (limit {MAX_PR_LINES}; policy stacks PRs over ~600 lines). "
+            "Stack it into smaller PRs, or add a filled-in line `Allowed large-pr: <why>`."
         )
     if not AUDIT_WAIVED.search(section):
         problems += audit_problems(base, body, cwd)
@@ -139,12 +196,22 @@ def main():
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         return 0
-    command = str((payload.get("tool_input") or payload.get("toolInput") or {}).get("command") or "")
-    trigger = TRIGGER.search(without_quoted_text(command))
-    if not trigger:
-        return 0
+    tool_name = str(payload.get("tool_name") or payload.get("toolName") or "")
+    tool_input = payload.get("tool_input") or payload.get("toolInput") or {}
+    if not isinstance(tool_input, dict):
+        tool_input = {}
+    if tool_name in MCP_CREATE_TOOLS or tool_name in MCP_UPDATE_TOOLS:
+        selector = mcp_pr_selector(tool_name, tool_input, payload)
+        if selector is None:
+            return 0
+    else:
+        command = str(tool_input.get("command") or "")
+        trigger = TRIGGER.search(without_quoted_text(command))
+        if not trigger:
+            return 0
+        selector = named_pr(*trigger.groups(), payload)
     cwd = payload.get("cwd") or "."
-    result = run(cwd, "gh", "pr", "view", *named_pr(*trigger.groups(), payload), "--json", PR_FIELDS)
+    result = run(cwd, "gh", "pr", "view", *selector, "--json", PR_FIELDS)
     if result.returncode:
         if NO_PR not in result.stderr:
             say_note(f"pr-proof could not read the PR, so it checked nothing: {result.stderr.strip()[-200:]}")
@@ -160,7 +227,7 @@ def main():
     if problems:
         undo = run(cwd, "gh", "pr", "ready", pr["url"], "--undo")
         drafted = "It is now a draft." if undo.returncode == 0 else f"Marking it draft failed: {undo.stderr.strip()[-200:]}"
-        print(f"This PR is not ready for Kolin to trust yet. {drafted} Fix these, update it with `gh pr edit`, then run `gh pr ready`.\n- " + "\n- ".join(problems), file=sys.stderr)
+        print(f"This PR is not ready for Kolin to trust yet. {drafted} Fix these, update it with `gh pr edit` or `pull_request_update`, then mark it ready.\n- " + "\n- ".join(problems), file=sys.stderr)
         return 2
     if notes:
         say_note(" ".join(notes))

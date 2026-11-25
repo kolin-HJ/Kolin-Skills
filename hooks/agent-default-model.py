@@ -8,6 +8,9 @@ SEAT_FLOORS = {"senior-reviewer": "opus"}
 MEETS_FLOOR = {"opus": ("opus", "fable", "mythos")}
 SEAT_CEILINGS = {"poteto-agent": "sonnet"}
 ABOVE_CEILING = {"sonnet": ("opus", "fable", "mythos")}
+DELEGATE_TOOLS = {"mcp__t3-code__delegate_task", "mcp_t3-code_delegate_task"}
+DELEGATE_SONNET_ROLES = {"implementation", "research", "test"}
+DELEGATE_SONNET_MODEL = "claude-sonnet-5-5"
 MODEL_REASON = re.compile(r"^Model reason:[ \t]*\S", re.M | re.I)
 BUILT_IN_DEFAULTS = {"Explore": "sonnet"}
 PINNED = re.compile(r"^model:[ \t]*(\S+)", re.M)
@@ -64,12 +67,15 @@ def chosen_model(agent, cwd):
 
 
 def is_interrogate_call(tool_input):
-    desc = str(tool_input.get("description") or "")
-    prompt = str(tool_input.get("prompt") or "")[:300]
+    desc = str(tool_input.get("description") or tool_input.get("title") or "")
+    prompt = str(tool_input.get("prompt") or tool_input.get("task") or "")[:300]
     return bool(INTERROGATE_DESC.search(desc) or INTERROGATE_PROMPT.search(prompt))
 
 
-def is_review_seat(agent, tool_input):
+def is_review_seat(agent, tool_input, tool_name=""):
+    if tool_name in DELEGATE_TOOLS:
+        role = str(tool_input.get("role") or "").lower()
+        return role == "review" or is_interrogate_call(tool_input)
     return agent in ("senior-reviewer", "judge") or agent.endswith("-reviewer") or is_interrogate_call(tool_input)
 
 
@@ -112,7 +118,8 @@ def reviews_since_user_spoke(transcript_path, exclude_id=None):
             for block in content if isinstance(content, list) else []:
                 if not isinstance(block, dict) or block.get("type") != "tool_use":
                     continue
-                if block.get("name") not in ("Agent", "Task"):
+                name = str(block.get("name") or "")
+                if name not in ("Agent", "Task") and name not in DELEGATE_TOOLS:
                     continue
                 call_id = block.get("id")
                 if call_id:
@@ -123,16 +130,23 @@ def reviews_since_user_spoke(transcript_path, exclude_id=None):
                 if not isinstance(inp, dict):
                     continue
                 agent = str(inp.get("subagent_type") or "")
-                if is_review_seat(agent, inp):
+                if is_review_seat(agent, inp, name):
                     count += 1
     return count
 
 
+def sonnet_equivalent(asked):
+    return DELEGATE_SONNET_MODEL if asked.startswith("claude-") else "sonnet"
+
+
 def main():
     event = json.load(sys.stdin)
+    tool_name = str(event.get("tool_name") or event.get("toolName") or "")
     tool_input = event.get("tool_input") or {}
     agent = str(tool_input.get("subagent_type") or "")
-    if agent == "Plan":
+    is_delegate = tool_name in DELEGATE_TOOLS
+
+    if not is_delegate and agent == "Plan":
         print(
             "Blocked: Plan starts without CLAUDE.md or AGENTS.md. "
             "Use `senior-reviewer` (Opus, read-only) for a diff or a judgment call, or `Explore` (Sonnet) for search.",
@@ -142,32 +156,47 @@ def main():
 
     updated = dict(tool_input)
     reasons = []
-    interrogate = is_interrogate_call(tool_input)
-    if agent in ("", "general-purpose") and interrogate:
-        updated["subagent_type"] = "senior-reviewer"
-        agent = "senior-reviewer"
-        if not updated.get("model"):
-            updated["model"] = "opus"
-        reasons.append("Interrogate must run read-only; redirected general-purpose to senior-reviewer")
-
     notes = []
-    ceiling = SEAT_CEILINGS.get(agent)
-    asked = str(updated.get("model") or "").lower()
-    if ceiling and any(tier in asked for tier in ABOVE_CEILING[ceiling]) and not MODEL_REASON.search(str(tool_input.get("prompt") or "")):
-        updated["model"] = ceiling
-        reasons.append(f"{agent} runs on {ceiling} unless the brief has a `Model reason:` line")
-        notes.append(
-            f"This {agent} runs on {ceiling}, not {asked}: the brief gives no reason for the higher model. "
-            "To run one unit higher, add a `Model reason: <why this unit needs it>` line to the brief."
-        )
 
-    if not updated.get("model"):
-        model, reason = chosen_model(agent, event.get("cwd") or os.getcwd())
-        if model:
-            updated["model"] = model
-            reasons.append(reason)
+    if is_delegate:
+        role = str(tool_input.get("role") or "").lower()
+        task_text = str(tool_input.get("task") or "")
+        target = tool_input.get("target") if isinstance(tool_input.get("target"), dict) else {}
+        asked = str(target.get("model") or "").lower()
+        if role in DELEGATE_SONNET_ROLES and any(tier in asked for tier in ABOVE_CEILING["sonnet"]) and not MODEL_REASON.search(task_text):
+            capped = sonnet_equivalent(asked)
+            updated["target"] = {**target, "model": capped}
+            reasons.append(f"delegate_task {role} runs on {capped} unless the task has a `Model reason:` line")
+            notes.append(
+                f"This {role} delegate runs on {capped}, not {asked}: the task gives no reason for the higher model. "
+                "To run one unit higher, add a `Model reason: <why this unit needs it>` line to the task."
+            )
+    else:
+        interrogate = is_interrogate_call(tool_input)
+        if agent in ("", "general-purpose") and interrogate:
+            updated["subagent_type"] = "senior-reviewer"
+            agent = "senior-reviewer"
+            if not updated.get("model"):
+                updated["model"] = "opus"
+            reasons.append("Interrogate must run read-only; redirected general-purpose to senior-reviewer")
 
-    if is_review_seat(agent, tool_input):
+        ceiling = SEAT_CEILINGS.get(agent)
+        asked = str(updated.get("model") or "").lower()
+        if ceiling and any(tier in asked for tier in ABOVE_CEILING[ceiling]) and not MODEL_REASON.search(str(tool_input.get("prompt") or "")):
+            updated["model"] = ceiling
+            reasons.append(f"{agent} runs on {ceiling} unless the brief has a `Model reason:` line")
+            notes.append(
+                f"This {agent} runs on {ceiling}, not {asked}: the brief gives no reason for the higher model. "
+                "To run one unit higher, add a `Model reason: <why this unit needs it>` line to the brief."
+            )
+
+        if not updated.get("model"):
+            model, reason = chosen_model(agent, event.get("cwd") or os.getcwd())
+            if model:
+                updated["model"] = model
+                reasons.append(reason)
+
+    if is_review_seat(agent, tool_input, tool_name):
         prior = reviews_since_user_spoke(event.get("transcript_path") or "", exclude_id=event.get("tool_use_id"))
         if prior >= REVIEW_BLOCK_AFTER:
             print(

@@ -309,7 +309,8 @@ class ApplyTests(unittest.TestCase):
                 guarded = [entry["matcher"] for entry in entries if "block-env-reads.py" in json.dumps(entry)]
                 self.assertTrue(guarded and "Bash" in guarded[0], guarded)
                 bash_guarded = [entry["matcher"] for entry in entries if "bash-guard.py" in json.dumps(entry)]
-                self.assertEqual(bash_guarded, ["Bash"])
+                expected_bash = ["Bash|mcp__t3-code__pull_request_merge"] if name == "claude" else ["Bash"]
+                self.assertEqual(bash_guarded, expected_bash)
         claude_guarded = next(entry["matcher"] for entry in claude if "block-env-reads.py" in json.dumps(entry))
         self.assertEqual(set(claude_guarded.split("|")), {"Bash", "Read", "Grep"})
 

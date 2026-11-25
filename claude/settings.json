@@ -67,7 +67,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Write|Edit|MultiEdit",
+        "matcher": "Bash|Write|Edit|MultiEdit|mcp__t3-code__pull_request_merge",
         "hooks": [
           {
             "type": "command",
@@ -86,7 +86,7 @@
         ]
       },
       {
-        "matcher": "Agent|Task",
+        "matcher": "Agent|Task|mcp__t3-code__delegate_task",
         "hooks": [
           {
             "type": "command",
@@ -96,7 +96,17 @@
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/subagent-turn-guard.py'",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|mcp__t3-code__pull_request_merge",
         "hooks": [
           {
             "type": "command",
@@ -138,7 +148,7 @@
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|mcp__t3-code__pull_request_create|mcp__t3-code__pull_request_update",
         "hooks": [
           {
             "type": "command",
