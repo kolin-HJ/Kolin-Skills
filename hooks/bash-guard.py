@@ -7,6 +7,7 @@ import subprocess
 import sys
 import uuid
 
+import ag_notes
 
 SLOT = pathlib.Path.home() / ".kolin-skills/bin/heavy-slot.py"
 TIMEOUT_MS = {False: (120_000, 600_000), True: (1_800_000, 7_200_000)}
@@ -76,6 +77,22 @@ REPO_FLAG = re.compile(r"(?:--repo[=\s]|-R\s*)(\S+)")
 AUTO_FLAG = re.compile(r"(?:^|\s)--auto(?:\s|=|$)")
 NO_CHECKS = re.compile(r"no required checks|no checks reported", re.I)
 GH_TIMEOUT = 20
+
+
+def parse_flag(argv, name, default):
+    if name in argv:
+        index = argv.index(name)
+        if index + 1 < len(argv):
+            return argv[index + 1]
+    return default
+
+
+def emit_deny(message, emit):
+    if emit == "antigravity":
+        print(json.dumps({"decision": "deny", "reason": message}))
+        return 0
+    print(message, file=sys.stderr)
+    return 2
 
 
 def run_gh(cwd, args):
@@ -189,42 +206,66 @@ def drop_gate_filters(command: str):
 
 
 def main() -> int:
+    emit = parse_flag(sys.argv[1:], "--emit", "claude")
+    codex = parse_flag(sys.argv[1:], "--client", "claude") == "codex"
+    claude = not codex and emit != "antigravity"
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
+        if emit == "antigravity":
+            print(json.dumps({"decision": "allow"}))
         return 0
-    claude = sys.argv[1:] != ["--client", "codex"]
-    tool_name = str(payload.get("tool_name") or payload.get("toolName") or "")
-    tool_input = payload.get("tool_input") or payload.get("toolInput") or {}
+    if not isinstance(payload, dict):
+        if emit == "antigravity":
+            print(json.dumps({"decision": "allow"}))
+        return 0
+    tool_call = payload.get("toolCall") if isinstance(payload.get("toolCall"), dict) else {}
+    tool_name = str(payload.get("tool_name") or payload.get("toolName") or tool_call.get("name") or "")
+    raw_input = payload.get("tool_input") or payload.get("toolInput") or tool_call.get("args") or {}
+    tool_input = raw_input if isinstance(raw_input, dict) else {}
     if tool_name in MCP_MERGE_TOOLS:
         if not tool_input.get("auto"):
             blocked = merge_block_for(tool_input.get("number"), tool_input.get("repository"), payload.get("cwd") or ".")
             if blocked:
-                print(blocked, file=sys.stderr)
-                return 2
+                return emit_deny(blocked, emit)
+        if emit == "antigravity":
+            print(json.dumps({"decision": "allow"}))
         return 0
-    command = tool_input.get("command") or ""
+    cmd_key = "CommandLine" if "CommandLine" in tool_input else "command"
+    command = str(tool_input.get(cmd_key) or "")
     background = bool(tool_input.get("run_in_background"))
     code = QUOTED.sub(" ", HEREDOC.sub(" ", command))
 
     if DOCKER_DB.search(code):
-        print(DOCKER_DB_MESSAGE, file=sys.stderr)
-        return 2
-    if claude and not background and polls(code):
-        print(POLL_MESSAGE, file=sys.stderr)
-        return 2
+        return emit_deny(DOCKER_DB_MESSAGE, emit)
+    if (claude or emit == "antigravity") and not background and polls(code):
+        return emit_deny(POLL_MESSAGE, emit)
     merge = MERGE.search(code)
     if merge:
         blocked = merge_block(merge.group(1), payload.get("cwd") or ".")
         if blocked:
-            print(blocked, file=sys.stderr)
-            return 2
+            return emit_deny(blocked, emit)
 
     heavy = HEAVY.search(code) and not LONG_LIVED.search(code)
     command, gate_logs = drop_gate_filters(command)
-
-    updated = {**tool_input, "command": quote_globs(command)}
+    rewritten_cmd = quote_globs(command)
     notes = []
+    if gate_logs:
+        notes.append(GATE_LOG_NOTE.format(logs=", ".join(gate_logs)))
+
+    if emit == "antigravity":
+        if heavy:
+            prefix = f"python3 {shlex.quote(str(SLOT))} $$ 120\n"
+            rewritten_cmd = prefix + rewritten_cmd
+        if notes:
+            ag_notes.append_note(payload, " ".join(notes))
+        if rewritten_cmd != str(tool_input.get(cmd_key) or ""):
+            print(json.dumps({"decision": "allow", "overwrite": {cmd_key: rewritten_cmd}}))
+        else:
+            print(json.dumps({"decision": "allow"}))
+        return 0
+
+    updated = {**tool_input, cmd_key: rewritten_cmd}
     if heavy:
         default_ms, ceiling_ms = TIMEOUT_MS[background]
         timeout_ms = tool_input.get("timeout") or default_ms
@@ -236,12 +277,10 @@ def main() -> int:
         else:
             final_timeout_ms = min(timeout_ms + max_wait_ms, ceiling_ms)
         prefix = f"python3 {shlex.quote(str(SLOT))} $$ {max_wait_ms // 1000}\n"
-        updated = {**updated, "command": prefix + updated["command"], "timeout": final_timeout_ms}
+        updated = {**updated, cmd_key: prefix + updated[cmd_key], "timeout": final_timeout_ms}
     if updated == tool_input:
         return 0
     output = {"hookEventName": "PreToolUse", "updatedInput": updated}
-    if gate_logs:
-        notes.insert(0, GATE_LOG_NOTE.format(logs=", ".join(gate_logs)))
     if notes:
         output["additionalContext"] = " ".join(notes)
     print(json.dumps({"hookSpecificOutput": output}))

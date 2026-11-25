@@ -315,6 +315,21 @@ class PrProofTests(unittest.TestCase):
         self.assert_trusted(long_note)
         self.assertIn("PR body is", json.loads(long_note.stdout)["hookSpecificOutput"]["additionalContext"])
 
+    def test_antigravity_emit_drafts_bad_mcp_pr_and_queues_note(self):
+        self.change("src/Panel.tsx", "export function Panel() { return null; }\n")
+        self.open_pr(PROOF)
+        state = pathlib.Path(self.temp.name) / "state"
+        env = {**os.environ, "PATH": f"{self.bin}:{os.environ['PATH']}", "PR_JSON": str(self.pr_json),
+               "GH_CALLS": str(self.calls), "KOLIN_SKILLS_STATE_DIR": str(state)}
+        payload = {"cwd": str(self.repo), "conversationId": "ag-pr-1",
+                   "toolCall": {"name": "mcp_t3-code_pull_request_create", "args": {"title": "ui", "body": PROOF}}}
+        result = subprocess.run([sys.executable, str(HOOK), "--emit", "antigravity"],
+                                input=json.dumps(payload), text=True, capture_output=True, timeout=120, env=env)
+        self.assertEqual((result.returncode, result.stdout.strip()), (0, "{}"))
+        self.assertIn(f"pr ready {URL} --undo", self.gh_calls())
+        note_text = (state / "ag-notes/ag-pr-1.txt").read_text()
+        self.assertIn("Visual proof", note_text)
+
 
 if __name__ == "__main__":
     unittest.main()

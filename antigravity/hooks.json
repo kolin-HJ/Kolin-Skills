@@ -7,9 +7,16 @@
         "timeout": 15
       }
     ],
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python3 '{{REPO}}/hooks/ag_notes.py'",
+        "timeout": 5
+      }
+    ],
     "PreToolUse": [
       {
-        "matcher": "run_command|write_file|edit_file|write_to_file|replace_file_content|multi_replace_file_content",
+        "matcher": "run_command|write_file|edit_file|write_to_file|replace_file_content|multi_replace_file_content|mcp_t3-code_pull_request_merge",
         "hooks": [
           {
             "type": "command",
@@ -24,6 +31,58 @@
             "type": "command",
             "command": "python3 '{{REPO}}/hooks/block-env-reads.py' --emit antigravity",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "run_command|mcp_t3-code_pull_request_merge",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/bash-guard.py' --emit antigravity",
+            "timeout": 45
+          }
+        ]
+      },
+      {
+        "matcher": "mcp_t3-code_delegate_task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/agent-default-model.py' --emit antigravity",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "mcp_t3-code_preview_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/preview-budget.py' --emit antigravity",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "edit_file|write_file|write_to_file|replace_file_content|multi_replace_file_content|run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/lint-changed-lines.py' --emit antigravity",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "run_command|mcp_t3-code_pull_request_create|mcp_t3-code_pull_request_update",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '{{REPO}}/hooks/pr-proof.py' --emit antigravity",
+            "timeout": 120
           }
         ]
       }

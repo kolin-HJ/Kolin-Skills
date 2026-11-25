@@ -310,6 +310,24 @@ exec cat "$GH_FIXTURES/head-$(echo "$base" | tr / _).json"
         found = output.split("Sessions found: session, date, tokens, subagents, compactions\n")[1].split("\n\n")[0].splitlines()
         self.assertEqual([row.split() for row in found], [["sess1111", "2026-10-20", "10", "1", "0"], ["sess2222", "2026-10-20", "5", "0", "0"]])
 
+    def test_sessions_report_includes_antigravity_transcripts(self):
+        ag_file = self.home / ".t3/userdata/providers/antigravity/inst1/antigravity-acp/brain/conv1/.system_generated/logs/transcript.jsonl"
+        transcript(
+            ag_file,
+            {"created_at": "2026-11-25T10:00:00Z", "model": "gemini-4-neon", "input_tokens": 1000, "cache_read_tokens": 4000, "output_tokens": 250,
+             "tool_calls": [
+                 {"name": "read_file", "args": {"Path": "a.ts"}},
+                 {"name": "run_command", "args": {"CommandLine": "git push -f"}, "error": "tool call denied by pre-tool hook: Blocked: force-push"},
+             ]},
+        )
+        result = self.run_cli("--sessions")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("1 main sessions", result.stdout)
+        self.assertIn("antigravity", result.stdout)
+        self.assertIn("gemini-4-neon", result.stdout)
+        self.assertIn("5,250", result.stdout)
+        self.assertIn("Blocked: force-push", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,6 +5,8 @@ import re
 import subprocess
 import sys
 
+import ag_notes
+
 DIFF_AUDIT = pathlib.Path(__file__).resolve().parent.parent / "bin/diff-audit"
 TRIGGER = re.compile(r"(?:^|[;&|(\n])\s*(?:\w+=\S*\s+)*gh\s+pr\s+(create|ready)\b([^;&|)\n]*)")
 MCP_CREATE_TOOLS = {"mcp__t3-code__pull_request_create", "mcp_t3-code_pull_request_create"}
@@ -37,6 +39,14 @@ ALLOWED = re.compile(LINE_START + r"Allowed ([\w-]+):[ \t]*\S", re.MULTILINE)
 PR_FIELDS = "url,body,baseRefName,headRefName,headRefOid,isCrossRepository,isDraft,state"
 NO_PR = "no pull requests found"
 FORMAT = "`- Ran: `the command` the result` or `- Not run: the check, because the reason`"
+
+
+def parse_emit(argv):
+    if "--emit" in argv:
+        index = argv.index("--emit")
+        if index + 1 < len(argv):
+            return argv[index + 1]
+    return "claude"
 
 
 def run(cwd, *args, timeout=30):
@@ -84,18 +94,36 @@ def is_release(pr):
 def tool_uses(path):
     with path.open(errors="ignore") as handle:
         for line in handle:
-            if '"tool_use"' not in line:
+            if '"tool_use"' not in line and '"tool_calls"' not in line:
                 continue
             try:
                 record = json.loads(line)
             except ValueError:
                 continue
-            message = record.get("message") if isinstance(record, dict) else None
+            if not isinstance(record, dict):
+                continue
+            message = record.get("message")
             content = message.get("content") if isinstance(message, dict) else None
             for block in content if isinstance(content, list) else []:
                 if isinstance(block, dict) and block.get("type") == "tool_use":
                     tool_input = block.get("input")
                     yield str(block.get("name") or ""), tool_input if isinstance(tool_input, dict) else {}
+            for call in record.get("tool_calls") if isinstance(record.get("tool_calls"), list) else []:
+                if not isinstance(call, dict):
+                    continue
+                name = str(call.get("name") or "")
+                args = call.get("args") or call.get("arguments") or {}
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except ValueError:
+                        args = {}
+                if not isinstance(args, dict):
+                    args = {}
+                if name == "run_command":
+                    yield "Bash", {"command": str(args.get("CommandLine") or args.get("command") or "")}
+                else:
+                    yield name, args
 
 
 def session_tool_uses(transcript):
@@ -180,58 +208,76 @@ def check(pr, payload, cwd):
         )
     if not AUDIT_WAIVED.search(section):
         problems += audit_problems(base, body, cwd)
-    uses = session_tool_uses(payload.get("transcript_path") or "")
+    uses = session_tool_uses(payload.get("transcript_path") or payload.get("transcriptPath") or "")
     unseen = unseen_ran_lines(section, uses)
     if unseen:
         notes.append("These `Ran:` lines match no command in this session, so check that each really ran, or say what ran it: " + "; ".join(unseen[:5]))
     return problems, notes
 
 
-def say_note(text):
-    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": text}}))
+def finish_ok(emit, payload=None, note=None):
+    if emit == "antigravity":
+        if note:
+            ag_notes.append_note(payload, note)
+        print("{}")
+        return 0
+    if note:
+        print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": note}}))
+    return 0
 
 
 def main():
+    emit = parse_emit(sys.argv[1:])
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
-        return 0
-    tool_name = str(payload.get("tool_name") or payload.get("toolName") or "")
-    tool_input = payload.get("tool_input") or payload.get("toolInput") or {}
-    if not isinstance(tool_input, dict):
-        tool_input = {}
+        return finish_ok(emit)
+    if not isinstance(payload, dict):
+        return finish_ok(emit)
+    tool_call = payload.get("toolCall") if isinstance(payload.get("toolCall"), dict) else {}
+    tool_name = str(payload.get("tool_name") or payload.get("toolName") or tool_call.get("name") or "")
+    raw_input = payload.get("tool_input") or payload.get("toolInput") or tool_call.get("args") or {}
+    tool_input = raw_input if isinstance(raw_input, dict) else {}
     if tool_name in MCP_CREATE_TOOLS or tool_name in MCP_UPDATE_TOOLS:
         selector = mcp_pr_selector(tool_name, tool_input, payload)
         if selector is None:
-            return 0
+            return finish_ok(emit)
     else:
-        command = str(tool_input.get("command") or "")
+        command = str(tool_input.get("command") or tool_input.get("CommandLine") or "")
         trigger = TRIGGER.search(without_quoted_text(command))
         if not trigger:
-            return 0
+            return finish_ok(emit)
         selector = named_pr(*trigger.groups(), payload)
     cwd = payload.get("cwd") or "."
     result = run(cwd, "gh", "pr", "view", *selector, "--json", PR_FIELDS)
     if result.returncode:
         if NO_PR not in result.stderr:
-            say_note(f"pr-proof could not read the PR, so it checked nothing: {result.stderr.strip()[-200:]}")
-        return 0
+            return finish_ok(emit, payload, f"pr-proof could not read the PR, so it checked nothing: {result.stderr.strip()[-200:]}")
+        return finish_ok(emit)
     try:
         pr = json.loads(result.stdout)
     except ValueError:
-        say_note(f"pr-proof could not parse the PR from gh, so it checked nothing: {result.stdout.strip()[:200]}")
-        return 0
+        return finish_ok(emit, payload, f"pr-proof could not parse the PR from gh, so it checked nothing: {result.stdout.strip()[:200]}")
     if pr["state"] != "OPEN" or pr["isDraft"] or is_release(pr):
-        return 0
+        return finish_ok(emit)
     problems, notes = check(pr, payload, cwd)
     if problems:
         undo = run(cwd, "gh", "pr", "ready", pr["url"], "--undo")
         drafted = "It is now a draft." if undo.returncode == 0 else f"Marking it draft failed: {undo.stderr.strip()[-200:]}"
-        print(f"This PR is not ready for Kolin to trust yet. {drafted} Fix these, update it with `gh pr edit` or `pull_request_update`, then mark it ready.\n- " + "\n- ".join(problems), file=sys.stderr)
+        message = (
+            f"This PR is not ready for Kolin to trust yet. {drafted} "
+            "Fix these, update it with `gh pr edit` or `pull_request_update`, then mark it ready.\n- "
+            + "\n- ".join(problems)
+        )
+        if emit == "antigravity":
+            ag_notes.append_note(payload, message)
+            print("{}")
+            return 0
+        print(message, file=sys.stderr)
         return 2
     if notes:
-        say_note(" ".join(notes))
-    return 0
+        return finish_ok(emit, payload, " ".join(notes))
+    return finish_ok(emit)
 
 
 if __name__ == "__main__":

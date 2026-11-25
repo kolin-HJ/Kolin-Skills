@@ -67,6 +67,26 @@ def config_dirs():
     return [path / "projects" for path in unique.values() if (path / "projects").is_dir()]
 
 
+def antigravity_transcript_files(days):
+    cutoff = time.time() - days * 86400
+    patterns = (
+        ".t3/userdata/providers/antigravity/*/antigravity-acp/brain/*/.system_generated/logs/transcript.jsonl",
+        ".gemini/antigravity/brain/*/.system_generated/logs/transcript.jsonl",
+        ".gemini/antigravity-cli/brain/*/.system_generated/logs/transcript.jsonl",
+    )
+    found = []
+    seen = set()
+    for pattern in patterns:
+        for path in HOME.glob(pattern):
+            resolved = path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            if path.stat().st_mtime >= cutoff:
+                found.append(path)
+    return largest_first(found)
+
+
 def context_tokens(usage):
     return usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
 
@@ -332,6 +352,53 @@ def session_stats(path, counted):
     }
 
 
+def antigravity_stats(path):
+    turns, tools, hooks, urls, first = [], [], collections.Counter(), set(), None
+    models = collections.Counter()
+    total_tokens = peak = 0
+    for record in records(path):
+        if not isinstance(record, dict):
+            continue
+        first = first or record.get("created_at")
+        model = record.get("model")
+        in_tok = int(record.get("input_tokens") or 0)
+        cache_tok = int(record.get("cache_read_tokens") or 0)
+        out_tok = int(record.get("output_tokens") or 0)
+        ctx = in_tok + cache_tok
+        if model or ctx or out_tok:
+            label_model = str(model or "antigravity")
+            models[label_model] += 1
+            total_tokens += ctx + out_tok
+            peak = max(peak, ctx)
+            turns.append(Call(label_model, ctx, out_tok, 0.0, {kind: 0.0 for kind in COST_KINDS}, "unknown"))
+        for call in record.get("tool_calls") if isinstance(record.get("tool_calls"), list) else []:
+            if not isinstance(call, dict):
+                continue
+            name = str(call.get("name") or "unknown")
+            err = call.get("error")
+            failed = bool(err) or bool(call.get("isError")) or bool(call.get("is_error"))
+            tools.append((name, not failed))
+            if isinstance(err, str) and ("Blocked:" in err or "pre-tool hook" in err):
+                cleaned = err.split("Blocked:", 1)[-1] if "Blocked:" in err else err
+                label = f"Blocked:{cleaned}" if "Blocked:" in err else cleaned
+                hooks[("antigravity", " ".join(label[:50].split()))] += 1
+        raw_err = record.get("error")
+        if isinstance(raw_err, str) and ("Blocked:" in raw_err or "pre-tool hook" in raw_err):
+            cleaned = raw_err.split("Blocked:", 1)[-1] if "Blocked:" in raw_err else raw_err
+            label = f"Blocked:{cleaned}" if "Blocked:" in raw_err else cleaned
+            hooks[("antigravity", " ".join(label[:50].split()))] += 1
+    return {
+        "model": models.most_common(1)[0][0] if models else "antigravity",
+        "messages": set(),
+        "turns": turns,
+        "tokens": total_tokens,
+        "cost": 0.0,
+        "peak": peak,
+        "calls": len(tools), "compactions": 0, "hooks": hooks, "urls": urls, "first": first, "spawns": {}, "audits": False,
+        "tools": tools,
+    }
+
+
 def session_files(days):
     cutoff = time.time() - days * 86400
     for pattern, is_agent in (("*/*.jsonl", False), ("*/*/subagents/agent-*.jsonl", True)):
@@ -401,6 +468,24 @@ def print_sessions(days, needles=()):
         else:
             entry["compactions"] = stats["compactions"]
             entry["date"] = (stats["first"] or "")[:10]
+    for path in antigravity_transcript_files(days):
+        if needles and not mentions(path, needles):
+            continue
+        stats = antigravity_stats(path)
+        if not stats["turns"] and not stats["calls"]:
+            continue
+        runs[("antigravity", stats["model"])].append(stats)
+        split["main"] += stats["tokens"]
+        split["main runs"] += 1
+        for name, succeeded in stats["tools"]:
+            tools[name][0] += 1
+            tools[name][1] += succeeded
+        for (hook, text), count in stats["hooks"].items():
+            hooks[("main", hook, text)] += count
+        owner = ("antigravity", path.parents[2].name)
+        entry = sessions[owner]
+        entry["tokens"] += stats["tokens"]
+        entry["date"] = (stats["first"] or "")[:10]
     print(f"Sessions audit, last {days} days: {split['main runs']} main sessions, {split['subagent runs']} subagents, "
           f"{split['main'] + split['subagent']:,} tokens (main {split['main']:,}, subagents {split['subagent']:,}), "
           f"list price ${split['main cost'] + split['subagent cost']:,.2f} (main ${split['main cost']:,.2f}, subagents ${split['subagent cost']:,.2f}).")
