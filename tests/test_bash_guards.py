@@ -184,12 +184,28 @@ class HeavyJobsGuardTests(unittest.TestCase):
                 result = invoke(BASH_GUARD, tool_input, "--client", "codex", turn_id="t", hook_event_name="PreToolUse")
                 self.assertEqual(result.returncode, 0)
 
-    def test_a_heavy_job_with_no_room_to_wait_for_a_slot_is_sent_to_the_background(self):
-        self.assertEqual(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 600000}).returncode, 2)
+    def test_a_heavy_job_with_no_room_to_wait_for_a_slot_clamps_timeout_instead_of_blocking(self):
+        clamped = invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 600000})
+        self.assertEqual((clamped.returncode, clamped.stderr), (0, ""))
+        clamped_out = json.loads(clamped.stdout)["hookSpecificOutput"]
+        self.assertRegex(clamped_out["updatedInput"]["command"], r"^python3 \S+heavy-slot\.py \$\$ 120\npnpm check$")
+        self.assertEqual(clamped_out["updatedInput"]["timeout"], 600000)
+        self.assertIn("run_in_background: true", clamped_out["additionalContext"])
         background = updated_input(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 600000, "run_in_background": True}))
         self.assertRegex(background["command"], r"^python3 \S+heavy-slot\.py \$\$ 300\n")
         fits = updated_input(invoke(BASH_GUARD, {"command": "pnpm check", "timeout": 400000}))
         self.assertEqual(fits["timeout"], 600000)
+
+    def test_lightweight_verify_steps_skip_heavy_slots_while_heavy_verify_takes_one(self):
+        for command in ("bun run verify goto /supply", "pnpm -s verify click --name Save", "bun run verify sql 'select 1'",
+                        "bun run verify screenshot --path out.png", "bun run verify wait-text Ready"):
+            with self.subTest(light=command):
+                result = invoke(BASH_GUARD, {"command": command})
+                self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+        for command in ("bun run verify db", "bun run verify launch", "bun run verify cleanup", "pnpm verify", "npm run verify:pr"):
+            with self.subTest(heavy=command):
+                updated = updated_input(invoke(BASH_GUARD, {"command": command}))
+                self.assertRegex(updated["command"], r"^python3 \S+heavy-slot\.py \$\$ \d+\n")
 
     def test_docker_database_message_tells_the_agent_to_carry_on(self):
         blocked = invoke(BASH_GUARD, {"command": "docker compose up -d postgres"})

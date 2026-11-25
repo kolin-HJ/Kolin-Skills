@@ -69,6 +69,10 @@ def is_interrogate_call(tool_input):
     return bool(INTERROGATE_DESC.search(desc) or INTERROGATE_PROMPT.search(prompt))
 
 
+def is_review_seat(agent, tool_input):
+    return agent in ("senior-reviewer", "judge") or agent.endswith("-reviewer") or is_interrogate_call(tool_input)
+
+
 def is_user_prompt(record):
     if record.get("type") != "user" or record.get("promptSource") == "system":
         return False
@@ -119,7 +123,7 @@ def reviews_since_user_spoke(transcript_path, exclude_id=None):
                 if not isinstance(inp, dict):
                     continue
                 agent = str(inp.get("subagent_type") or "")
-                if agent == "senior-reviewer" or is_interrogate_call(inp):
+                if is_review_seat(agent, inp):
                     count += 1
     return count
 
@@ -163,7 +167,7 @@ def main():
             updated["model"] = model
             reasons.append(reason)
 
-    if agent == "senior-reviewer" or interrogate:
+    if is_review_seat(agent, tool_input):
         prior = reviews_since_user_spoke(event.get("transcript_path") or "", exclude_id=event.get("tool_use_id"))
         if prior >= REVIEW_BLOCK_AFTER:
             print(

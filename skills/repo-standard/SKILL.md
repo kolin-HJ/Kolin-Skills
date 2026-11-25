@@ -67,7 +67,7 @@ Failing test: <path, or none>
 
 ## UI bar
 
-Desktop and phone both clean and professional, tables become cards on phones, tokens only, Kolin's library picks and inspiration: `references/ui-bar.md`.
+Desktop and phone both clean and professional, tables become cards on phones, tokens only, Kolin's library picks and craft bar: see the `ui-bar` skill (`skills/ui-bar/SKILL.md`).
 
 ## PR Verification
 

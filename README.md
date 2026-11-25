@@ -150,6 +150,7 @@ A skill starts in one of three ways:
 | Skill | Starts | What it does |
 |---|---|---|
 | `pstack-local` | 💬 | Maps pstack Cursor tool names to Claude Code, Codex, Cursor, Grok Bot and Antigravity |
+| `ui-bar` | 💬 | Kolin's UI and UX quality bar: 390/1440 px proof, mobile cards for tables, 44 px tap targets, tokens only, library picks and craft bar |
 | `repo-standard` | ⌨️ | My bar for a finished repo: layout, size budgets, quality bars, gate design, the UI bar, and a checklist to audit a repo |
 | `full-send` | ⌨️ "full send" | Takes a task all the way to a green, proven PR that is ready to merge, then stops. It never merges |
 | `local-supabase` | 💬 "start a local database" | Runs a local Supabase or Postgres for each checkout, never in Docker |

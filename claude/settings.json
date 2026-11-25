@@ -18,7 +18,7 @@
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
-  "autoCompactWindow": 400000,
+  "autoCompactWindow": 250000,
   "worktree": {
     "baseRef": "head"
   },
@@ -181,6 +181,7 @@
     "anthropic-skills:morning": "user-invocable-only",
     "anthropic-skills:import-memory": "user-invocable-only",
     "anthropic-skills:deep-research": "user-invocable-only",
+    "claude-approvals": "user-invocable-only",
     "find-skills": "user-invocable-only",
     "full-send": "user-invocable-only",
     "hydrojug-untangle": "user-invocable-only",

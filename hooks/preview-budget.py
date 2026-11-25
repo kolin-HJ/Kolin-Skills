@@ -4,7 +4,7 @@ import pathlib
 import sys
 
 PREVIEW_PREFIX = "mcp__t3-code__preview_"
-WARN_EVERY = 40
+WARN_EVERY = 15
 SAME_BATCH = 4
 
 

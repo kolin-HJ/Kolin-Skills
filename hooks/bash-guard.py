@@ -18,7 +18,10 @@ QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'")
 COMMAND_START = r"(?:^|[;&|(\n])\s*(?:\w+=\S*\s+)*"
 HEAVY = re.compile(
     COMMAND_START + r"(?:"
-    r"(?:pnpm|npm|yarn|bun)\s+(?:run\s+)?(?:check|verify|test|build|typecheck|lint|model-check)\b"
+    r"(?:pnpm|npm|yarn|bun)\s+(?:run\s+)?(?:(?:-s|--silent)\s+)?(?:"
+    r"check|test|build|typecheck|lint|model-check"
+    r"|verify(?![ \t]+(?:goto|click|type|press|eval|sql|screenshot|snapshot|text|rows|logs|status|doctor|http|ready|help|wait-[\w-]+)\b)"
+    r")\b"
     r"|(?:npx\s+|bunx\s+|pnpm\s+(?:exec\s+)?)?(?:\S*/)?(?:vitest|tsc|playwright|turbo|next\s+build)\b"
     r"|git\s+(?:-C\s+\S+\s+)?push\b"
     r"|java\b.*\btlc2\.TLC\b"
@@ -62,10 +65,10 @@ POLL_MESSAGE = (
     "Run the job itself with run_in_background: true, then wait for its completion notification with "
     "t3_background_wait or Monitor, and do other work meanwhile."
 )
-SLOT_ROOM_MESSAGE = (
-    "Blocked: this heavy job asks for {seconds} s in the foreground, which leaves no time to wait for one of the "
-    "heavy-job slots. Run it with run_in_background: true and wait with t3_background_wait or Monitor, "
-    "or pass a timeout of {limit} ms or less."
+MAX_CLAMPED_SLOT_WAIT_MS = 120_000
+SLOT_CLAMP_NOTE = (
+    "Heavy job kept in the foreground at {ceiling}s with a {wait}s heavy-slot wait; "
+    "use run_in_background: true for longer runs."
 )
 MERGE = re.compile(COMMAND_START + r"gh\s+pr\s+merge\b([^;&|)\n]*)")
 REPO_FLAG = re.compile(r"(?:--repo[=\s]|-R\s*)(\S+)")
@@ -209,21 +212,26 @@ def main() -> int:
     command, gate_logs = drop_gate_filters(command)
 
     updated = {**tool_input, "command": quote_globs(command)}
+    notes = []
     if heavy:
         default_ms, ceiling_ms = TIMEOUT_MS[background]
         timeout_ms = tool_input.get("timeout") or default_ms
         max_wait_ms = max(0, min(timeout_ms // 2, ceiling_ms - timeout_ms))
         if claude and not background and max_wait_ms < timeout_ms // 2:
-            limit = ceiling_ms * 2 // 3
-            print(SLOT_ROOM_MESSAGE.format(seconds=timeout_ms // 1000, limit=limit), file=sys.stderr)
-            return 2
+            max_wait_ms = min(timeout_ms // 2, MAX_CLAMPED_SLOT_WAIT_MS)
+            final_timeout_ms = ceiling_ms
+            notes.append(SLOT_CLAMP_NOTE.format(ceiling=ceiling_ms // 1000, wait=max_wait_ms // 1000))
+        else:
+            final_timeout_ms = min(timeout_ms + max_wait_ms, ceiling_ms)
         prefix = f"python3 {shlex.quote(str(SLOT))} $$ {max_wait_ms // 1000}\n"
-        updated = {**updated, "command": prefix + updated["command"], "timeout": timeout_ms + max_wait_ms}
+        updated = {**updated, "command": prefix + updated["command"], "timeout": final_timeout_ms}
     if updated == tool_input:
         return 0
     output = {"hookEventName": "PreToolUse", "updatedInput": updated}
     if gate_logs:
-        output["additionalContext"] = GATE_LOG_NOTE.format(logs=", ".join(gate_logs))
+        notes.insert(0, GATE_LOG_NOTE.format(logs=", ".join(gate_logs)))
+    if notes:
+        output["additionalContext"] = " ".join(notes)
     print(json.dumps({"hookSpecificOutput": output}))
     return 0
 
