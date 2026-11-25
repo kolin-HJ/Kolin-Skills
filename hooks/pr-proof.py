@@ -118,7 +118,7 @@ def check(pr, payload, cwd):
     visual_section = visual.group(1) if visual else ""
     if ui_files and not VISUAL_EVIDENCE.search(visual_section) and not VISUAL_WAIVED.search(body):
         problems.append(
-            f"The diff changes UI files ({', '.join(ui_files[:3])}) with no filled-in `## Visual proof` screenshots "
+            f"The diff changes UI files ({', '.join(ui_files[:3])}) with no filled-in `## Visual proof` 390 px and 1440 px screenshots "
             "(or `- Not run: visual proof, because <why>`)."
         )
     if not AUDIT_WAIVED.search(section):

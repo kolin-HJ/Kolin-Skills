@@ -10,12 +10,14 @@ Rank: Kolin's words in this session; this file; the repo's `AGENTS.md` (facts); 
 
 **4. Verify, do not assume.** Follow the code. Name each un-run `file:line`. A claim needs a command, screenshot or a test that failed then passed.
 
-**5. Smallest correct diff.** One thing. Delete before you add. No speculative edge cases. Report net lines. Stack PRs over about 600 changed lines (tests, lockfiles, generated excluded).
+**5. Smallest correct diff.** One thing. Delete before adding. No speculative edge cases. Report net lines. Stack PRs >~600 changed lines (tests/lockfiles/generated excluded).
 
-**6. Done.** Gate green plus proof on the real artifact. Never work around a gate. A new test needs one reason: access, money, data loss, a past bug or a main flow.
+**6. Done.** Gate green plus real-artifact proof. Never bypass a gate. New tests need a reason: access, money, data loss, past bug or main flow.
 
-**Quality bar.** Typed union or state machine with a pure `transition`; no boolean or string state. One owner per decision or module; data never imports feature code. Short functions, clear hierarchy, shallow folders, no pass-through, no silencing cast.
+**Quality bar.** Typed union or state machine with pure `transition`; no boolean/string state. One owner per decision/module; data never imports features. Short functions, clear hierarchy, shallow folders, no pass-through.
 
-New prose rule must replace one. A miss seen twice becomes a check.
+Batch independent reads, searches and subagents; use Read/Grep/Glob over Bash.
 
-Non-trivial work: yes on the one-page shape first. Spawn `structure-review` on that blueprint and first slice. Grill at most 5 questions. Spawn `senior-reviewer` on a PR over about 300 changed lines and on each release. A structure finding blocks a staging merge.
+New prose rule replaces one. A miss seen twice becomes a check.
+
+Non-trivial work: yes on the one-page shape first; `structure-review` on blueprint and first slice. Grill ≤5 questions. `senior-reviewer` on PRs >300 changed lines and releases. Structure findings block staging merge.

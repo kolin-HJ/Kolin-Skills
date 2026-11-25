@@ -337,28 +337,36 @@ class NativeHookPayloadTests(unittest.TestCase):
             blocked = invoke(MODEL_HOOK, payload, directory)
             self.assertEqual(blocked.returncode, 2)
             self.assertIn("8 review subagents since Kolin's last message", blocked.stderr)
+            judge_records = [
+                {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": f"toolu_j{n}", "name": "Agent", "input": {"subagent_type": "judge" if n % 2 == 0 else "plm-reviewer"}}]}}
+                for n in range(8)
+            ]
+            write(judge_records)
+            blocked_judge = invoke(MODEL_HOOK, {**payload, "tool_input": {"subagent_type": "judge"}}, directory)
+            self.assertEqual(blocked_judge.returncode, 2)
+            self.assertIn("8 review subagents since Kolin's last message", blocked_judge.stderr)
             write(records + [{"type": "user", "promptSource": "sdk", "message": {"content": "Review it once more."}}])
             allowed = invoke(MODEL_HOOK, payload, directory)
             self.assertEqual((allowed.returncode, allowed.stdout), (0, ""))
 
-    def test_preview_budget_warns_when_the_count_crosses_each_fortieth_call(self):
+    def test_preview_budget_warns_when_the_count_crosses_each_fifteenth_call(self):
         with tempfile.TemporaryDirectory() as directory:
             transcript = pathlib.Path(directory) / "session.jsonl"
             calls = [
                 {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": f"toolu_{n}", "name": "mcp__t3-code__preview_evaluate", "input": {}}]}}
-                for n in range(50)
+                for n in range(25)
             ]
 
             def preview_hook_after(prior):
                 transcript.write_text("".join(json.dumps(call) + "\n" for call in calls[:prior]))
                 return invoke(PREVIEW_HOOK, {"transcript_path": str(transcript), "tool_use_id": f"toolu_{prior}"}, directory)
 
-            warned = preview_hook_after(40)
+            warned = preview_hook_after(15)
             self.assertEqual(warned.returncode, 0, warned.stderr)
-            self.assertIn("40 preview calls", json.loads(warned.stdout)["hookSpecificOutput"]["additionalContext"])
-            self.assertIn("41 preview calls", preview_hook_after(41).stdout)
-            self.assertEqual(preview_hook_after(39).stdout, "")
-            self.assertEqual(preview_hook_after(44).stdout, "")
+            self.assertIn("15 preview calls", json.loads(warned.stdout)["hookSpecificOutput"]["additionalContext"])
+            self.assertIn("16 preview calls", preview_hook_after(16).stdout)
+            self.assertEqual(preview_hook_after(14).stdout, "")
+            self.assertEqual(preview_hook_after(19).stdout, "")
             self.assertEqual(invoke(PREVIEW_HOOK, {"tool_use_id": "toolu_1"}, directory).stdout, "")
 
     def test_env_guard_blocks_native_commands_and_allows_safe_operands(self):
