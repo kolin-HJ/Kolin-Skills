@@ -1,0 +1,472 @@
+#!/usr/bin/env python3
+import argparse
+import collections
+import datetime
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+import tempfile
+import time
+
+HOME = pathlib.Path.home()
+REPO = pathlib.Path(__file__).resolve().parent.parent
+STATE = HOME / ".kolin-skills"
+SCORECARD_DIR = STATE / "scorecards"
+DEFAULT_BENCH = REPO / "bench/tasks.json"
+DIFF_AUDIT = REPO / "bin/diff-audit"
+CHECKOUTS = HOME / "Documents/Github"
+FIX_SUBJECT = re.compile(r"^(?:fix|revert)(?:\([^)]*\))?!?[:\s]|^revert\s+\"", re.I)
+HOOK_BLOCK = re.compile(r"hook error: \[[^\]]*?([^/\s']+?)'?\]: (.{0,50})", re.S)
+REWORK_WINDOW_SECONDS = 7 * 86400
+LIST_PRICE_PER_MTOK = {
+    "claude-opus-5-5": {"input": 4, "output": 20, "cache_read": 0.2, "cache_write_5m": 5, "cache_write_1h": 8},
+    "claude-sonnet-5-5": {"input": 2, "output": 10, "cache_read": 0.1, "cache_write_5m": 2.5, "cache_write_1h": 4},
+    "claude-haiku-5-5": {"input": 0.1, "output": 0.5, "cache_read": 0.01, "cache_write_5m": 0.125, "cache_write_1h": 0.2,
+                         "above_100k": {"input": 0.5, "output": 2.5, "cache_read": 0.05, "cache_write_5m": 0.625, "cache_write_1h": 1}},
+    "claude-haiku-4-5": {"input": 1, "output": 5, "cache_read": 0.1, "cache_write_5m": 1.25, "cache_write_1h": 2},
+    "claude-fable-5-2": {"input": 8, "output": 40, "cache_read": 0.2, "cache_write_5m": 10, "cache_write_1h": 16},
+    "claude-fable-5-1": {"input": 10, "output": 50, "cache_read": 0.25, "cache_write_5m": 12.5, "cache_write_1h": 20},
+}
+LOWER_IS_BETTER = {
+    "rework_rate", "fix_share", "thrash_rate", "hook_block_rate",
+    "compactions_per_session", "cost_per_pr", "effective_cost_per_clean_pr",
+}
+HIGHER_IS_BETTER = {"bench_pass_rate", "proof_to_review_ratio"}
+
+
+def config_dirs():
+    active = pathlib.Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude"))
+    unique = {}
+    for path in (active, HOME / ".claude", HOME / ".claude_personal"):
+        unique.setdefault(path.resolve(), path)
+    return [path / "projects" for path in unique.values() if (path / "projects").is_dir()]
+
+
+def discover_repos(explicit):
+    if explicit:
+        return [pathlib.Path(item).expanduser().resolve() for item in explicit]
+    if not CHECKOUTS.is_dir():
+        return []
+    return sorted(entry.resolve() for entry in CHECKOUTS.iterdir() if entry.is_dir() and (entry / ".git").exists())
+
+
+def parse_git_commits(raw):
+    commits = []
+    current = None
+    for line in raw.splitlines():
+        if line.startswith("@@@"):
+            parts = line[3:].split("\t", 2)
+            if len(parts) == 3:
+                current = {"sha": parts[0], "ts": int(parts[1]), "subject": parts[2], "files": set()}
+                commits.append(current)
+        elif current is not None and "\t" in line:
+            parts = line.split("\t", 2)
+            if len(parts) == 3 and parts[2]:
+                current["files"].add(parts[2])
+    return sorted(commits, key=lambda item: item["ts"])
+
+
+def repo_rework(repo_path, days):
+    since = f"{days + 7} days ago"
+    result = subprocess.run(
+        ["git", "-C", str(repo_path), "log", "--no-merges", f"--since={since}", "--format=@@@%H\t%ct\t%s", "--numstat"],
+        text=True, capture_output=True, errors="replace", timeout=30,
+    )
+    if result.returncode:
+        return {"repo": repo_path.name, "error": result.stderr.strip()[:160]}
+    commits = parse_git_commits(result.stdout)
+    cutoff = time.time() - days * 86400
+    in_window = [commit for commit in commits if commit["ts"] >= cutoff]
+    fixes = [commit for commit in commits if FIX_SUBJECT.search(commit["subject"])]
+    window_fixes = [commit for commit in in_window if FIX_SUBJECT.search(commit["subject"])]
+    non_fixes = [commit for commit in in_window if not FIX_SUBJECT.search(commit["subject"]) and commit["files"]]
+    reworked = 0
+    hotspots = collections.Counter()
+    for commit in non_fixes:
+        hit = False
+        for fix in fixes:
+            if commit["ts"] < fix["ts"] <= commit["ts"] + REWORK_WINDOW_SECONDS and (commit["files"] & fix["files"]):
+                hit = True
+                break
+        if hit:
+            reworked += 1
+    for fix in window_fixes:
+        for path in fix["files"]:
+            hotspots[path] += 1
+    return {
+        "repo": repo_path.name,
+        "commits": len(in_window),
+        "fix_commits": len(window_fixes),
+        "feature_commits": len(non_fixes),
+        "reworked_commits": reworked,
+        "rework_rate": round(reworked / len(non_fixes), 4) if non_fixes else 0.0,
+        "fix_share": round(len(window_fixes) / len(in_window), 4) if in_window else 0.0,
+        "hotspots": [[path, count] for path, count in hotspots.most_common(5) if count >= 2],
+    }
+
+
+def context_tokens(usage):
+    return usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
+
+
+def model_price(model):
+    matches = [key for key in LIST_PRICE_PER_MTOK if model == key or (model or "").startswith((key + "-", key + "["))]
+    return LIST_PRICE_PER_MTOK[max(matches, key=len)] if matches else None
+
+
+def call_cost(model, usage):
+    price = model_price(model)
+    if not price:
+        return 0.0
+    if context_tokens(usage) > 100_000:
+        price = price.get("above_100k", price)
+    written = usage.get("cache_creation_input_tokens", 0)
+    hour = (usage.get("cache_creation") or {}).get("ephemeral_1h_input_tokens", 0)
+    return (
+        usage.get("input_tokens", 0) * price["input"]
+        + usage.get("output_tokens", 0) * price["output"]
+        + usage.get("cache_read_input_tokens", 0) * price["cache_read"]
+        + (written - hour) * price["cache_write_5m"]
+        + hour * price["cache_write_1h"]
+    ) / 1e6
+
+
+def result_text(content):
+    if isinstance(content, str):
+        return content
+    return "\n".join(block.get("text", "") for block in content if isinstance(block, dict))
+
+
+def transcript_metrics(days):
+    cutoff = time.time() - days * 86400
+    counted = set()
+    main_sessions = subagents = compactions = 0
+    total_calls = failed_calls = hook_blocks = 0
+    total_tokens = 0
+    total_cost = 0.0
+    urls = set()
+    tool_totals = collections.defaultdict(lambda: [0, 0])
+    block_counts = collections.Counter()
+    roles = collections.Counter()
+    builders_over_60 = builders_over_200 = 0
+    for pattern, is_agent in (("*/*.jsonl", False), ("*/*/subagents/agent-*.jsonl", True)):
+        paths = sorted(
+            (path for root in config_dirs() for path in root.glob(pattern) if path.stat().st_mtime >= cutoff),
+            key=lambda path: (-path.stat().st_size, str(path)),
+        )
+        for path in paths:
+            calls_in_file = {}
+            outcomes = {}
+            messages = {}
+            with open(path, errors="ignore") as handle:
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    kind = record.get("type")
+                    if kind == "pr-link" and record.get("prUrl"):
+                        urls.add(record["prUrl"])
+                    elif kind == "system" and record.get("subtype") == "compact_boundary" and not is_agent:
+                        compactions += 1
+                    elif kind == "assistant":
+                        message = record.get("message") or {}
+                        usage = message.get("usage") or {}
+                        identifier = message.get("id") or record.get("uuid")
+                        if identifier in counted and identifier not in messages:
+                            continue
+                        messages[identifier] = (context_tokens(usage) + usage.get("output_tokens", 0), call_cost(message.get("model"), usage))
+                        for block in message.get("content") if isinstance(message.get("content"), list) else []:
+                            if isinstance(block, dict) and block.get("type") == "tool_use":
+                                calls_in_file[block["id"]] = block["name"]
+                    elif kind == "user" and isinstance((record.get("message") or {}).get("content"), list):
+                        for block in record["message"]["content"]:
+                            if not isinstance(block, dict) or block.get("type") != "tool_result":
+                                continue
+                            failed = bool(block.get("is_error"))
+                            outcomes[block["tool_use_id"]] = failed
+                            if failed:
+                                match = HOOK_BLOCK.search(result_text(block.get("content", "")))
+                                if match:
+                                    hook_blocks += 1
+                                    block_counts[(match.group(1), " ".join(match.group(2).split()))] += 1
+            counted |= set(messages)
+            total_tokens += sum(tokens for tokens, _ in messages.values())
+            total_cost += sum(cost for _, cost in messages.values())
+            for call_id, name in calls_in_file.items():
+                total_calls += 1
+                failed = outcomes.get(call_id) is True
+                failed_calls += int(failed)
+                tool_totals[name][0] += 1
+                tool_totals[name][1] += int(outcomes.get(call_id) is False)
+            if is_agent:
+                subagents += 1
+                meta_path = path.with_suffix(".meta.json")
+                meta = json.loads(meta_path.read_text()) if meta_path.is_file() else {}
+                role = meta.get("agentType", "unknown")
+                roles[role] += 1
+                if role == "poteto-agent":
+                    builders_over_60 += int(len(calls_in_file) > 60)
+                    builders_over_200 += int(len(calls_in_file) > 200)
+            else:
+                main_sessions += 1
+    always_failing = sorted([[name, calls] for name, (calls, ok) in tool_totals.items() if calls >= 3 and ok == 0], key=lambda item: -item[1])
+    reviews = sum(count for role, count in roles.items() if role == "senior-reviewer" or role.endswith("reviewer"))
+    verifiers = roles["verifier"]
+    return {
+        "main_sessions": main_sessions,
+        "subagents": subagents,
+        "total_tokens": total_tokens,
+        "total_cost": round(total_cost, 2),
+        "unique_prs": len(urls),
+        "total_tool_calls": total_calls,
+        "failed_tool_calls": failed_calls,
+        "hook_blocks": hook_blocks,
+        "thrash_rate": round(failed_calls / total_calls, 4) if total_calls else 0.0,
+        "hook_block_rate": round(hook_blocks / total_calls, 4) if total_calls else 0.0,
+        "compactions": compactions,
+        "compactions_per_session": round(compactions / main_sessions, 4) if main_sessions else 0.0,
+        "reviews": reviews,
+        "verifiers": verifiers,
+        "proof_to_review_ratio": round(verifiers / reviews, 4) if reviews else 0.0,
+        "builders": roles["poteto-agent"],
+        "builders_over_60_calls": builders_over_60,
+        "builders_over_200_calls": builders_over_200,
+        "top_hook_blocks": [[hook, text, count] for (hook, text), count in block_counts.most_common(5)],
+        "always_failing_tools": always_failing,
+    }
+
+
+def build_scorecard(days, repos):
+    repo_rows = [repo_rework(path, days) for path in repos]
+    valid = [row for row in repo_rows if "error" not in row]
+    total_commits = sum(row["commits"] for row in valid)
+    total_fixes = sum(row["fix_commits"] for row in valid)
+    total_features = sum(row["feature_commits"] for row in valid)
+    total_reworked = sum(row["reworked_commits"] for row in valid)
+    rework_rate = round(total_reworked / total_features, 4) if total_features else 0.0
+    fix_share = round(total_fixes / total_commits, 4) if total_commits else 0.0
+    transcripts = transcript_metrics(days)
+    prs = transcripts["unique_prs"]
+    cost_per_pr = round(transcripts["total_cost"] / prs, 2) if prs else 0.0
+    effective_cost = round(cost_per_pr / max(1.0 - rework_rate, 0.05), 2) if prs else 0.0
+    return {
+        "kind": "scorecard",
+        "generated": datetime.date.today().isoformat(),
+        "days": days,
+        "summary": {
+            "rework_rate": rework_rate,
+            "fix_share": fix_share,
+            "thrash_rate": transcripts["thrash_rate"],
+            "hook_block_rate": transcripts["hook_block_rate"],
+            "compactions_per_session": transcripts["compactions_per_session"],
+            "proof_to_review_ratio": transcripts["proof_to_review_ratio"],
+            "cost_per_pr": cost_per_pr,
+            "effective_cost_per_clean_pr": effective_cost,
+        },
+        "git": {
+            "repos": repo_rows,
+            "commits": total_commits,
+            "fix_commits": total_fixes,
+            "feature_commits": total_features,
+            "reworked_commits": total_reworked,
+        },
+        "transcripts": transcripts,
+    }
+
+
+def compare_summaries(baseline, current):
+    rows = []
+    for key, now_val in current.items():
+        if key not in baseline or not isinstance(now_val, (int, float)) or not isinstance(baseline[key], (int, float)):
+            continue
+        old_val = baseline[key]
+        delta = round(now_val - old_val, 4)
+        if delta == 0:
+            verdict = "FLAT"
+        elif key in LOWER_IS_BETTER:
+            verdict = "BETTER" if delta < 0 else "WORSE"
+        elif key in HIGHER_IS_BETTER:
+            verdict = "BETTER" if delta > 0 else "WORSE"
+        else:
+            verdict = "CHANGED"
+        rows.append({"metric": key, "baseline": old_val, "current": now_val, "delta": delta, "verdict": verdict})
+    return rows
+
+
+def check_task_result(task, workdir, response_text):
+    checks = task.get("checks") or {}
+    failures = []
+    if checks.get("diff_audit_clean"):
+        audit = subprocess.run([sys.executable, str(DIFF_AUDIT), "HEAD"], cwd=workdir, text=True, capture_output=True, timeout=60)
+        if audit.returncode != 0:
+            blocks = [line for line in audit.stdout.splitlines() if line.startswith("block ")]
+            failures.append(f"diff-audit failed: {'; '.join(blocks[:3]) or audit.stderr.strip()}")
+    if checks.get("test_cmd"):
+        test = subprocess.run(checks["test_cmd"], cwd=workdir, shell=True, text=True, capture_output=True, timeout=60)
+        if test.returncode != 0:
+            failures.append(f"test_cmd failed (exit {test.returncode}): {(test.stderr or test.stdout).strip()[-200:]}")
+    for rule in checks.get("file_must_contain") or []:
+        path = pathlib.Path(workdir) / rule["path"]
+        text = path.read_text() if path.is_file() else ""
+        if not re.search(rule["pattern"], text, re.M):
+            failures.append(f"{rule['path']} missing /{rule['pattern']}/")
+    for rule in checks.get("file_must_not_contain") or []:
+        path = pathlib.Path(workdir) / rule["path"]
+        text = path.read_text() if path.is_file() else ""
+        if re.search(rule["pattern"], text, re.M):
+            failures.append(f"{rule['path']} matched forbidden /{rule['pattern']}/")
+    for pattern in checks.get("response_must_match") or []:
+        if not re.search(pattern, response_text, re.I | re.M):
+            failures.append(f"response missing /{pattern}/")
+    return failures
+
+
+def run_benchmark(suite_path, runner):
+    suite = json.loads(pathlib.Path(suite_path).read_text())
+    results = []
+    for task in suite["tasks"]:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            subprocess.run(["git", "-C", str(root), "init", "-q", "-b", "main"], check=True)
+            for rel, content in (task.get("files") or {}).items():
+                dest = root / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_text(content)
+            subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+            subprocess.run(
+                ["git", "-C", str(root), "-c", "user.email=bench@local", "-c", "user.name=bench", "commit", "-qm", "seed"],
+                check=True,
+            )
+            response_file = root / ".bench-response.md"
+            prompt_file = root / ".bench-prompt.md"
+            prompt_file.write_text(task["prompt"])
+            response_text = ""
+            if runner:
+                env = {
+                    **os.environ,
+                    "BENCH_TASK_ID": task["id"],
+                    "BENCH_PROMPT_FILE": str(prompt_file),
+                    "BENCH_WORKDIR": str(root),
+                    "BENCH_RESPONSE_FILE": str(response_file),
+                }
+                proc = subprocess.run(runner, cwd=root, shell=True, env=env, text=True, capture_output=True, timeout=300)
+                response_text = response_file.read_text() if response_file.is_file() else proc.stdout
+            else:
+                for rel, content in (task.get("reference_files") or {}).items():
+                    dest = root / rel
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_text(content)
+                response_text = task.get("reference_response") or ""
+            prompt_file.unlink(missing_ok=True)
+            response_file.unlink(missing_ok=True)
+            failures = check_task_result(task, root, response_text)
+            results.append({"id": task["id"], "passed": not failures, "failures": failures})
+    passed = sum(1 for item in results if item["passed"])
+    total = len(results)
+    return {
+        "kind": "benchmark",
+        "generated": datetime.date.today().isoformat(),
+        "suite": str(suite_path),
+        "mode": "runner" if runner else "reference",
+        "summary": {"bench_pass_rate": round(passed / total, 4) if total else 0.0},
+        "passed": passed,
+        "total": total,
+        "tasks": results,
+    }
+
+
+def save_report(report, raw_path):
+    if raw_path == "AUTO":
+        SCORECARD_DIR.mkdir(parents=True, exist_ok=True)
+        path = SCORECARD_DIR / f"{report['kind']}-{report['generated']}.json"
+    else:
+        path = pathlib.Path(raw_path).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(report, indent=2) + "\n")
+    os.replace(tmp, path)
+    return path
+
+
+def print_scorecard(report, diff_rows):
+    s = report["summary"]
+    t = report["transcripts"]
+    g = report["git"]
+    print(f"Agent scorecard ({report['generated']}, last {report['days']}d)")
+    print(f"  7-day rework rate:           {s['rework_rate'] * 100:5.1f}%  ({g['reworked_commits']}/{g['feature_commits']} feature commits, fix share {s['fix_share'] * 100:.1f}%)")
+    print(f"  Agent thrash rate:           {s['thrash_rate'] * 100:5.1f}%  ({t['failed_tool_calls']}/{t['total_tool_calls']} failed calls; hook blocks {t['hook_blocks']}, {s['hook_block_rate'] * 100:.2f}%)")
+    print(f"  Compactions / main session:  {s['compactions_per_session']:5.2f}   ({t['compactions']}/{t['main_sessions']} sessions)")
+    print(f"  Proof / review ratio:        {s['proof_to_review_ratio']:5.2f}   (verifiers {t['verifiers']} vs reviews {t['reviews']}; builders >60 calls {t['builders_over_60_calls']}/{t['builders']})")
+    print(f"  Cost / PR (effective clean): ${s['cost_per_pr']:,.2f}  (${s['effective_cost_per_clean_pr']:,.2f} after rework; ${t['total_cost']:,.2f} across {t['unique_prs']} PRs)")
+    active_repos = [row for row in g["repos"] if "error" in row or row["commits"] > 0]
+    if active_repos:
+        print("\nBy repo (rework / fix share / commits):")
+        for row in active_repos:
+            if "error" in row:
+                print(f"  {row['repo']:<24} error: {row['error']}")
+            else:
+                print(f"  {row['repo']:<24} rework {row['rework_rate'] * 100:5.1f}% ({row['reworked_commits']:>2}/{row['feature_commits']:<3})  fixes {row['fix_share'] * 100:5.1f}% ({row['fix_commits']:>3}/{row['commits']:<3})")
+    if t["top_hook_blocks"]:
+        print("\nTop hook blocks:")
+        for hook, text, count in t["top_hook_blocks"]:
+            print(f"  {count:>5}  {hook}: {text}")
+    if t["always_failing_tools"]:
+        print("\nAlways-failing tools (3+ calls, 0 successes):")
+        for name, calls in t["always_failing_tools"]:
+            print(f"  {name}: {calls}")
+    if diff_rows:
+        print("\nVs baseline:")
+        for row in diff_rows:
+            print(f"  {row['metric']:<28} {row['baseline']:>8} -> {row['current']:<8} ({row['delta']:+g})  {row['verdict']}")
+
+
+def print_benchmark(report, diff_rows):
+    print(f"Agent benchmark ({report['mode']}): {report['passed']}/{report['total']} passed ({report['summary']['bench_pass_rate'] * 100:.1f}%)")
+    for item in report["tasks"]:
+        status = "PASS" if item["passed"] else "FAIL"
+        detail = "" if item["passed"] else " — " + "; ".join(item["failures"])
+        print(f"  [{status}] {item['id']}{detail}")
+    if diff_rows:
+        print("\nVs baseline:")
+        for row in diff_rows:
+            print(f"  {row['metric']:<28} {row['baseline']:>8} -> {row['current']:<8} ({row['delta']:+g})  {row['verdict']}")
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="agent-scorecard", description="Measure live agent outcomes and run offline policy/skill hill-climbing benchmarks.")
+    parser.add_argument("--days", type=int, default=14, help="window in days for live scorecard (default 14)")
+    parser.add_argument("--repo", action="append", default=[], help="git repo path to measure (repeatable; default scans ~/Documents/Github)")
+    parser.add_argument("--bench", nargs="?", const=str(DEFAULT_BENCH), metavar="SUITE", help="run offline replay benchmark suite")
+    parser.add_argument("--runner", help="shell command to execute each benchmark task in BENCH_WORKDIR")
+    parser.add_argument("--save", nargs="?", const="AUTO", metavar="PATH", help="save JSON report for future --compare runs")
+    parser.add_argument("--compare", metavar="BASELINE", help="compare summary metrics against a saved JSON baseline")
+    parser.add_argument("--json", action="store_true", help="print JSON output")
+    args = parser.parse_args()
+    report = run_benchmark(args.bench, args.runner) if args.bench else build_scorecard(args.days, discover_repos(args.repo))
+    diff_rows = []
+    if args.compare:
+        baseline = json.loads(pathlib.Path(args.compare).expanduser().read_text())
+        diff_rows = compare_summaries(baseline.get("summary") or {}, report["summary"])
+        report["comparison"] = diff_rows
+    saved = save_report(report, args.save) if args.save else None
+    if args.json:
+        print(json.dumps(report, indent=2))
+    elif args.bench:
+        print_benchmark(report, diff_rows)
+    else:
+        print_scorecard(report, diff_rows)
+    if saved and not args.json:
+        print(f"\nSaved: {saved}")
+    if args.bench and report["passed"] < report["total"]:
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

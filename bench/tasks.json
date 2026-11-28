@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "greenfield-design-mindset",
+      "title": "Propose greenfield ceiling + benchmark alongside smallest slice",
+      "prompt": "Webhook deliveries fail intermittently and callers keep adding ad-hoc retry loops. Propose a one-page shape before code.",
+      "files": {
+        "README.md": "# Webhooks\n"
+      },
+      "reference_response": "Goal: Reliable webhook delivery without ad-hoc caller retries.\nGreenfield ceiling: Single idempotent outbox + typed delivery state machine (queued -> sending -> delivered | dead_letter) with one backoff worker.\nBenchmark: 99.9% delivery within 60s and 0 duplicate side effects across 1,000 fault-injected replays.\nSmallest version: Centralize retries into one helper with an idempotency key header, then migrate callers.\n",
+      "checks": {
+        "response_must_match": [
+          "greenfield|first[- ]principles|ceiling",
+          "benchmark|metric|measure",
+          "smallest|slice|first slice"
+        ]
+      }
+    },
+    {
+      "id": "state-machine-no-booleans",
+      "title": "Replace boolean soup with tagged union and pure transition",
+      "prompt": "Refactor job.py so status is a tagged state with a pure transition(state, event) function and zero comments or boolean flags.",
+      "files": {
+        "job.py": "def next_state(is_running, is_done, is_failed, event):\n    if event == 'start':\n        return (True, False, False)\n    if event == 'finish':\n        return (False, True, False)\n    if event == 'fail':\n        return (False, False, True)\n    return (is_running, is_done, is_failed)\n",
+        "test_job.py": "import unittest\nimport job\n\nclass JobTests(unittest.TestCase):\n    def test_valid_transitions(self):\n        self.assertEqual(job.transition('idle', 'start'), 'running')\n        self.assertEqual(job.transition('running', 'finish'), 'done')\n        self.assertEqual(job.transition('running', 'fail'), 'failed')\n\n    def test_invalid_transition_raises(self):\n        with self.assertRaises(ValueError):\n            job.transition('done', 'start')\n\nif __name__ == '__main__':\n    unittest.main()\n"
+      },
+      "reference_files": {
+        "job.py": "TRANSITIONS = {\n    ('idle', 'start'): 'running',\n    ('running', 'finish'): 'done',\n    ('running', 'fail'): 'failed',\n}\n\n\ndef transition(state, event):\n    key = (state, event)\n    if key not in TRANSITIONS:\n        raise ValueError(f'invalid transition {state!r} -> {event!r}')\n    return TRANSITIONS[key]\n"
+      },
+      "checks": {
+        "diff_audit_clean": true,
+        "test_cmd": "python3 -m unittest test_job.py",
+        "file_must_contain": [
+          { "path": "job.py", "pattern": "^def transition\\(" }
+        ],
+        "file_must_not_contain": [
+          { "path": "job.py", "pattern": "is_running|is_done|is_failed" }
+        ]
+      }
+    },
+    {
+      "id": "boundary-normalization",
+      "title": "Normalize input once at boundary instead of duplicating checks",
+      "prompt": "Fix normalize_sku so division and sku are normalized once at parse_order instead of repeating .strip().lower() at call sites, with zero comments.",
+      "files": {
+        "orders.py": "def parse_order(raw):\n    return {'division': raw['division'], 'sku': raw['sku']}\n\ndef route_order(order):\n    return f\"{order['division'].strip().lower()}:{order['sku'].strip().upper()}\"\n\ndef format_label(order):\n    return f\"{order['division'].strip().lower()}/{order['sku'].strip().upper()}\"\n",
+        "test_orders.py": "import unittest\nimport orders\n\nclass OrderTests(unittest.TestCase):\n    def test_normalizes_once_at_boundary(self):\n        parsed = orders.parse_order({'division': ' Retail ', 'sku': ' hj-40 '})\n        self.assertEqual(parsed, {'division': 'retail', 'sku': 'HJ-40'})\n        self.assertEqual(orders.route_order(parsed), 'retail:HJ-40')\n        self.assertEqual(orders.format_label(parsed), 'retail/HJ-40')\n\nif __name__ == '__main__':\n    unittest.main()\n"
+      },
+      "reference_files": {
+        "orders.py": "def parse_order(raw):\n    return {'division': raw['division'].strip().lower(), 'sku': raw['sku'].strip().upper()}\n\n\ndef route_order(order):\n    return f\"{order['division']}:{order['sku']}\"\n\n\ndef format_label(order):\n    return f\"{order['division']}/{order['sku']}\"\n"
+      },
+      "checks": {
+        "diff_audit_clean": true,
+        "test_cmd": "python3 -m unittest test_orders.py",
+        "file_must_not_contain": [
+          { "path": "orders.py", "pattern": "def route_order\\([^)]*\\):\\n[^\\n]*\\.lower\\(" }
+        ]
+      }
+    },
+    {
+      "id": "no-swallowed-errors",
+      "title": "Remove silent error swallowing and propagate real failure",
+      "prompt": "Fix loader.py so invalid JSON raises ValueError instead of silently returning None.",
+      "files": {
+        "loader.py": "import json\n\ndef load_config(text):\n    try:\n        return json.loads(text)\n    except Exception:\n        return None\n",
+        "test_loader.py": "import unittest\nimport loader\n\nclass LoaderTests(unittest.TestCase):\n    def test_valid_json(self):\n        self.assertEqual(loader.load_config('{\"a\": 1}'), {'a': 1})\n\n    def test_invalid_json_raises(self):\n        with self.assertRaises(ValueError):\n            loader.load_config('{bad')\n\nif __name__ == '__main__':\n    unittest.main()\n"
+      },
+      "reference_files": {
+        "loader.py": "import json\n\n\ndef load_config(text):\n    return json.loads(text)\n"
+      },
+      "checks": {
+        "diff_audit_clean": true,
+        "test_cmd": "python3 -m unittest test_loader.py",
+        "file_must_not_contain": [
+          { "path": "loader.py", "pattern": "except\\s+Exception" }
+        ]
+      }
+    }
+  ]
+}

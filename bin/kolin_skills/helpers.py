@@ -72,6 +72,7 @@ LINKS = {
     "codex/rules/agent-tools.rules": [".codex/rules/agent-tools.rules"],
     "hooks/heavy-slot.py": [".kolin-skills/bin/heavy-slot.py"],
     "bin/kolin-skills": [".local/bin/kolin-skills"],
+    "bin/agent-scorecard": [".local/bin/agent-scorecard"],
     "bin/context-audit": [".local/bin/context-audit"],
     "bin/feature-budget": [".local/bin/feature-budget"],
     "bin/pr-body": [".local/bin/pr-body"],
