@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash '{{REPO}}/hooks/gate/block-forbidden-git.sh'"
+            "command": "python3 '{{REPO}}/hooks/gate/git_guard.py' hook"
           }
         ]
       },
@@ -55,7 +55,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "apply_patch|Edit|Write|Bash",
+        "matcher": "apply_patch|Edit|Write",
         "hooks": [
           {
             "type": "command",

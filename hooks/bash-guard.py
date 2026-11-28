@@ -62,8 +62,8 @@ POLL_LOOP = re.compile(
 )
 POLL_MESSAGE = (
     "Blocked: this command waits by polling (a `sleep` of 5 s or more, or an until/while loop that sleeps). "
-    "Run the job itself with run_in_background: true, then wait for its completion notification with "
-    "t3_background_wait or Monitor, and do other work meanwhile."
+    "Run the job itself with run_in_background: true, then let the harness notify you (or use Monitor), "
+    "and do other work meanwhile."
 )
 MAX_CLAMPED_SLOT_WAIT_MS = 120_000
 SLOT_CLAMP_NOTE = (

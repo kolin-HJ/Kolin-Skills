@@ -384,17 +384,10 @@ def check(files_only=False):
             failures.append("skill asset tests failed")
     except subprocess.TimeoutExpired:
         failures.append("skill asset tests timed out after 300s; run node --test on skills/*/assets to find the hang")
-    try:
-        budget = subprocess.run([sys.executable, str(REPO / "bin/feature-budget"), str(REPO)],
-                                cwd=REPO, env=test_env, text=True, capture_output=True, timeout=60)
-        sys.stdout.write(budget.stdout)
-        sys.stderr.write(budget.stderr)
-    except subprocess.TimeoutExpired:
-        print("feature-budget timed out (report-only)")
     for failure in failures:
         print(f"FAIL: {failure}", file=sys.stderr)
     if failures:
         return 1
-    print("Passed: home drift and strays (unless skipped above), spend caps, 1,000-line files, skill indexes, required tools, vendored and third-party skills, pinned CLIs, Python and Node tests, feature-budget (report-only).")
+    print("Passed: home drift and strays (unless skipped above), spend caps, 1,000-line files, skill indexes, required tools, vendored and third-party skills, pinned CLIs, Python and Node tests.")
     print("Live agent routing and model-role readiness are not checked.")
     return 0

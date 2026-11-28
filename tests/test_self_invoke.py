@@ -13,7 +13,7 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 PSTACK_SKILLS = "cursor-plugins/pstack/skills"
 LOCKED_FRONTMATTER = "---\nname: {name}\ndescription: test {name}\ndisable-model-invocation: true\nicon: crown\n---\n\n# {name}\n"
 SELF_INVOKING = [
-    "architect", "how", "statechart", "unslop", "deslop", "thermo-nuclear-code-quality-review",
+    "architect", "how", "statechart", "thermo-nuclear-code-quality-review",
 ]
 USER_ONLY = ["poteto-mode", "swarm", "tdd", "correct"]
 OWN_USER_ONLY_SKILLS = ["full-send", "hydrojug-untangle", "repo-standard", "user-notes", "council", "structure-review"]
@@ -77,7 +77,7 @@ class ApplySelfInvokeTests(SelfInvokeCase):
             with self.subTest(home=home):
                 architect = self.home / home / "architect"
                 self.assertEqual((architect / "../how/SKILL.md").read_text().splitlines()[1], "name: how")
-                self.assertEqual((architect / "../unslop/SKILL.md").read_text().splitlines()[1], "name: unslop")
+                self.assertEqual((architect / "../statechart/SKILL.md").read_text().splitlines()[1], "name: statechart")
 
     def test_apply_stays_idempotent_and_follows_an_upstream_change_to_the_skill(self):
         self.apply()
@@ -91,10 +91,10 @@ class ApplySelfInvokeTests(SelfInvokeCase):
 
     def test_an_allowlisted_skill_that_upstream_dropped_is_unlinked(self):
         self.apply()
-        shutil.rmtree(self.vendor / "unslop")
+        shutil.rmtree(self.vendor / "statechart")
         self.apply()
         for home in [".agents/skills", ".claude/skills"]:
-            self.assertFalse((self.home / home / "unslop").is_symlink(), home)
+            self.assertFalse((self.home / home / "statechart").is_symlink(), home)
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
 
@@ -148,11 +148,11 @@ class DerivedTreeTests(SelfInvokeCase):
 
     def test_a_skill_that_upstream_drops_leaves_no_entry_in_the_derived_folder(self):
         self.apply()
-        shutil.rmtree(self.vendor / "unslop")
+        shutil.rmtree(self.vendor / "statechart")
         shutil.rmtree(self.vendor / "swarm")
         self.apply()
         remaining = sorted(os.listdir(self.derived()))
-        self.assertEqual(remaining, sorted(set(SELF_INVOKING) - {"unslop"}))
+        self.assertEqual(remaining, sorted(set(SELF_INVOKING) - {"statechart"}))
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
     def test_a_dangling_link_inside_a_derived_folder_fails_the_quick_check(self):

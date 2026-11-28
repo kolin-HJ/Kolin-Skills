@@ -620,8 +620,29 @@ def check_payload(raw):
     return check_command(cmd, cwd)
 
 
+def parse_emit(argv):
+    if "--emit" in argv:
+        index = argv.index("--emit")
+        if index + 1 < len(argv):
+            return argv[index + 1]
+    return "claude"
+
+
 def main():
     mode = sys.argv[1]
+    if mode == "hook":
+        emit = parse_emit(sys.argv[2:])
+        reason = check_payload(sys.stdin.read())
+        if reason:
+            message = f"Blocked: {reason}"
+            if emit == "antigravity":
+                print(json.dumps({"decision": "deny", "reason": message}))
+                sys.exit(0)
+            print(message, file=sys.stderr)
+            sys.exit(2)
+        if emit == "antigravity":
+            print(json.dumps({"decision": "allow"}))
+        sys.exit(0)
     if mode == "payload":
         reason = check_payload(sys.stdin.read())
         if reason:

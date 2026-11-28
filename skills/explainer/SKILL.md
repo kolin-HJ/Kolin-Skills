@@ -1,11 +1,11 @@
 ---
 name: explainer
-description: Build a one-page HTML explainer of a change, PR, subsystem or decision. Use only when the user asks for an explainer page, a visual walkthrough page, or "explain this visually" as a page, or says yes to your one-line offer. Never build one unasked. A spoken explain, how, or walk-me-through goes to pstack `teach` via `pstack-local`.
+description: Build a one-page HTML explainer of a change, PR, subsystem or decision. Use only when the user asks for an explainer page, a visual walkthrough page, or "explain this visually" as a page, or says yes to your one-line offer. Never build one unasked. A spoken explain, how, or walk-me-through goes to pstack `teach` (`~/.agents/vendor/cursor-plugins/pstack/skills/teach/SKILL.md`).
 ---
 
 # Explainer
 
-An explainer is one page a person can review in a few minutes. It is not the in-chat reply. Spoken explain, how, and walk-through requests go to `teach` via `pstack-local`. Offer this page in one line. Build it only after a yes.
+An explainer is one page a person can review in a few minutes. It is not the in-chat reply. Spoken explain, how, and walk-through requests go to pstack `teach` (`~/.agents/vendor/cursor-plugins/pstack/skills/teach/SKILL.md`). Offer this page in one line. Build it only after a yes.
 
 ## Reply and page shape
 

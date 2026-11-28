@@ -37,6 +37,7 @@ Count changed lines (`git diff --numstat`, ignoring lockfiles, tests and generat
 
 - A parallel owner beside an existing one (name it). Logic duplicated from elsewhere (grep first). A branch per case where a typed union or a `transition` should carry it. One decision in two places. The data layer importing feature code. A pass-through layer. Independent async work serialized, or related writes left non-atomic.
 - Size. Name a version half the size a user could not tell apart, if one exists. Name behavior the task did not ask for.
+- Premise ceiling. If the diff patches around a flawed premise or low-ceiling default, name the greenfield alternative and its benchmark instead of polishing the patch.
 - Report net lines (`+added -removed`) and whether that size is earned.
 - Name one thing to delete, with `file:line`.
 - A state or decision written outside the owner file the blueprint names.

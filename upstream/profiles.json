@@ -1,5 +1,8 @@
 {
   "media": {
+    "benjitaylor/skills": [
+      "stageshow"
+    ],
     "heygen-com/hyperframes": [
       "hyperframes",
       "hyperframes-cli",

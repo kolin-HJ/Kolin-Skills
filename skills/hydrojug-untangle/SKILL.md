@@ -50,7 +50,7 @@ Work as if today's requirements were known from the start. Prefer one root-cause
 
 Write each proposed fix above the problems it solves.
 
-Load when relevant. Do not copy them here:
+Load when relevant from `~/.agents/vendor/cursor-plugins/pstack/skills/<name>/SKILL.md` (or `cursor-team-kit/skills/deslop/SKILL.md`). Do not copy them here:
 
 - `principle-redesign-from-first-principles`
 - `principle-subtract-before-you-add`

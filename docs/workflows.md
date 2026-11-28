@@ -8,6 +8,8 @@ Kolin approves this before code on non-trivial work. A build over about 10 files
 
 ```
 Goal:
+Greenfield ceiling (ignore what exists—optimal shape):
+Benchmark to hill-climb on (metric + how we measure it):
 Applies to (divisions/roles):
 UX / visible behavior (if UI):
 Types:
@@ -22,7 +24,7 @@ Cut list (left out, and why):
 
 ## Grill
 
-Cap at 5 questions. Always offer the smallest version and a cut list. Stop when a wrong answer would not change the work.
+Cap at 5 questions. Always contrast the highest-ceiling greenfield option (with its benchmark) against the smallest version and a cut list. Stop when a wrong answer would not change the work.
 
 ## Brief
 
