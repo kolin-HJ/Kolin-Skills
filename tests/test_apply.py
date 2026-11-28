@@ -361,7 +361,7 @@ class ApplyTests(unittest.TestCase):
         self.assertNotEqual(self.run_cli("import", str(self.home / ".grok/skills/tdd")).returncode, 0)
         self.assertFalse((self.repo / "skills/tdd").exists())
 
-    def test_a_vendor_dropped_from_the_repo_leaves_home_and_pstack_agents_link_in(self):
+    def test_a_vendor_dropped_from_the_repo_leaves_home_and_unused_vendor_agents_stay_unlinked(self):
         pstack = self.home / ".agents/vendor/cursor-plugins/pstack"
         self.write_skill(pstack / "skills/how")
         (pstack / "agents").mkdir(parents=True)
@@ -375,8 +375,8 @@ class ApplyTests(unittest.TestCase):
         for home in [".agents/skills", ".claude/skills"]:
             self.assertFalse((self.home / home / "ponytail").is_symlink(), home)
             self.assertEqual((self.home / home / "how").resolve(), (pstack / "skills/how").resolve(), home)
-        self.assertEqual((self.home / ".claude/agents/comment-sicko.md").resolve(), (pstack / "agents/comment-sicko.md").resolve())
-        self.assertIn('name = "comment-sicko"', (self.home / ".codex/agents/comment-sicko.toml").read_text())
+        self.assertFalse((self.home / ".claude/agents/comment-sicko.md").exists())
+        self.assertFalse((self.home / ".codex/agents/comment-sicko.toml").exists())
         self.assertEqual(self.run_cli("apply", "--check").returncode, 0)
 
     def test_hyperframes_is_retired_unless_the_media_profile_is_on(self):
@@ -518,7 +518,7 @@ class ApplyTests(unittest.TestCase):
                 self.assertNotIn("stale-managed", hooks)
                 pre = hooks["kolin-skills"]["PreToolUse"]
                 env_matchers = [entry["matcher"] for entry in pre if "block-env-reads.py" in json.dumps(entry)]
-                git_matchers = [entry["matcher"] for entry in pre if "block-forbidden-git.sh" in json.dumps(entry)]
+                git_matchers = [entry["matcher"] for entry in pre if "git_guard.py" in json.dumps(entry)]
                 self.assertEqual(env_matchers, ["run_command|read_file|view_file|grep_search|find_by_name"])
                 self.assertEqual(git_matchers, ["run_command|write_file|edit_file|write_to_file|replace_file_content|multi_replace_file_content"])
         self.assertIn({"path": "~/team-skills"}, json.loads((t3_config / "skills.json").read_text())["entries"])

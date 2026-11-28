@@ -30,14 +30,14 @@ VENDOR_SKILL_DIRS = {
     "cursor-plugins/cursor-team-kit/skills": None,
 }
 VENDOR_SKIP = {"setup-pstack"}
-SELF_INVOKING_SKILLS = {"architect", "how", "statechart", "unslop", "deslop", "thermo-nuclear-code-quality-review"}
+SELF_INVOKING_SKILLS = {"architect", "how", "statechart", "thermo-nuclear-code-quality-review"}
 MODEL_LOCK_KEY = "disable-model-invocation"
 POLICY_MAX_BYTES = 2048
 PSTACK_LOCAL_MAX_BYTES = 1024
 QUICK_CHECK_SECONDS = 30
 TEST_FILES_AT_ONCE = 6
 TEST_FILE_SECONDS = 300
-VENDOR_AGENTS = ["cursor-plugins/pstack/agents/comment-sicko.md"]
+VENDOR_AGENTS = []
 WATCHED_HOMES = [
     ".agents/skills", ".claude/skills", ".cursor/skills", ".codex/skills", ".grok/skills",
     ".gemini/config/skills",
@@ -60,7 +60,7 @@ DROPPED_SKILLS = {
     "prototype", "research", "triage", "wayfinder", "retro", "handoff", "to-questionnaire",
     "wait-what", "improve-codebase-architecture", "setup-matt-pocock-skills",
     "hyperframes", "hyperframes-cli", "hyperframes-registry", "media-use",
-    "reverse-any-video", "style-sampling", "slideshow",
+    "reverse-any-video", "style-sampling", "slideshow", "stageshow",
 }
 PROFILES_JSON = REPO / "upstream/profiles.json"
 NPX_SKILL_LOCK = HOME / ".agents/.skill-lock.json"
@@ -69,13 +69,8 @@ LINKS = {
     "policy/compact-instructions.md": [".codex/compact-instructions.md"],
     "claude/statusline.sh": [".claude/statusline.sh"],
     "claude/output-styles/ste-visual.md": [".claude/output-styles/ste-visual.md"],
-    "hooks/lint-changed-lines.py": [".codex/hooks/lint-changed-lines.py"],
-    "hooks/compact-context.py": [".codex/hooks/compact-context.py"],
     "codex/rules/agent-tools.rules": [".codex/rules/agent-tools.rules"],
-    "hooks/block-env-reads.py": [".claude/hooks/block-env-reads.py"],
     "hooks/heavy-slot.py": [".kolin-skills/bin/heavy-slot.py"],
-    "hooks/agent-default-model.py": [".claude/hooks/agent-default-model.py"],
-    "hooks/gate/block-forbidden-git.sh": [".claude/hooks/block-forbidden-git.sh"],
     "bin/kolin-skills": [".local/bin/kolin-skills"],
     "bin/context-audit": [".local/bin/context-audit"],
     "bin/feature-budget": [".local/bin/feature-budget"],
@@ -91,13 +86,23 @@ MERGED_JSON = {
 }
 RENDERED = {"cursor/agent-policy.mdc": ".cursor/rules/agent-policy.mdc"}
 READ_ONLY_EXECUTABLES = {"bin/agent-browser-guard": ".local/bin/agent-browser-guard"}
-LEGACY_HOOK_PATHS = [str(HOME / path) for paths in LINKS.values() for path in paths if path.endswith((".py", ".sh"))]
+LEGACY_HOOK_PATHS = [
+    str(HOME / path) for path in (
+        ".codex/hooks/lint-changed-lines.py",
+        ".codex/hooks/compact-context.py",
+        ".claude/hooks/block-env-reads.py",
+        ".claude/hooks/agent-default-model.py",
+        ".claude/hooks/block-forbidden-git.sh",
+        ".kolin-skills/bin/heavy-slot.py",
+        ".claude/statusline.sh",
+    )
+]
 LEGACY_HOOK_PATHS.append("pstack-local/scripts/mode-reminder")
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
 SPEND_CAPS = {"subagent_model": "sonnet", "max_compact_window": 250_000}
 TRUNK = "main"
 REQUIRED_TOOLS = {
-    "jq": "hooks/gate/block-forbidden-git.sh reads the tool call with it, and without it blocks every shell command",
+    "jq": "claude/statusline.sh formats the status line with it",
     "node": "the repo-standard PR proof script is tested with it, and npx skills needs it",
 }
 SKILL_INDEXES = ["README.md"]

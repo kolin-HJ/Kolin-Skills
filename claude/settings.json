@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash '{{REPO}}/hooks/gate/block-forbidden-git.sh'"
+            "command": "python3 '{{REPO}}/hooks/gate/git_guard.py' hook"
           }
         ]
       },
@@ -116,16 +116,6 @@
         ]
       },
       {
-        "matcher": "Agent|Task",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 '{{REPO}}/hooks/keep-awake.py'",
-            "timeout": 5
-          }
-        ]
-      },
-      {
         "matcher": "mcp__t3-code__preview_.*",
         "hooks": [
           {
@@ -138,7 +128,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|Bash",
+        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
@@ -200,19 +190,11 @@
     "dataviz": "name-only",
     "anthropic-skills:computer-use": "name-only",
     "reverse-engineer-anything": "user-invocable-only",
-    "code-review": "name-only",
     "agent-browser": "user-invocable-only",
+    "agent-desktop": "user-invocable-only",
     "repo-standard": "user-invocable-only",
     "user-notes": "user-invocable-only",
     "explainer": "user-invocable-only",
-    "council": "user-invocable-only",
-    "hyperframes": "user-invocable-only",
-    "hyperframes-cli": "user-invocable-only",
-    "hyperframes-registry": "user-invocable-only",
-    "media-use": "user-invocable-only",
-    "reverse-any-video": "user-invocable-only",
-    "style-sampling": "user-invocable-only",
-    "slideshow": "user-invocable-only",
-    "stageshow": "user-invocable-only"
+    "council": "user-invocable-only"
   }
 }

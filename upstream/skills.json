@@ -7,8 +7,5 @@
   ],
   "vercel-labs/agent-browser": [
     "agent-browser"
-  ],
-  "benjitaylor/skills": [
-    "stageshow"
   ]
 }

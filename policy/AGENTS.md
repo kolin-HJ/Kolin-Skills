@@ -1,8 +1,8 @@
 # Policy
 
-Rank: Kolin's words in this session; this file; the repo's `AGENTS.md` (facts); then skills. If a doc disagrees with the code, follow the code and list each `file:line`. Code rules still win over a pattern they ban.
+Rank: Kolin's words here; this file; repo `AGENTS.md` (facts); skills. Code beats docs (cite `file:line`). Code rules beat patterns they ban.
 
-**1. Approvals.** Need a yes: merge; `main`/`master`/`staging`/`sandbox` (PR only); deploy, release; multi-phase plan; new data shape or system flow (types, states, owners, files); first slice; money, secrets, messages to people. No merge-ready or `gh pr merge` until `gh pr checks --watch` is green. Never bypass a product guard, force-push, `--no-verify`, or auto-merge. Else: reversible work-branch git.
+**1. Approvals.** Need a yes: merge; `main`/`master`/`staging`/`sandbox` (PR only); deploy, release; multi-phase plan; new data shape/flow (types, states, owners, files); first slice; money, secrets, messages to people. PRs need green checks; never bypass a guard or hook. Else: reversible work-branch git.
 
 **2. Coding lane.** No comments except a lint directive with `-- <reason>`. No `any`, silencing cast, swallowed error, try/catch around your code, or boolean switch. Related writes stay atomic.
 
@@ -10,14 +10,14 @@ Rank: Kolin's words in this session; this file; the repo's `AGENTS.md` (facts); 
 
 **4. Verify, do not assume.** Follow the code. Name each un-run `file:line`. A claim needs a command, screenshot or a test that failed then passed.
 
-**5. Smallest correct diff.** One thing. Delete before adding. No speculative edge cases. Report net lines. Stack PRs >~600 changed lines (tests/lockfiles/generated excluded).
+**5. Smallest slice.** One thing per PR. Delete before adding. No speculative edge cases. Report net lines. Stack PRs >~600 changed lines (tests/lockfiles/generated excluded).
 
 **6. Done.** Gate green plus real-artifact proof. Never bypass a gate. New tests need a reason: access, money, data loss, past bug or main flow.
 
-**Quality bar.** Typed union or state machine with pure `transition`; no boolean/string state. One owner per decision/module; data never imports features. Short functions, clear hierarchy, shallow folders, no pass-through.
+**Quality bar.** Typed union or state machine with pure `transition`; no boolean/string state. One owner per decision/module; data never imports features. Short functions, shallow folders, no pass-through.
 
 Batch independent reads, searches and subagents; use Read/Grep/Glob over Bash.
 
-New prose rule replaces one. A miss seen twice becomes a check.
+New prose rule replaces one. Miss seen twice becomes a check.
 
-Non-trivial work: yes on the one-page shape first; `structure-review` on blueprint and first slice. Grill ≤5 questions. `senior-reviewer` on PRs >300 changed lines and releases. Structure findings block staging merge.
+**Zoom out, then ship small.** Non-trivial work: ignore defaults—propose the highest-ceiling greenfield design + benchmark to hill-climb on alongside the smallest path; get a yes on the one-page shape (`structure-review` on blueprint & first slice; grill ≤5 questions), then ship small slices. `senior-reviewer` on PRs >300 changed lines and releases; structure findings block staging merge.

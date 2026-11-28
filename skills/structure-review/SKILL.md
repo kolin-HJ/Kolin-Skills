@@ -52,7 +52,7 @@ Prefer the move that makes a whole branch, helper or mode disappear over the mov
 
 Do not force a model. Boring code that is clear, local and unlikely to grow stays. An abstraction that removes no branch and no invalid state is itself a finding.
 
-Read a principle before you cite it, at `~/.agents/skills/<name>/SKILL.md`: `principle-model-the-domain`, `principle-minimize-reader-load`, `principle-subtract-before-you-add`, `principle-laziness-protocol`, `principle-redesign-from-first-principles`, `principle-type-system-discipline`, `principle-boundary-discipline`.
+Read a principle before you cite it, at `~/.agents/vendor/cursor-plugins/pstack/skills/<name>/SKILL.md`: `principle-model-the-domain`, `principle-minimize-reader-load`, `principle-subtract-before-you-add`, `principle-laziness-protocol`, `principle-redesign-from-first-principles`, `principle-type-system-discipline`, `principle-boundary-discipline`.
 
 ## Prove each fix
 

@@ -13,7 +13,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash '{{REPO}}/hooks/gate/block-forbidden-git.sh' --emit antigravity"
+            "command": "python3 '{{REPO}}/hooks/gate/git_guard.py' hook --emit antigravity"
           }
         ]
       },

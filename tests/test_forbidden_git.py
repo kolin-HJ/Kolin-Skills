@@ -2,11 +2,13 @@ import json
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import unittest
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
-HOOK = pathlib.Path(os.environ.get("FORBIDDEN_GIT_HOOK", REPO / "hooks/gate/block-forbidden-git.sh"))
+HOOK = pathlib.Path(os.environ.get("FORBIDDEN_GIT_HOOK", REPO / "hooks/gate/git_guard.py"))
+HOOK_CMD = [sys.executable, str(HOOK), "hook"] if HOOK.suffix == ".py" else ["bash", str(HOOK)]
 
 GIT = "git"
 GH = "g" + "h"
@@ -220,13 +222,13 @@ GATE_SKIP_ALLOWED = [
 
 def run_hook(command, cwd, env=None):
     payload = {"tool_input": {"command": command}, "cwd": cwd}
-    return subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
+    return subprocess.run(HOOK_CMD, input=json.dumps(payload), text=True,
                           capture_output=True, cwd=cwd, env=env, timeout=20)
 
 
 def run_file_hook(path, cwd, key="tool_input"):
     payload = {key: {"file_path": path}, "cwd": cwd}
-    return subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
+    return subprocess.run(HOOK_CMD, input=json.dumps(payload), text=True,
                           capture_output=True, cwd=cwd, env={**os.environ, "HOME": cwd}, timeout=20)
 
 
@@ -285,21 +287,21 @@ class ForbiddenGitHookTests(unittest.TestCase):
     def test_the_codex_and_cursor_payload_shape_is_guarded_too(self):
         with tempfile.TemporaryDirectory() as directory:
             payload = {"toolInput": {"command": GIT + " push origin main"}, "cwd": directory}
-            result = subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
+            result = subprocess.run(HOOK_CMD, input=json.dumps(payload), text=True,
                                     capture_output=True, cwd=directory, timeout=20)
             self.assertEqual(result.returncode, 2)
 
     def test_antigravity_emit_returns_json_decisions_for_commands_and_files(self):
         with tempfile.TemporaryDirectory() as directory:
             blocked_cmd = subprocess.run(
-                ["bash", str(HOOK), "--emit", "antigravity"],
+                [*HOOK_CMD, "--emit", "antigravity"],
                 input=json.dumps({"toolCall": {"name": "run_command", "args": {"CommandLine": GIT + " push origin main"}}, "cwd": directory}),
                 text=True, capture_output=True, cwd=directory, timeout=20,
             )
             self.assertEqual(blocked_cmd.returncode, 0, blocked_cmd.stderr)
             self.assertEqual(json.loads(blocked_cmd.stdout)["decision"], "deny")
             allowed_cmd = subprocess.run(
-                ["bash", str(HOOK), "--emit", "antigravity"],
+                [*HOOK_CMD, "--emit", "antigravity"],
                 input=json.dumps({"toolCall": {"name": "run_command", "args": {"CommandLine": GIT + " status"}}, "cwd": directory}),
                 text=True, capture_output=True, cwd=directory, timeout=20,
             )
@@ -307,7 +309,7 @@ class ForbiddenGitHookTests(unittest.TestCase):
             self.assertEqual(json.loads(allowed_cmd.stdout), {"decision": "allow"})
             for key in ("Path", "AbsolutePath"):
                 blocked_file = subprocess.run(
-                    ["bash", str(HOOK), "--emit", "antigravity"],
+                    [*HOOK_CMD, "--emit", "antigravity"],
                     input=json.dumps({"toolCall": {"name": "edit_file", "args": {key: f"{directory}/.githooks/pre-commit"}}, "cwd": directory}),
                     text=True, capture_output=True, cwd=directory, timeout=20,
                 )
@@ -334,18 +336,18 @@ class ForbiddenGitHookTests(unittest.TestCase):
                 fake.write_text("#!/bin/sh\necho " + base + "\n")
                 fake.chmod(0o755)
                 payload = {"tool_name": "mcp__t3-code__pull_request_merge", "tool_input": {"number": 12, "repository": "o/r"}, "cwd": directory}
-                result = subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
+                result = subprocess.run(HOOK_CMD, input=json.dumps(payload), text=True,
                                         capture_output=True, cwd=directory, env=env, timeout=20)
                 self.assertEqual(result.returncode, expected, (base, result.stderr))
             fake.write_text("#!/bin/sh\necho feature\n")
             fake.chmod(0o755)
             for extra in ({"auto": True}, {"stack": True}):
                 payload = {"tool_name": "mcp__t3-code__pull_request_merge", "tool_input": {"number": 12, **extra}, "cwd": directory}
-                result = subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True,
+                result = subprocess.run(HOOK_CMD, input=json.dumps(payload), text=True,
                                         capture_output=True, cwd=directory, env=env, timeout=20)
                 self.assertEqual(result.returncode, 2, (extra, result.stderr))
             ag_payload = {"toolCall": {"name": "mcp_t3-code_pull_request_merge", "args": {"number": 12, "auto": True}}, "cwd": directory}
-            ag_result = subprocess.run(["bash", str(HOOK), "--emit", "antigravity"], input=json.dumps(ag_payload),
+            ag_result = subprocess.run([*HOOK_CMD, "--emit", "antigravity"], input=json.dumps(ag_payload),
                                        text=True, capture_output=True, cwd=directory, env=env, timeout=20)
             self.assertEqual(ag_result.returncode, 0, ag_result.stderr)
             self.assertEqual(json.loads(ag_result.stdout)["decision"], "deny")

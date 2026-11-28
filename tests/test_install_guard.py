@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
-HOOK = REPO / "hooks/gate/block-forbidden-git.sh"
+HOOK = REPO / "hooks/gate/git_guard.py"
 CLI = REPO / "bin/kolin-skills"
 GIT = "git"
 
@@ -40,7 +40,7 @@ class InstallGuardTests(unittest.TestCase):
 
     def run_hook(self, command, cwd):
         payload = {"tool_input": {"command": command}, "cwd": str(cwd)}
-        return subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True, capture_output=True,
+        return subprocess.run([sys.executable, str(HOOK), "hook"], input=json.dumps(payload), text=True, capture_output=True,
                               cwd=str(cwd), env={**os.environ, "HOME": str(self.home)}, timeout=20)
 
     def test_changes_to_the_live_install_are_blocked_with_the_worktree_command(self):
@@ -101,7 +101,7 @@ class InstallGuardTests(unittest.TestCase):
 
     def run_file_hook(self, path, cwd):
         payload = {"tool_input": {"file_path": str(path)}, "cwd": str(cwd)}
-        return subprocess.run(["bash", str(HOOK)], input=json.dumps(payload), text=True, capture_output=True,
+        return subprocess.run([sys.executable, str(HOOK), "hook"], input=json.dumps(payload), text=True, capture_output=True,
                               cwd=str(cwd), env={**os.environ, "HOME": str(self.home)}, timeout=20)
 
     def test_edits_to_files_in_the_live_install_are_denied_but_not_in_worktrees_or_other_repos(self):
@@ -126,12 +126,9 @@ class InstallGuardTests(unittest.TestCase):
     def test_a_file_edit_is_denied_when_the_install_check_crashes(self):
         tools = self.home / "tools"
         tools.mkdir()
-        for name, target in {"python3": sys.executable, "jq": shutil.which("jq"),
-                             "readlink": shutil.which("readlink"), "dirname": shutil.which("dirname"),
-                             "cat": shutil.which("cat")}.items():
-            (tools / name).symlink_to(target)
+        (tools / "python3").symlink_to(sys.executable)
         payload = {"tool_input": {"file_path": str(self.other / "a.md")}, "cwd": str(self.home)}
-        result = subprocess.run([shutil.which("bash"), str(HOOK)], input=json.dumps(payload), text=True,
+        result = subprocess.run([sys.executable, str(HOOK), "hook"], input=json.dumps(payload), text=True,
                                 capture_output=True, env={"HOME": str(self.home), "PATH": str(tools)}, timeout=20)
         self.assertEqual(result.returncode, 2)
         self.assertIn("the install check could not run", result.stderr)

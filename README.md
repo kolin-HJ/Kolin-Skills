@@ -89,7 +89,7 @@ export PATH="$HOME/.local/bin:$PATH"
 kolin-skills check --quick
 ```
 
-Keep the clone where it is, because the home folders link into it. `check --quick` takes a few seconds. It passes only when every link resolves, the hooks and policy are wired, and the pstack skills that must start on their own (`architect`, `how`, `statechart`, `unslop`, `deslop`, `thermo-nuclear-code-quality-review`) have no `disable-model-invocation` line. Then start a new session: a running agent keeps the skills and policy it loaded at start.
+Keep the clone where it is, because the home folders link into it. `check --quick` takes a few seconds. It passes only when every link resolves, the hooks and policy are wired, and the pstack skills that must start on their own (`architect`, `how`, `statechart`, `thermo-nuclear-code-quality-review`) have no `disable-model-invocation` line. Then start a new session: a running agent keeps the skills and policy it loaded at start.
 
 ## How work runs
 
@@ -160,7 +160,7 @@ A skill starts in one of three ways:
 | `structure-review` | ⌨️ / 📜 | Read-only structure review of a blueprint, first slice, diff or folder. Policy sends a blueprint build here |
 | `hydrojug-untangle` | ⌨️ `/hydrojug-untangle` | Untangles only the files I name or the current diff, never the whole repo. Inspired by [caldoai `untangle-codebase`](https://github.com/caldoai/skills/blob/main/skills/untangle-codebase/SKILL.md) (MIT) |
 
-**The method** is the global policy. pstack stays vendored. `apply` auto-starts only `architect`, `how`, `statechart`, `unslop`, `deslop` and `thermo-nuclear-code-quality-review`. Other pstack skills stay in `~/.agents/vendor/cursor-plugins/pstack/skills/` and are read by path.
+**The method** is the global policy. pstack stays vendored. `apply` auto-starts only `architect`, `how`, `statechart` and `thermo-nuclear-code-quality-review`. Other pstack and cursor-team-kit skills stay in `~/.agents/vendor/cursor-plugins/` and are read by path.
 
 **Subagents** (in `agents/`). The main agent starts these. You do not call them.
 
@@ -176,13 +176,12 @@ Git pins live in `upstream/vendor.json` and CLIs in `upstream/tools.json`. The `
 
 | Source | Skills | When they start |
 |---|---|---|
-| [pstack](https://github.com/cursor/plugins) | Auto: `architect`, `how`, `statechart`, `unslop`. The rest stay in the vendor tree and are read by path | Auto skills start on match. Others: `~/.agents/vendor/cursor-plugins/pstack/skills/<name>/SKILL.md` |
-| cursor-team-kit | Auto: `deslop`, `thermo-nuclear-code-quality-review`. `control-ui` and `control-cli` stay in the vendor tree | Auto skills start on match. `control-ui` / `control-cli` are read by path |
+| [pstack](https://github.com/cursor/plugins) | Auto: `architect`, `how`, `statechart`. The rest stay in the vendor tree and are read by path | Auto skills start on match. Others: `~/.agents/vendor/cursor-plugins/pstack/skills/<name>/SKILL.md` |
+| cursor-team-kit | Auto: `thermo-nuclear-code-quality-review`. `deslop`, `control-ui` and `control-cli` stay in the vendor tree | Auto skills start on match. Others are read by path |
 | `npx skills` | `find-skills` | ⌨️ |
 | `npx skills` | `agent-browser` | To drive or check a web app. `upstream` also installs its CLI |
 | `npx skills` | `agent-desktop` | To drive or check a native desktop app. `upstream` also installs its CLI. On macOS, grant Accessibility once with `agent-desktop permissions --guide` |
-| `npx skills` ([benjitaylor/skills](https://github.com/benjitaylor/skills)) | `stageshow` | Records UI mock scenes for `user-notes` videos |
-| media profile (`kolin-skills upstream --profile media`) | `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use`, `slideshow`, `reverse-any-video`, `style-sampling` | Optional. Default `upstream` does not install them |
+| media profile (`kolin-skills upstream --profile media`) | `stageshow`, `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use`, `slideshow`, `reverse-any-video`, `style-sampling` | Optional. Default `upstream` does not install them |
 
 </details>
 
@@ -281,17 +280,17 @@ Not managed here: credentials, Codex `config.toml`, Cursor `mcp.json`, and `perm
 
 | Hook | Tools | What it does |
 |---|---|---|
-| `gate/block-forbidden-git.sh` | Claude Code, Codex, Antigravity | Blocks pushes to protected branches, PR merges (shell and T3 MCP `pull_request_merge`) into `main`, `master`, `staging` and `sandbox`, force push, `--no-verify`, auto-merge, and edits to hook files |
+| `gate/git_guard.py hook` | Claude Code, Codex, Antigravity | Blocks pushes to protected branches, PR merges (shell and T3 MCP `pull_request_merge`) into `main`, `master`, `staging` and `sandbox`, force push, `--no-verify`, auto-merge, and edits to hook files |
 | `block-env-reads.py` | Claude Code, Codex, Antigravity | Blocks `.env` reads. `.env.example` stays readable |
 | `bash-guard.py` | Claude Code, Codex | Blocks Docker databases, blocks `gh pr merge` and T3 MCP `pull_request_merge` until checks are green, keeps gate output unfiltered, and queues heavy jobs into 3 shared slots |
 | `heavy-slot.py` | Claude Code, Codex (through `bash-guard`) | Gives each heavy job a slot and keeps the Mac awake while it runs |
 | `pr-proof.py` | Claude Code, Codex | After a PR is opened or marked ready (shell `gh pr` or T3 MCP `pull_request_create`/`update`), sends it back to draft if `## Verification` is missing, UI `.tsx`/`.jsx` changes lack `## Visual proof`, non-test diff exceeds 800 lines without `Allowed large-pr:`, or `diff-audit` finds a block. Warns on PR bodies over 2,500 chars. Release PRs and drafts are skipped |
-| `lint-changed-lines.py` | Claude Code, Codex, Cursor | Lints the JS and TS lines the agent just changed |
+| `lint-changed-lines.py` | Claude Code, Codex, Cursor | Lints the JS and TS lines the agent just changed on `Edit`/`Write` |
 | `compact-context.py` | Claude Code, Codex | Keeps the branch and changed files through context compaction |
 | `agent-default-model.py` | Claude Code | Blocks `Plan` (starts without policy), redirects `Interrogate` off `general-purpose` to read-only `senior-reviewer`, floors `senior-reviewer` at Opus, runs unpinned `Explore` on Sonnet, runs `poteto-agent` and T3 `delegate_task` builders (`implementation`, `research`, `test`) on Sonnet unless the brief has a `Model reason:` line, and warns at 4 review spawns (native or delegated) since my last message and blocks at 8 |
 | `subagent-turn-guard.py` | Claude Code | Warns subagents at turns 55 and 65 of 80 to stop starting new files, finish checks, and write their report before `maxTurns` cuts them off |
 | `preview-budget.py` | Claude Code | Warns at every 15th `preview_*` call in one thread to hand the UI drive to the repo's `verifier` |
-| `keep-awake.py` | Claude Code | Keeps the Mac awake during each prompt and subagent run |
+| `keep-awake.py` | Claude Code | Keeps the Mac awake during each prompt (`UserPromptSubmit`) |
 
 </details>
 

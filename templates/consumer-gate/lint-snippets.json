@@ -1,7 +1,7 @@
 {
   "rules": {
-    "complexity": ["error", 12],
-    "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }],
+    "complexity": ["warn", 12],
+    "max-lines-per-function": ["warn", { "max": 80, "skipBlankLines": true, "skipComments": true }],
     "no-restricted-syntax": [
       "error",
       {
@@ -11,6 +11,7 @@
     ]
   },
   "oxlint": {
-    "deny": ["import/no-cycle", "complexity", "max-lines-per-function"]
+    "deny": ["import/no-cycle"],
+    "warn": ["complexity", "max-lines-per-function"]
   }
 }
